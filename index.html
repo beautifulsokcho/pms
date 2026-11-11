@@ -428,7 +428,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-11h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-11i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -463,7 +463,7 @@ var API=(!DEMO&&!GAS&&(store('api')||APP_API))||'';                             
 var LIVE=!!(GAS||API);
 var ROLE=store('role')||'',LOGIN_ROLE=store('loginRole')||'';   // LOGIN_ROLE: 역할별 접속 주소(?role=cleaner|manager|owner)
 var PIN=ROLE==='manager'?{mgr:1,id:store('mid')||'',pw:store('mpw')||''}:ROLE==='owner'?{own:1,id:store('mid')||'',pw:store('mpw')||''}:(store('pin')||'');
-var OWNER=!DEMO&&ROLE==='owner',OWN={hotel:'',room:'',rooms:[],hotels:[]};   // 객실 소유주: 새 예약(본인 호실 고정) · 예약검색(카드) · 객실별 정산서   // 매니저는 아이디·PIN으로 서버 확인
+var OWNER=!DEMO&&ROLE==='owner',OWN={hotel:'',room:'',rooms:[],hotels:[]},LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');   // LIMITED: 소유주·매니저 — 청소안함·정산 설정 숨김   // 객실 소유주: 새 예약(본인 호실 고정) · 예약검색(카드) · 객실별 정산서   // 매니저는 아이디·PIN으로 서버 확인
 var S={};   // 시트 데이터 {이름:{header,rows:[{r,v}]}}
 function rows(n){return (S[n]&&S[n].rows)||[]}
 function errText(e){return String(e&&e.message||e)}
@@ -1017,9 +1017,9 @@ function resForm(row,inline,pre){
     F('Note','비고',I('Note',v[R.note]),'full')+
     A('DepM','입금금액')+A('CfM','청소비')+A('TowelM','수건 (장)')+A('WaterM','물 (개)')+
     F('Pets','반려견 (마리)',I('Pets',v[R.pets],'type="number" min="0" inputmode="numeric" placeholder="0"'))+
-    '<div class="f full'+(OWNER?' ownhide':'')+'"><label class="chk"><input type="checkbox" id="'+P+'NoClean"'+(v[R.noClean]==='Y'?' checked':'')+'> 청소안함 (연속예약) — 같은 손님이 이 퇴실일에 이어서 묵어 이날 청소배정 제외</label><small class="note" id="'+P+'NcHint"></small></div>'+
+    '<div class="f full'+(LIMITED?' ownhide':'')+'"><label class="chk"><input type="checkbox" id="'+P+'NoClean"'+(v[R.noClean]==='Y'?' checked':'')+'> 청소안함 (연속예약) — 같은 손님이 이 퇴실일에 이어서 묵어 이날 청소배정 제외</label><small class="note" id="'+P+'NcHint"></small></div>'+
     '<div class="f full" id="'+P+'CyWrap" style="display:none"><label class="chk"><input type="checkbox" id="'+P+'CleanY"'+(v[R.cleanY]==='Y'?' checked':'')+'> 업체 청소 — 이번 예약은 소유주 청소가 아니라 요율대로 청소비 청구</label></div>'+
-    '<div class="f full'+(OWNER?' ownhide':'')+'"><label>호실별 정산서</label><div class="chkrow">'+   // 소유주에게는 숨김 (청소안함·정산 설정은 관리자만)
+    '<div class="f full'+(LIMITED?' ownhide':'')+'"><label>호실별 정산서</label><div class="chkrow">'+   // 소유주에게는 숨김 (청소안함·정산 설정은 관리자만)
       '<label class="chk"><input type="checkbox" id="'+P+'Excl"'+(v[R.excl]==='Y'?' checked':'')+'> 미정산 (객실 정산서 제외, 청소는 포함)</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpp"'+(v[R.xpp]==='Y'?' checked':'')+'> 추가인원 요금 빼고 정산</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpet"'+(v[R.xpet]==='Y'?' checked':'')+'> 반려견 요금 빼고 정산</label>'+
@@ -1070,9 +1070,9 @@ function resForm(row,inline,pre){
   g('Form').addEventListener('click',function(e){var b=e.target.closest('[data-reset]');if(!b)return;e.preventDefault();var k=b.dataset.reset;
     if(k==='DepM')g('Sale').value=ORIGV.Sale;
     MAN[k]=ORIGMAN[k];g(k).value=ORIGV[k];preview()});
-  function preview(){g('CyWrap').style.display=!OWNER&&isOwnerClean(g('Hotel').value,g('Room').value)?'':'none';syncAuto();
+  function preview(){g('CyWrap').style.display=!LIMITED&&isOwnerClean(g('Hotel').value,g('Room').value)?'':'none';syncAuto();
     var x0=collect(),nx=x0[R.cancel]?null:contNext(x0),pv=x0[R.cancel]?[]:contPrevRows(x0);
-    if(nx&&!NC_TOUCH&&!OWNER&&!g('NoClean').checked){g('NoClean').checked=true}
+    if(nx&&!NC_TOUCH&&!LIMITED&&!g('NoClean').checked){g('NoClean').checked=true}
     g('NcHint').innerHTML=(nx?'같은 손님 다음 예약 '+md(nx[R.ci])+'~'+md(nx[R.co])+' 이어짐'+(g('NoClean').checked?'':' — 청소안함을 고르면 이날 청소 제외'):'')+(pv.length?(nx?' · ':'')+'앞 예약 '+md(pv[0].v[R.ci])+'~'+md(pv[0].v[R.co])+'도 같은 손님 → 저장하면 앞 예약을 <b>청소안함</b>으로 표시':'');
     var x=collect();
     g('Calc').innerHTML='<span>숙박 <b>'+(x[R.n]===''?'-':x[R.n]+'박')+'</b></span><span>수수료 <b>'+(Math.round((x[R.rate]||0)*10000)/100)+'%</b></span><span>입금 <b>'+(won(x[R.fin])||'-')+'</b></span><span>청소비 <b>'+(won(x[R.cfin])||'-')+'</b></span><span>수건 <b>'+(x[R.towel]===''?'-':x[R.towel]+'장')+'</b></span><span>물 <b>'+(x[R.water]===''?'-':x[R.water]+'개')+'</b></span>'+
@@ -1106,7 +1106,7 @@ function resForm(row,inline,pre){
     var go=ov.length?conflictAsk({hotel:x[R.hotel],room:x[R.room],ci:x[R.ci],co:x[R.co],name:x[R.name]},ov):Promise.resolve(true);
     go.then(function(ok){
     if(!ok){btn.disabled=false;g('Err').textContent='같은 호실에 겹치는 예약이 있어 저장하지 않았습니다.';return}
-    var pvs=x[R.cancel]||OWNER?[]:noCleanItems(contPrevRows(x));
+    var pvs=x[R.cancel]||LIMITED?[]:noCleanItems(contPrevRows(x));
     call('saveRows','예약',[{r:row?row.r:null,v:vals}].concat(cancelItems(ov)).concat(pvs)).then(function(d){
       S['예약']=d;renderRes();
       if(inline){store('hotel',x[R.hotel]);resForm(null,true);renderRecent();savedToast(x[R.hotel]+' '+x[R.room]+'호 예약을 저장했습니다'+(pvs.length?' · 앞 예약 청소안함':''),d,{hotel:x[R.hotel],room:x[R.room],ci:x[R.ci]});g('Room').focus()}
@@ -1348,7 +1348,7 @@ function toResRow(x){var v=new Array(44).fill('');
   if(x.payout!==undefined){var pr=rows('플랫폼').find(function(q){return q.v[0]===(x.plat||'ABNB')}),rt=pr?Number(pr.v[1])||0:0;
     v[R.depM]=x.payout;v[R.sale]=Math.round(x.payout/(1-rt));}   // 수령액 → 입금금액, 판매금액은 수수료를 거꾸로 계산
   if(x.dep!==undefined)v[R.depM]=x.dep;   // 판매액·입금액이 같이 온 경우 입금은 그대로
-  if(x.noClean&&!OWNER){v[R.noClean]='Y';v[R.memo]=memoNoClean(v[R.memo],true)}   // 연속예약 → 청소안함 (소유주 입력은 관리자가 판단)
+  if(x.noClean&&!LIMITED){v[R.noClean]='Y';v[R.memo]=memoNoClean(v[R.memo],true)}   // 연속예약 → 청소안함 (소유주 입력은 관리자가 판단)
   if(OWNER){var okr=OWN.rooms.some(function(o){return o.h===v[R.hotel]&&o.r===String(v[R.room])});if(!okr){var o1=OWN.rooms.find(function(o){return o.r===String(v[R.room])})||OWN.rooms[0]||{h:OWN.hotel,r:OWN.room};v[R.hotel]=o1.h;v[R.room]=o1.r}}   // 소유주는 본인 객실
   if(isOwnAcct(x)){var oa=v[R.depM]!==''&&Number(v[R.depM])?Number(v[R.depM]):'';v[R.own]='Y';v[R.sale]=0;v[R.depM]=0;v[R.ownAmt]=oa;}   // 본인계정: 판매·입금 0, 수령액은 본인계정 입금액으로
   return calcRes(v)}
@@ -2203,7 +2203,7 @@ function softReload(){
   closeModal();pinWait=null;window.scrollTo(0,0);
   ROLE=store('role')||'';LOGIN_ROLE=store('loginRole')||'';
   PIN=ROLE==='manager'?{mgr:1,id:store('mid')||'',pw:store('mpw')||''}:ROLE==='owner'?{own:1,id:store('mid')||'',pw:store('mpw')||''}:(store('pin')||'');
-  OWNER=!DEMO&&ROLE==='owner';OWN={hotel:'',room:'',rooms:[],hotels:[]};S={};CW_LOADED=false;CTAB='clean';CW_DAY='';
+  OWNER=!DEMO&&ROLE==='owner';LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');OWN={hotel:'',room:'',rooms:[],hotels:[]};S={};CW_LOADED=false;CTAB='clean';CW_DAY='';
   var vc=$('#v-clean');if(vc&&vc.parentNode!==$('#vCleaner').parentNode)$('#vCleaner').parentNode.insertBefore(vc,$('#vCleaner'));
   $('#vCleaner').innerHTML='';$('#vCleaner').hidden=true;document.body.classList.remove('owner-mode','cw-board');
   ['mgOut','adOut','owPin'].forEach(function(id){var e=$('#'+id);if(e)e.remove()});
