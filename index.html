@@ -220,7 +220,7 @@ input[type=color]{width:52px;height:32px;padding:2px;border-radius:6px;cursor:po
 .fitmeasure{width:max-content!important;max-width:none!important}.fitmeasure .scroll{overflow:visible!important;max-width:none!important}.fitmeasure table{width:auto!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .report.pages .pgt{display:none}.report.pages .two{grid-template-columns:minmax(280px,380px) minmax(0,1fr)}@media (max-width:760px){.report.pages .two{grid-template-columns:minmax(0,1fr)}}.report.pages .pg2 .scroll{overflow-x:visible}.report.pages .pg2 td:first-child,.report.pages .pg2 th{white-space:normal;word-break:keep-all}.report.pages .pg2 .cedit{width:96px}.report.pages .pg3 .scroll{overflow-x:hidden}.report.pages .pg2 .scroll{overflow-x:hidden}.report.pages table.daily td,.report.pages table.daily th{padding:4px 5px}.report.pages table.daily th{max-width:64px}.report.pages .pg2 td.n{width:1%;white-space:nowrap}.report.pages .pg1{margin-bottom:16px}.report.pages .pg1 .calbox{margin-bottom:0}
-.pg.snap{padding:16px;background:#fff;width:auto}.pg.snap .pgt{display:block}.pg.snap .cedit{display:none}.pg.snap .cprint{display:inline}.pg.snap .scroll{overflow:visible}
+.report table.daily td.memo{white-space:normal;word-break:keep-all;min-width:96px;max-width:200px}.pg.snap,.pg.snap td,.pg.snap th,.pg.snap .note,.pg.snap .owner,.pg.snap .pgt{color:#13272c!important;opacity:1!important}.pg.snap .note{color:#33474c!important}.pg.snap{padding:16px;background:#fff;width:auto}.pg.snap .pgt{display:block}.pg.snap .cedit{display:none}.pg.snap .cprint{display:inline}.pg.snap .scroll{overflow:visible}
 .snapit{border-top:1px solid var(--line);padding:10px 0}.snaprow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}.snapimg{max-width:100%;border:1px solid var(--line);margin-bottom:12px}
 #printRoot{display:none}
 .cpages .pgt{display:none}.cpages .cpg+.cpg{margin-top:14px}
@@ -428,7 +428,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-11m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-11n';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1724,8 +1724,11 @@ function snapReport(id,name){var el=document.getElementById(id),btn=$('#sSnap');
   loadScript(H2C).then(function(){
     var pages=[].slice.call(el.querySelectorAll('.pg')),out=[],k=0;
     var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
-      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',windowWidth:pg.classList.contains('pg1')?1300:900,
-        onclone:function(d){[].forEach.call(d.querySelectorAll('.pg'),function(x){x.classList.add('snap')});[].forEach.call(d.querySelectorAll('.pg table'),function(t){t.style.zoom=''})}})
+      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',windowWidth:pg.classList.contains('pg1')?1300:pg.classList.contains('pg3')?1200:900,
+        onclone:function(d){d.documentElement.setAttribute('data-theme','light');d.documentElement.style.colorScheme='light';   // 다크 모드여도 밝은 글자색으로 (흐림 방지)
+          [].forEach.call(d.querySelectorAll('.pg'),function(x){x.classList.add('snap')});[].forEach.call(d.querySelectorAll('.pg table'),function(t){t.style.zoom=''});
+          [].forEach.call(d.querySelectorAll('.report.pages .two'),function(t){t.style.display='block'});   // 일자별 표가 잘리지 않게 한 줄 전체 폭
+          [].forEach.call(d.querySelectorAll('.pg2'),function(x){x.style.maxWidth='560px'});[].forEach.call(d.querySelectorAll('.pg3'),function(x){x.style.width='max-content';x.style.minWidth='640px'})}})
         .then(function(cv){out.push(cv);return next()})};
     return next().then(function(){   // 3장을 위아래로 이어 붙여 그림 파일 1개로
       var gap=40,W=Math.max.apply(null,out.map(function(c){return c.width})),H=out.reduce(function(a,c){return a+c.height},0)+gap*(out.length-1);
@@ -1821,7 +1824,8 @@ $('#sGo').onclick=function(){
       bot.slice(1).map(function(r){
         if(/발행/.test(r[0])){var sl=esc(r[7])+' '+esc(r[9]),h='<tr class="sum"><td colspan="3">'+esc(r[0])+(plats.length?'':' <span class="note">'+sl+'</span>')+'</td>'+(plats.length?'<td class="n" colspan="'+plats.length+'">'+sl+'</td>':'');
           idx.slice(3+plats.length).forEach(function(i){h+=(i===3||i===4||i===5)?'<td class="n">'+esc(r[i])+'</td>':'<td></td>'});return h+'</tr>'}
-        var x=idx.map(function(i){return r[i]});if(x.every(function(c){return c===''||c==null}))return '';return cellsRow(x,/소계/.test(r[0])?'sum':'')}).join('')+'</table>';
+        var x=idx.map(function(i){return r[i]});if(x.every(function(c){return c===''||c==null}))return '';var cls=/소계/.test(r[0])?'sum':'';
+          return '<tr'+(cls?' class="'+cls+'"':'')+'>'+x.map(function(c,j){return '<td'+(/비고/.test(String(hd[idx[j]]))?' class="memo"':isNum(c)?' class="n"':'')+'>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';   // 비고는 줄바꿈해서 다 보이게
     // 1쪽 달력(가로) · 2쪽 정산 요약(지급합계까지) · 3쪽 일자별 정산내역(세금계산서 발행액까지)
     var calList=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===p.hotel&&String(v[R.room])===String(p.room)&&!v[R.cancel]&&v[R.excl]!=='Y'&&v[R.ci]&&v[R.co]});   // 미정산 예약은 정산서 달력에서 감춤
     var ttl=esc(top[0][0]);
