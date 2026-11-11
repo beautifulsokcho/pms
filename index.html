@@ -370,9 +370,9 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="bar">
       <div class="f"><label for="sHotel">호텔</label><select id="sHotel"></select></div>
       <div class="f" style="flex:0 1 150px;min-width:150px"><label for="sKind">종류</label><select id="sKind"><option value="room">객실별 정산서</option><option value="all">통합정산서</option><option value="tax">세금신고서</option></select></div>
-      <div class="f s" id="sRoomF"><label for="sRoom">호실</label><select id="sRoom"></select></div>
+      <div class="f" id="sRoomF" style="flex:0 1 190px;min-width:170px"><label for="sRoom">호실</label><div class="mpick"><button class="btn" type="button" id="sRPrev" aria-label="이전 호실">‹</button><select id="sRoom"></select><button class="btn" type="button" id="sRNext" aria-label="다음 호실">›</button></div></div>
       <div class="f" id="sPerF" style="flex:0 1 120px;min-width:110px;display:none"><label for="sPer">기간 단위</label><select id="sPer"><option value="month">월별</option><option value="day">날짜별</option><option value="range">기간별</option></select></div>
-      <div class="f" id="sMonthF"><label for="sMonth">정산월</label><div class="mpick"><button class="btn" type="button" id="sMPrev" aria-label="이전 달">‹</button><input id="sMonth" type="month"><button class="btn" type="button" id="sMNext" aria-label="다음 달">›</button></div></div>
+      <div class="f" id="sMonthF" style="flex:1 1 200px;min-width:200px"><label for="sMonth">정산월</label><div class="mpick"><button class="btn" type="button" id="sMPrev" aria-label="이전 달">‹</button><input id="sMonth" type="month"><button class="btn" type="button" id="sMNext" aria-label="다음 달">›</button></div></div>
       <div class="f" id="sDayF" style="display:none"><label for="sDay">날짜</label><input id="sDay" type="date"></div>
       <div class="f" id="sFromF" style="display:none"><label for="sFrom">시작일</label><input id="sFrom" type="date"></div>
       <div class="f" id="sToF" style="display:none"><label for="sTo">종료일</label><input id="sTo" type="date"></div>
@@ -428,7 +428,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-11l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-11m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1767,8 +1767,15 @@ function fillSettle(){
   $('#sHotel').innerHTML=opts(hotels(true),$('#sHotel').value||defHotel());
   var fill=function(){$('#sRoom').innerHTML=opts(roomsOf($('#sHotel').value,true).filter(function(x){return !isSubRoom(x)}),$('#sRoom').value)};fill();   // 대체객실은 정산 제외
   if(OWNER){$('#sHotel').disabled=OWN.hotels.length<2;$('#sRoom').disabled=OWN.rooms.length<2;$('#sKind').value='room';sPerShow()}
-  $('#sHotel').onchange=function(){setHotel(this.value);fill()};
+  $('#sRPrev').disabled=$('#sRNext').disabled=$('#sRoom').disabled;
+  $('#sHotel').onchange=function(){setHotel(this.value);fill();sRoomGo()};
 }
+// 호실 ‹ › 이동 · 호실을 바꾸면 객실별 정산서를 그 호실로 바로 다시 보기
+function sRoomGo(){if($('#sKind').value==='room'&&$('#sRoom').value&&$('#sOut').innerHTML.trim())$('#sGo').click()}
+$('#sRoom').onchange=function(){if($('#sKind').value==='room'&&this.value&&$('#sMonth').value)$('#sGo').click()};
+['sRPrev','sRNext'].forEach(function(id,i){$('#'+id).onclick=function(){var sel=$('#sRoom');if(sel.disabled)return;
+  var os=[].filter.call(sel.options,function(o){return o.value&&!o.disabled}),k=os.findIndex(function(o){return o.value===sel.value});if(!os.length)return;
+  k=k<0?0:(k+(i?1:-1)+os.length)%os.length;sel.value=os[k].value;if($('#sKind').value==='room'&&$('#sMonth').value)$('#sGo').click()}});
 function sPerShow(){var room=$('#sKind').value==='room',per=room?'month':$('#sPer').value;
   $('#sRoomF').style.display=room?'':'none';$('#sPerF').style.display=room?'none':'';
   $('#sMonthF').style.display=per==='month'?'':'none';$('#sDayF').style.display=per==='day'?'':'none';
@@ -2220,7 +2227,7 @@ function softReload(){
   ['mgOut','adOut','owPin'].forEach(function(id){var e=$('#'+id);if(e)e.remove()});
   document.querySelectorAll('nav.tabs button').forEach(function(b){b.hidden=false;b.style.display=''});$('#deskTabs').style.display='';$('#mobTabs').style.display='';
   ['qHotel','qRoom','qView','sKind'].forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=false;f.style.display=''}});
-  $('#sHotel').disabled=false;$('#sRoom').disabled=false;$('#newBox').innerHTML='';$('#resStatus').innerHTML='';
+  $('#sHotel').disabled=false;$('#sRoom').disabled=false;$('#sRPrev').disabled=$('#sRNext').disabled=false;$('#newBox').innerHTML='';$('#resStatus').innerHTML='';
   boot();
 }
 function logoutAll(){['role','mid','mpw','cid','cpw','pin'].forEach(function(k){store(k,'')});softReload()}   // 로그아웃 → 처음 로그인 화면 (역할별 주소로 들어왔으면 그 역할 로그인)
