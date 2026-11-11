@@ -166,7 +166,7 @@ tr.dirty td{background:var(--hold-soft)}
 .pager .info{font-size:12.5px;color:var(--muted);margin:0 6px}
 .pastebox{background:var(--surface);border:1px dashed var(--accent);border-radius:var(--r);padding:12px;margin-bottom:12px;display:grid;gap:8px}
 .pastebox>label{font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.02em}
-.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}
+.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
 .pitem{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sunk)}
 .pitem.bad{border-color:var(--warn)}
 .pitem .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px}
@@ -302,6 +302,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="pastebox no-print">
       <label for="pasteIn">예약 문구 붙여넣기 · ABNB · 놀 · 놀호텔</label>
       <textarea id="pasteIn" rows="3" placeholder="플랫폼 앱의 예약 내용을 복사해 여기에 붙여넣으면 자동으로 인식합니다. 여러 건도 한 번에 됩니다."></textarea>
+      <div class="pocr"><label class="btn" id="ocrBtn">📷 캡처 사진으로 넣기<input type="file" id="ocrIn" accept="image/*" multiple hidden></label><span class="note" id="ocrMsg">에어비앤비·놀 앱 예약 화면을 캡처한 사진을 고르면 글자를 읽어 위 칸에 넣습니다.</span></div>
       <div id="pasteOut"></div>
     </div>
     <div class="newbox" id="newBox"></div>
@@ -428,7 +429,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-11o';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-11p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1158,15 +1159,16 @@ function parseAbnb(t){
     var end=k+1<idx.length?idx[k+1]-1:L.length,blk=L.slice(i+2,end),plus=0,adults=0;
     blk.forEach(function(x,j){
       var w=x.match(/₩\s*([\d,]+)/);if(w&&o.payout===undefined)o.payout=Number(w[1].replace(/,/g,''));   // ABNB ₩금액 = 호스트 수령액
-      if(x==='게스트'){var g=blk.slice(j+1).find(function(z){return /^\*\s*\S/.test(z)&&!/^\*\s*\+\d/.test(z)});if(g)o.name=g.replace(/^\*\s*/,'').replace(/~~/g,'').trim()}   // 취소 화면은 이름에 취소선(~~)
-      if(/출입문\s*비밀번호/.test(x)&&/^\d{3,8}$/.test(blk[j+1]||''))o.door=blk[j+1];
+      if(x==='게스트'){var g=blk.slice(j+1).find(function(z){return /^\*\s*\S/.test(z)&&!/^\*\s*\+\d/.test(z)});if(g)o.name=g.replace(/^\*\s*/,'').replace(/~~/g,'').trim();
+        else{var g2=blk[j+1]||'';if(g2&&!/^\+\s*\d|^(성인|어린이|아동|호스트|환불)|\d{2,}|₩/.test(g2)&&g2.length<=20)o.name=g2.replace(/~~/g,'').trim()}}   // 앱 캡처: 글머리 * 없이 이름만   // 취소 화면은 이름에 취소선(~~)
+      if(/비밀번호/.test(x)&&/^\d{3,8}$/.test(blk[j+1]||''))o.door=blk[j+1];
       if(x==='호스트'&&blk[j+1])o.host=blk[j+1];if(/리스팅\s*소유자/.test(x))o.listOwner=true;
       // 예약 관리 부분: Confirmation code(예약코드) → 달력 동기화와 같은 예약으로 연결, Booking date → 예약일
       var cc=x.match(/^(?:Confirmation\s*code|확인\s*코드|예약\s*코드)\s*:?\s*(HM[A-Z0-9]{6,12})?$/i);
       if(cc){var cv=cc[1]||(/^HM[A-Z0-9]{6,12}$/.test(blk[j+1]||'')?blk[j+1]:'');if(cv)o.code=cv.toUpperCase()}
       if(/^(?:Booking\s*date|예약\s*(?:날짜|일))\s*:?/i.test(x)){var bd=(x+' '+(blk[j+1]||'')).match(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);if(bd)o.booked=ymdOf(+bd[1],+bd[2],+bd[3])}
       var pm=x.match(/반려\s*(?:동물|견)\s*(\d+)\s*(?:마리|명)?/);if(pm)o.pets=Number(pm[1]);
-      var pl=x.match(/^\*\s*\+\s*(\d+)/);if(pl)plus+=Number(pl[1]);
+      var pl=x.match(/^\*?\s*\+\s*(\d+)\s*$/)||x.match(/^\*\s*\+\s*(\d+)/);if(pl)plus+=Number(pl[1]);
       var am=x.match(/^(?:성인|어린이|아동)\s*(\d+)\s*명/);if(am)adults+=Number(am[1]);
     });
     if(o.cancel)delete o.payout;
@@ -1273,7 +1275,28 @@ function parseDdnList(t){
     out.push(o)});
   return out;
 }
-function parsePasted(t){t=normText(t);return parseAbnb(t).concat(parseNol(t)).concat(parseDdn(t)).concat(parseDdnList(t))}
+// 놀 앱(휴대폰) 예약 상세 화면 · 캡처 글자: '예약번호2611…' '예약자명유재옥'처럼 붙은 글자, 여러 줄로 나뉜 객실명 → PC 복사 형식으로 바꿔 parseNol로
+function nolMobile(t){
+  if(!/예\s*약\s*번\s*호\s*[:：]?\s*\d{10,}/.test(t)||!/입\s*실\s*일\s*시/.test(t))return '';
+  var after=function(lab){var m=t.match(new RegExp(lab+'\\s*[:：]?\\s*([\\s\\S]{0,60})'));return m?m[1]:''};
+  var no=(t.match(/예\s*약\s*번\s*호\s*[:：]?\s*(\d{10,})/)||[])[1]||'';
+  var dt=function(lab){var m=after(lab).match(/(\d{4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})[^\n]*/);return m?m[0].trim():''};
+  var line1=function(lab){var a=after(lab).split('\n').map(function(x){return x.trim()});return a[0]||a[1]||''};
+  var name=line1('예\\s*약\\s*자\\s*명').replace(/\s*0\d{1,3}-.*$/,'').trim();
+  var tel=(after('연\\s*락\\s*처').match(/0\d{1,3}\s*-\s*\d{3,4}\s*-\s*\d{4}/)||[''])[0].replace(/\s/g,'');
+  var L=t.split('\n').map(function(x){return x.trim()}),ri=L.findIndex(function(x){return /^객\s*실\s*명/.test(x)}),room='';
+  if(ri>=0){var first=L[ri].replace(/^객\s*실\s*명\s*[:：]?\s*/,''),parts=first?[first]:[];
+    for(var j=ri+1;j<L.length&&j<ri+6;j++){if(!L[j])continue;if(/^객\s*실\s*ID|^입\s*실\s*일\s*시|^퇴\s*실/.test(L[j]))break;parts.push(L[j])}
+    room=parts.join('').replace(/(\d)(호)/,'$1$2')}
+  var nums=[],re=/판\s*매?\s*가?\s*[:：]?\s*([\d,]{4,})\s*원/g,m;while((m=re.exec(t)))nums.push(Number(m[1].replace(/,/g,'')));
+  var sale=nums.length?Math.max.apply(null,nums):0;
+  var cx=/예약\s*취소|취소\s*완료|취소된/.test(t);
+  return ['예약 번호',no,'예약 일시',dt('예\\s*약\\s*일\\s*시'),'예약자명',name,'연락처',tel,'객실 정보',room,'입실일시',dt('입\\s*실\\s*일\\s*시'),'퇴실일시',dt('퇴\\s*실\\s*일\\s*시')]
+    .concat(cx?['예약상태','예약취소']:[]).concat(sale?['총 판매가 '+sale.toLocaleString()+'원']:[]).join('\n');
+}
+function parsePasted(t){t=normText(t);
+  var nm=/예약\s*상세\s*정보|투숙일별|금액\s*및\s*할인|객실\s*ID\s*\d/.test(t)||!parseNol(t).length?nolMobile(t):'';   // 놀 앱 화면이면 PC 형식으로 바꿔서
+  return parseAbnb(t).concat(parseNol(nm||t)).concat(parseDdn(t)).concat(parseDdnList(t))}
 // ───────── 같은 호실 겹침 검사 ─────────
 function overlaps(x,selfR){
   if(!x.hotel||!x.room||!x.ci||!x.co||isSubRoom(x.room))return [];   // 대체객실은 겹침 무시
@@ -1411,6 +1434,20 @@ function learnProduct(x){
   call('saveRows','객실',items).then(function(d){S['객실']=d;if(x.learned)toast(x.hotel+' '+x.room+'호에 상품명을 기억했습니다 (다음부터 자동)')}).catch(function(e){toast('상품명을 기억하지 못했습니다: '+(e&&e.message||e))});
 }
 var pasteT=null;
+// 캡처 사진 → 글자: 폭 1080px 이하 JPEG로 줄여 서버(구글 드라이브 OCR)에 보내고, 읽은 글자를 붙여넣기 칸에 이어 붙임
+function ocrShrink(file){return new Promise(function(ok,no){var rd=new FileReader();rd.onerror=function(){no(new Error('사진을 읽지 못했습니다'))};
+  rd.onload=function(){var im=new Image();im.onerror=function(){no(new Error('사진을 열지 못했습니다'))};im.onload=function(){var k=Math.min(1,1080/im.width,8000/im.height),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);var q=0.88,u=c.toDataURL('image/jpeg',q);while(u.length>2600000&&q>0.5){q-=0.1;u=c.toDataURL('image/jpeg',q)}ok(u)};im.src=rd.result};rd.readAsDataURL(file)})}
+$('#ocrIn').onchange=function(){var fs=[].slice.call(this.files||[]),inp=this,msg=$('#ocrMsg'),lab=$('#ocrBtn');inp.value='';if(!fs.length)return;
+  if(DEMO){msg.textContent='예시 데이터에서는 사진 글자 읽기를 쓸 수 없습니다. 구글시트에 연결된 앱에서 쓰세요.';return}
+  lab.classList.add('busy');var k=0,txt=[];
+  var next=function(){if(k>=fs.length)return Promise.resolve();var f=fs[k++];msg.textContent='사진 글자 읽는 중… ('+k+'/'+fs.length+')';
+    return ocrShrink(f).then(function(u){return call('ocrImage',u)}).then(function(t){txt.push(String(t||'').trim());return next()})};
+  next().then(function(){var ta=$('#pasteIn'),add=txt.filter(Boolean).join('\n\n');
+    if(!add){msg.textContent='사진에서 글자를 찾지 못했습니다.';return}
+    ta.value=(ta.value.trim()?ta.value.trim()+'\n\n':'')+add;ta.dispatchEvent(new Event('input'));
+    msg.textContent='사진 '+fs.length+'장 글자를 넣었습니다. 아래 인식 결과를 확인하세요 (틀린 곳은 [폼에서 수정]).'})
+  .catch(function(e){msg.textContent='사진 글자를 읽지 못했습니다: '+errText(e)}).then(function(){lab.classList.remove('busy')})};
 $('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value);renderPaste();
   if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm()},250)});
 $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.closest('.pitem');if(!it||!el.dataset.p)return;var x=PASTE[+it.dataset.i];
