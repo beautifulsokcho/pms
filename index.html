@@ -166,7 +166,7 @@ tr.dirty td{background:var(--hold-soft)}
 .pager .info{font-size:12.5px;color:var(--muted);margin:0 6px}
 .pastebox{background:var(--surface);border:1px dashed var(--accent);border-radius:var(--r);padding:12px;margin-bottom:12px;display:grid;gap:8px}
 .pastebox>label{font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.02em}
-.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}#smsForm a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}.smspv pre{white-space:pre-wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin:6px 0}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
+.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}#smsForm .doorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-top:8px}#smsForm .door{display:flex;align-items:center;gap:6px;font-size:13px}#smsForm .door b{min-width:40px}#smsForm .door input{flex:1;min-width:0}#smsForm a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}.smspv pre{white-space:pre-wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin:6px 0}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
 .pitem{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sunk)}
 .pitem.bad{border-color:var(--warn)}
 .pitem .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px}
@@ -430,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-12h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-12i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1039,23 +1039,27 @@ function resForm(row,inline,pre){
       '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> 본인계정 (매출 제외, 청소비는 청구)</label>'+
       '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'>본인계정 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
     (row?F('Cancel','취소일 (발생 시)',I('Cancel',v[R.cancel],'type="date"'))+'<div class="f"><label>예약ID</label><input readonly value="'+esc(v[R.id])+'"></div>':'')+
-    (row&&!OWNER&&LIVE?'<div class="f full smsbox"><label>문자 보내기</label><div class="chkrow"><button type="button" class="btn" data-sms="예약확인">예약확인 문자</button><button type="button" class="btn" data-sms="입실안내">입실안내 문자</button></div>'+
-      '<div class="note" id="'+P+'SmsSt">예약확인: '+esc(v[R.smsA]||'안 보냄')+' · 입실안내: '+esc(v[R.smsB]||'안 보냄')+'</div><div id="'+P+'SmsPv"></div></div>':'')+
+    (row&&!OWNER&&LIVE?'<div class="f full smsbox"><label>문자 보내기</label><div id="'+P+'SmsBox"><span class="note">불러오는 중…</span></div><div id="'+P+'SmsPv"></div></div>':'')+
     '<div class="full err" id="'+P+'Err"></div></form>'+
     '<div class="actions">'+(row?(v[R.cancel]?'<button class="btn" type="button" id="'+P+'Cxl" style="margin-right:auto">취소 되돌리기</button>':'<button class="btn warn" type="button" id="'+P+'Cxl" style="margin-right:auto">예약 취소</button>'):'')+
     (inline?'<button class="btn" type="button" id="'+P+'Reset">입력 지우기</button>':'<button class="btn" type="button" id="'+P+'Close">닫기</button>')+
     '<button class="btn pri" type="button" id="'+P+'Save">저장</button></div>';
   if(inline)$('#newBox').innerHTML=html; else modal('<h3>예약 수정</h3>'+html);
-  if(row&&!OWNER&&LIVE)document.querySelectorAll('[data-sms]').forEach(function(b){b.onclick=function(){var kind=b.dataset.sms,pv=g('SmsPv');pv.innerHTML='<p class="note">문구 만드는 중…</p>';   // 문구를 먼저 보여주고 [보내기]
-    call('smsSend',row.r,kind,true).then(function(d){
-      if(!d.text){pv.innerHTML='<p class="err">관리 → 문자 시트에 '+esc(v[R.hotel])+' '+kind+' 문구가 없습니다 (사용 Y).</p>';return}
-      pv.innerHTML='<div class="smspv"><div class="note">받는 번호: '+esc(d.to||'없음')+'</div><pre>'+esc(d.text)+'</pre><div class="actions" style="justify-content:flex-start"><button type="button" class="btn pri" id="'+P+'SmsGo">'+kind+' 보내기</button><button type="button" class="btn" id="'+P+'SmsNo">닫기</button></div></div>';
-      g('SmsNo').onclick=function(){pv.innerHTML=''};
-      g('SmsGo').onclick=function(){var bb=this;bb.disabled=true;bb.textContent='보내는 중…';
-        call('smsSend',row.r,kind,false).then(function(r){var q=/대기/.test(r.status||'');pv.innerHTML=q?'<p class="note">폰 앱 대기열에 넣었습니다 (최대 15분 안에 발송). '+(/Android/i.test(navigator.userAgent)?'<a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</p>':'';toast(q?kind+' 문자를 대기열에 넣었습니다':kind+' 문자를 보냈습니다');
-          var i=kind==='입실안내'?R.smsB:R.smsA;row.v[i]=v[i]=r.status;g('SmsSt').textContent='예약확인: '+(v[R.smsA]||'안 보냄')+' · 입실안내: '+(v[R.smsB]||'안 보냄')})
-        .catch(function(e){bb.disabled=false;bb.textContent=kind+' 보내기';pv.insertAdjacentHTML('beforeend','<p class="err">보내지 못했습니다: '+esc(errText(e))+'</p>')})};
-    }).catch(function(e){pv.innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}});
+  if(row&&!OWNER&&LIVE)(function(){var sb=g('SmsBox'),pv=g('SmsPv');   // 이 예약에 쓸 수 있는 문자 종류 → 문구 보기 → 바로 보내기 · 보낸 기록
+    var load2=function(){call('smsSend',row.r,'').then(function(d){var ks=d.kinds||[];
+      sb.innerHTML=(ks.length?'<div class="rpick"><select id="'+P+'SmsKind">'+opts(ks,ks[0])+'</select><button type="button" class="btn" id="'+P+'SmsPrev">문구 보기</button></div>':'<span class="note">이 예약(호텔·플랫폼)에 맞는 문자 문구가 없습니다. 관리 → 문자에서 만드세요.</span>')+
+        (d.hist&&d.hist.length?'<div class="note" style="margin-top:4px">'+d.hist.map(function(h){return esc(h.at)+' '+esc(h.kind)+' · '+esc(h.st)+(h.err?' ('+esc(h.err)+')':'')}).join('<br>')+'</div>':'<div class="note">보낸 문자 없음</div>');
+      var pb=g('SmsPrev');if(pb)pb.onclick=function(){var kind=g('SmsKind').value;pv.innerHTML='<p class="note">문구 만드는 중…</p>';
+        call('smsSend',row.r,kind,true).then(function(x){
+          pv.innerHTML='<div class="smspv"><div class="note">받는 번호: '+esc(x.to||'없음')+'</div><pre>'+esc(x.text)+'</pre><div class="actions" style="justify-content:flex-start"><button type="button" class="btn pri" id="'+P+'SmsGo">지금 보내기</button><button type="button" class="btn" id="'+P+'SmsNo">닫기</button></div></div>';
+          g('SmsNo').onclick=function(){pv.innerHTML=''};
+          g('SmsGo').onclick=function(){var bb=this;bb.disabled=true;bb.textContent='보내는 중…';
+            call('smsSend',row.r,kind,false).then(function(r){var q=/대기/.test(r.status||'');
+              pv.innerHTML=q?'<p class="note">발송 폰 대기열에 넣었습니다 (다음 확인 때 발송). '+(/Android/i.test(navigator.userAgent)?'<a target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</p>':'';
+              toast(kind+(q?' 문자를 대기열에 넣었습니다':' 문자를 보냈습니다'));load2()})
+            .catch(function(e){bb.disabled=false;bb.textContent='지금 보내기';pv.insertAdjacentHTML('beforeend','<p class="err">보내지 못했습니다: '+esc(errText(e))+'</p>')})};
+        }).catch(function(e){pv.innerHTML='<p class="err">'+esc(errText(e))+'</p>'})};
+    }).catch(function(e){sb.innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};load2()})();
   function roomOpts(){if(OWNER){var oh=OWN.hotels.indexOf(g('Hotel').value)>=0?g('Hotel').value:(OWN.hotels.indexOf(v[R.hotel])>=0?v[R.hotel]:OWN.hotel);g('Hotel').innerHTML=opts(OWN.hotels,oh);g('Hotel').disabled=OWN.hotels.length<2;
       var dd=v[R.ci]||ymd(new Date()),ors=OWN.rooms.filter(function(o){if(o.h!==oh)return false;if(o.r===String(v[R.room]))return true;var rr=rows('객실').find(function(q){return q.v[1]===o.h&&String(q.v[2])===o.r});return !rr||inMgmt(rr,dd)}).map(function(o){return o.r});g('Room').innerHTML=opts(ors,ors.indexOf(String(v[R.room]))>=0?String(v[R.room]):ors[0]);g('Room').disabled=ors.length<2;return}   // 소유주: 본인 객실만 (여러 객실이면 그중에서 고름)   // 해지된 객실은 새 예약에서 뺌
     var h=g('Hotel').value,list=roomsOf(h,false,v[R.ci]||'');if(v[R.room]&&h===v[R.hotel]&&list.indexOf(String(v[R.room]))<0)list.push(String(v[R.room]));g('Room').innerHTML=opts(list,v[R.room],'선택')}
@@ -2093,9 +2097,9 @@ function person(name){
 
 // ───────── 기준정보 관리 ─────────
 var EDIT={'호텔':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'객실':[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34],'플랫폼':[1,2,3,5],'청소비요율':[1,2,3,4,5,6,7,8,9,12,13],'수건규칙':[1,2,3,4,5,6,7,8,9],'달력연결':[1,2,3,4,5,8],
-  '매니저':[1,2,3,4,5,6,7],'청소담당자':[1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19],'청소실적':[1,2,3,4,5,6,10,12],'정산항목':[1,2,3,4,5,6,7,8,10],'정산입력':[1,2,3,4,5,6,7,8,10,13],'문자':[1,2,3,4,5]};
+  '매니저':[1,2,3,4,5,6,7],'청소담당자':[1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19],'청소실적':[1,2,3,4,5,6,10,12],'정산항목':[1,2,3,4,5,6,7,8,10],'정산입력':[1,2,3,4,5,6,7,8,10,13],'문자':[1,2,3,4,5,6,7,8,9,10]};
 var DATES={'객실':[15,16],'정산입력':[4],'청소담당자':[5],'청소실적':[1],'수당입력':[8]};
-var NUMS={'수건규칙':[2,3,4,5,6,7,8],'객실':[4,5,18,28,29],'플랫폼':[2],'청소비요율':[3,4,5,6,7,8,12,13],'호텔':[7,13,14,15,17,18],'청소담당자':[6,7,15],'청소실적':[5,10],'수당입력':[4,5],'정산항목':[4],'정산입력':[6,7,8]};
+var NUMS={'문자':[6],'수건규칙':[2,3,4,5,6,7,8],'객실':[4,5,18,28,29],'플랫폼':[2],'청소비요율':[3,4,5,6,7,8,12,13],'호텔':[7,13,14,15,17,18],'청소담당자':[6,7,15],'청소실적':[5,10],'수당입력':[4,5],'정산항목':[4],'정산입력':[6,7,8]};
 var HCOL={'객실':2,'청소비요율':1,'달력연결':1};
 var HIDE={'객실':[4,5]};   // 더 이상 쓰지 않는 열 (수건·물은 수건규칙으로 계산)   // 호텔을 골라 그 호텔 것만 보는 표 (값 = 호텔 열 번호)
 function choices(n,c){
@@ -2103,7 +2107,7 @@ function choices(n,c){
   var m={'호텔':{8:YN,10:YN,20:['','Y']},'객실':{2:hotels(true),14:YN,27:['','Y'],30:['','Y'],31:['','Y'],32:['','Y']},'청소비요율':{1:hotels(true)},'수건규칙':{1:hotels(true)},'달력연결':{1:hotels(true),2:roomsOf(adminHotel()!=='*'?adminHotel():defHotel(),true),5:YN,8:['Y','N']},'청소담당자':{11:YN,14:YN,16:hotels(true),19:YN},
     '매니저':{5:['','Y','N']},'청소실적':{2:cleaners(),3:hotels(true),6:['기본','추가','입실준비']},'수당입력':{2:[P1,P2],3:cleaners(),9:['지급완료','미지급']},
     '정산항목':{2:['B','C'],3:['자동-청소비','자동-대행수수료','자동-인원단가','자동-물수량','자동-단가*인원수*숙박일수','자동-단가*숙박일수','수동'],5:YN,6:YN,7:YN,10:['전체'].concat(hotels(true))},
-    '문자':{1:['전체'].concat(hotels(true)),2:['예약확인','입실안내'],4:['Y','N']},
+    '문자':{2:['전체'].concat(hotels(true)),5:['예약 즉시','입실일','퇴실일','수동'],9:YN},
     '정산입력':{2:hotels(true),5:rows('정산항목').map(function(r){return r.v[0]}).filter(function(x,i,a){return x&&a.indexOf(x)===i})}};
   return m[n]&&m[n][c];
 }
@@ -2146,7 +2150,8 @@ function renderAdmin(){
     var ch=choices(n,c);
     if(n==='청소담당자'&&c===13)return '<td'+cls+'><input data-c="13" type="color" value="'+esc(cleanerColor(r.v[0]))+'" title="표시색"></td>';
     if(ch)return '<td'+cls+'><select data-c="'+c+'">'+opts(ch.indexOf(x)<0&&x!==''?ch.concat([x]):ch,x,'')+'</select></td>';
-    if(n==='문자'&&c===3)return '<td'+cls+'><textarea data-c="3" rows="5" style="min-width:320px;font-size:13px">'+esc(x)+'</textarea></td>';
+    if(n==='문자'&&c===8)return '<td'+cls+'><textarea data-c="8" rows="5" style="min-width:320px;font-size:13px">'+esc(x)+'</textarea></td>';
+    if(n==='문자'&&c===7)return '<td'+cls+'><input data-c="7" type="time" value="'+esc(x)+'"></td>';
     var ty=(DATES[n]||[]).indexOf(c)>=0?'date':(NUMS[n]||[]).indexOf(c)>=0?'number':'text';
     return '<td'+cls+'><input data-c="'+c+'" type="'+ty+'"'+(ty==='number'?' step="any"':'')+' value="'+esc(x)+'"></td>'};
   $('#aTable').innerHTML='<tr>'+cols.map(function(c){return '<th'+(c===key?' class="stick"':'')+'>'+esc(sh.header[c-1])+'</th>'}).join('')+'</tr>'+
@@ -2172,7 +2177,7 @@ function renderAdmin(){
   $('#aNote').textContent=note;
   $('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';
   if(n==='달력연결')calInit();
-  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 문구 안 {고객명} {호텔} {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호}는 예약마다 자동으로 바뀝니다. {비밀번호}는 객실의 「출입문 비밀번호」 칸. 호텔을 「전체」로 두면 그 호텔 문구가 없을 때 씁니다.';smsPanel()}
+  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';smsPanel()}
 }
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
@@ -2187,16 +2192,26 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
-      '<div class="form" style="margin-top:8px"><div class="f"><label for="smsTo">시험 문자 받을 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
-        '<div class="actions" style="justify-content:flex-start;align-self:end"><button class="btn" type="button" id="smsTestBtn">시험 문자</button></div></div>'+
+      '<h4 class="cwh" style="margin-top:14px">바로 보내기</h4><div class="form"><div class="f"><label for="smsTo">받는 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
+        '<div class="f full"><label for="smsTx">내용</label><textarea id="smsTx" rows="3" placeholder="비우면 시험 문구를 보냅니다"></textarea></div></div>'+
+        '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="smsTestBtn">보내기</button></div>'+
+      '<h4 class="cwh" style="margin-top:14px">호실별 출입문 비밀번호 <span class="note">(문구의 {비밀번호})</span></h4><div class="rpick" style="max-width:360px"><select id="doorHotel" style="flex:1 1 150px">'+opts(hotels(true),defHotel())+'</select><button class="btn pri" type="button" id="doorSave" disabled>비밀번호 저장</button></div><div id="doorList" class="doorgrid"></div>'+
       (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
-    $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim();if(!to){toast('받을 번호를 넣으세요');return}b.disabled=true;
-      call('smsTest',to).then(function(r){$('#smsMsg').innerHTML=r&&r.queued?'시험 문자를 넣었습니다. 발송 폰이 다음 확인 때(최대 15분) 보냅니다'+(/Android/i.test(navigator.userAgent)?' · <a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'.':'시험 문자를 보냈습니다.'})
+    $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim();if(!to){toast('받을 번호를 넣으세요');return}b.disabled=true;
+      (tx?call('smsNow',to,tx):call('smsTest',to)).then(function(r){if(tx)$('#smsTx').value='';$('#smsMsg').innerHTML=r&&r.queued?'보낼 문자에 넣었습니다. 발송 폰이 다음 확인 때(최대 15분) 보냅니다'+(/Android/i.test(navigator.userAgent)?' · <a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'.':'시험 문자를 보냈습니다.'})
         .catch(function(e){$('#smsMsg').innerHTML='<span class="err">보내지 못했습니다: '+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
+    var doorDraw=function(){var h=$('#doorHotel').value,list=rows('객실').filter(function(r){return r.v[1]===h&&r.v[13]!=='N'&&!isSubRoom(r.v[2])})
+        .sort(function(a,b){return String(a.v[2]).localeCompare(String(b.v[2]),'ko',{numeric:true})});
+      $('#doorList').innerHTML=list.length?list.map(function(r){return '<label class="door"><b>'+esc(r.v[2])+'</b><input data-door="'+r.r+'" value="'+esc(r.v[33]||'')+'" placeholder="비밀번호" autocomplete="off"></label>'}).join(''):'<p class="note">이 호텔의 사용 중인 객실이 없습니다.</p>';
+      $('#doorSave').disabled=true};
+    load(['객실']).then(doorDraw);$('#doorHotel').onchange=doorDraw;
+    $('#doorList').oninput=function(e){if(e.target.dataset.door){e.target.dataset.dirty='1';$('#doorSave').disabled=false}};
+    $('#doorSave').onclick=function(){var b=this,items=[].map.call(document.querySelectorAll('#doorList [data-dirty]'),function(i){return {r:+i.dataset.door,v:{34:i.value.trim()}}});if(!items.length)return;b.disabled=true;
+      call('saveRows','객실',items).then(function(d){S['객실']=d;toast(items.length+'개 호실 비밀번호를 저장했습니다');doorDraw()}).catch(function(e){b.disabled=false;toast('저장하지 못했습니다: '+errText(e))})};
     var nt=$('#gwNewTok');if(nt)nt.onclick=function(){var b=this;b.disabled=true;call('smsConfig',{newGwToken:true}).then(function(st2){toast('새 연결 비밀번호를 만들었습니다. 폰 앱에 다시 연결하세요.');draw(st2)}).catch(function(e){b.disabled=false;toast(errText(e))})};
   };
   call('smsConfig',null).then(draw).catch(function(e){$('#smsForm').innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
@@ -2224,6 +2239,7 @@ $('#aAdd').onclick=function(){
   if(hc&&h!=='*'){v[hc-1]=h;pre[hc]=1}
   if(n==='객실'){v[13]='Y';pre[14]=1}
   if(n==='청소담당자'){v[10]='Y';pre[11]=1}
+  if(n==='문자'){v[1]='전체';v[2]='전체';v[4]='수동';v[5]=0;v[8]='Y';pre[2]=1;pre[3]=1;pre[5]=1;pre[6]=1;pre[9]=1}
   sh.rows.unshift({r:r,v:v,pre:pre});A.dirty[r]={};A.page=1;$('#aScroll').scrollLeft=0;renderAdmin();$('#aSave').disabled=false;
   var f=document.querySelector('#aTable tr[data-r="'+r+'"] input, #aTable tr[data-r="'+r+'"] select');if(f)f.focus();
 };
