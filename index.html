@@ -166,7 +166,7 @@ tr.dirty td{background:var(--hold-soft)}
 .pager .info{font-size:12.5px;color:var(--muted);margin:0 6px}
 .pastebox{background:var(--surface);border:1px dashed var(--accent);border-radius:var(--r);padding:12px;margin-bottom:12px;display:grid;gap:8px}
 .pastebox>label{font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.02em}
-.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}.smspv pre{white-space:pre-wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin:6px 0}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
+.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}#smsForm a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}.smspv pre{white-space:pre-wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin:6px 0}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
 .pitem{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sunk)}
 .pitem.bad{border-color:var(--warn)}
 .pitem .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px}
@@ -430,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-12g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-12h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2112,7 +2112,7 @@ $('#aSheet').innerHTML=opts(Object.keys(EDIT),'호텔');
 function adminHotel(){var hc=HCOL[A.name];return hc?$('#aHotel').value:'*'}
 function adminOpen(){
   var n=$('#aSheet').value;A.name=n;A.dirty={};A.added=0;A.page=1;$('#aSave').disabled=true;$('#aScroll').scrollLeft=0;
-  var hc=HCOL[n];$('#aHotelBox').hidden=!hc;
+  var hc=HCOL[n];$('#aHotelBox').hidden=!hc;$('#aHotelBox').style.display=hc?'':'none';
   if(hc){var hs=hotels(true),cur=store('aHotel');if(cur!=='*'&&hs.indexOf(cur)<0)cur=defHotel();
     $('#aHotel').innerHTML=opts(hs,cur)+'<option value="*"'+(cur==='*'?' selected':'')+'>전체 호텔</option>'}
   $('#aTable').innerHTML='<tr><td class="note">불러오는 중…</td></tr>';
@@ -2175,43 +2175,33 @@ function renderAdmin(){
   if(n==='문자'){$('#aNote').textContent=list.length+'행 · 문구 안 {고객명} {호텔} {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호}는 예약마다 자동으로 바뀝니다. {비밀번호}는 객실의 「출입문 비밀번호」 칸. 호텔을 「전체」로 두면 그 호텔 문구가 없을 때 씁니다.';smsPanel()}
 }
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
-function smsPanel(){var box=$('#aExtra');
-  box.innerHTML='<div class="report" style="margin-top:12px"><h3>문자 설정</h3><div class="form" id="smsForm"><p class="note">불러오는 중…</p></div></div>';
+function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
+  box.innerHTML='<div class="report" style="margin-top:12px"><h3>문자 설정</h3><div id="smsForm"><p class="note">불러오는 중…</p></div></div>';
   if(DEMO){$('#smsForm').innerHTML='<p class="note">예시 데이터에서는 문자 설정을 쓸 수 없습니다.</p>';return}
-  var draw=function(st){var ph=st.via==='phone',ap=st.via==='app',gs=st.gwState||{},url=API||st.url||'';
+  var draw=function(st){var gs=st.gwState||{},url=API||st.url||'',ok=st.via==='app'&&st.gwToken;
     var setup='roomsms://setup?u='+encodeURIComponent(url)+'&t='+encodeURIComponent(st.gwToken||'');
-    $('#smsForm').innerHTML='<div class="f full"><label for="smsVia">발송 방식</label><select id="smsVia"><option value="app"'+(ap?' selected':'')+'>객실문자 앱 (대표님 폰 · 무료 · 외부 서버 없음, 추천)</option><option value="phone"'+(ph?' selected':'')+'>SMS Gateway 앱 (무료 · 암호화)</option><option value="solapi"'+(!ph&&!ap?' selected':'')+'>솔라피 (유료 · 중계 서버 필요)</option></select></div>'+
-      (ap?'<div class="full smsap report" style="padding:10px">'+(st.gwToken?'<p>폰 앱 마지막 확인: <b>'+esc(st.gwSeen||'아직 없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 발송 멈춤</span>':gs.roaming?' · 로밍 중 (발송 허용)':'')+(gs.battery!==undefined&&gs.battery!==null?' · 배터리 '+esc(gs.battery)+'%':'')+' · 보낼 문자 대기 '+(st.gwWait||0)+'건</p>'+
-        '<p class="note">폰 앱 연결: 이 화면을 <b>발송용 폰</b>에서 열고 아래 [폰 앱에 연결]을 누르면 자동으로 들어갑니다. 다른 기기라면 폰 앱에 직접 넣으세요 — 서버 주소: <code style="word-break:break-all">'+esc(url)+'</code> · 연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p>'+
-        '<div class="f" style="margin:8px 0"><label for="gwFwd">손님 문의를 전달받을 내 주 폰 번호 (비우면 전달 안 함)</label><input id="gwFwd" inputmode="tel" value="'+esc(st.fwd||'')+'" placeholder="010-0000-0000"></div>'+
-        '<div class="actions" style="justify-content:flex-start"><a class="btn pri" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">폰 앱에서 지금 확인</a><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></div>':'<p class="note">발송 방식을 「객실문자 앱」으로 고르고 [설정 저장]을 누르면 연결 비밀번호가 만들어집니다.</p>')+'</div>':'')+
-      '<p class="note full">'+(st.hasKey?(ph?'폰 발송 앱 연결 정보 저장됨':'API Key 저장됨 (끝 '+esc(st.keyTail)+')'):'연결 정보 없음')+(!ph&&st.balance!==undefined?' · 잔액 <b>'+Number(st.balance).toLocaleString()+'원</b>'+(st.point?' + 포인트 '+Number(st.point).toLocaleString():''):'')+(!ph&&st.balErr?' · <span class="err">잔액 확인 실패: '+esc(st.balErr)+'</span>':'')+'</p>'+
-      '<div class="f smsph"><label for="gwUser">폰 앱 사용자명 (Cloud Server)</label><input id="gwUser" autocomplete="off" value="'+esc(st.gwUser||'')+'"></div>'+
-      '<div class="f smsph"><label for="gwPass">폰 앱 비밀번호</label><input id="gwPass" type="password" autocomplete="new-password" placeholder="'+(st.hasGwPass?'저장됨 · 바꿀 때만 입력':'앱 화면의 Password')+'"></div>'+
-      '<div class="f full smsph"><label for="gwKey">암호 비밀번호 (폰 앱 Encryption의 Passphrase와 같게)</label><div class="rpick"><input id="gwKey" autocomplete="off" placeholder="'+(st.hasGwKey?'저장됨 · 바꿀 때만 입력':'직접 입력하거나 [만들기]')+'"><button class="btn" type="button" id="gwKeyGen">만들기</button></div><span class="note">문자 내용·받는 번호를 이 비밀번호로 암호화해서 보냅니다. 중간 서버는 내용을 볼 수 없고, 같은 비밀번호를 넣은 대표님 폰에서만 풀립니다.</span></div>'+
-      '<div class="f smssl"><label for="smsKey">API Key</label><input id="smsKey" autocomplete="off" placeholder="'+(st.keyTail?'바꿀 때만 입력':'솔라피 API Key')+'"></div>'+
-      '<div class="f smssl"><label for="smsSec">API Secret</label><input id="smsSec" type="password" autocomplete="new-password" placeholder="'+(st.keyTail?'바꿀 때만 입력':'솔라피 API Secret')+'"></div>'+
-      '<div class="f smssl"><label for="smsFrom">발신번호 (솔라피에 등록한 번호)</label><input id="smsFrom" inputmode="tel" value="'+esc(st.from||'')+'"></div>'+
-      '<div class="f smssl"><label for="smsRelay">중계 서버 주소 (오라클)</label><input id="smsRelay" autocomplete="off" placeholder="https://1-2-3-4.sslip.io" value="'+esc(st.relay||'')+'"></div>'+
-      '<div class="f smssl"><label for="smsRelayTok">중계 비밀번호</label><input id="smsRelayTok" type="password" autocomplete="new-password" placeholder="'+(st.hasRelayToken?'저장됨 · 바꿀 때만 입력':'설치 파일의 RELAY_TOKEN')+'"></div>'+
-      '<label class="chk full"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 켜기 — 놀·놀호텔·떠나요·현금판매 예약: 저장 직후 「예약확인」, 입실 당일 오전 8시 「입실안내」</label>'+
-      '<div class="actions full" style="justify-content:flex-start"><button class="btn pri" type="button" id="smsSave">설정 저장</button></div>'+
-      '<div class="f"><label for="smsTo">시험 발송 받을 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
-      '<div class="actions" style="justify-content:flex-start;align-self:end"><button class="btn" type="button" id="smsTestBtn">시험 문자 보내기</button></div>'+
-      '<p class="note full" id="smsMsg">'+(st.on?(st.trigger?'자동 발송 켜짐 · 매일 오전 8시 입실안내 예약됨':'<span class="err">자동 발송은 켜져 있지만 오전 8시 예약이 없습니다. [설정 저장]을 다시 누르세요.</span>'):'자동 발송 꺼짐 (예약 화면의 [문자 보내기] 버튼으로는 보낼 수 있습니다)')+'</p>';
-    var vis=function(){var v=$('#smsVia').value;document.querySelectorAll('#smsForm .smsph').forEach(function(e){e.hidden=v!=='phone'});document.querySelectorAll('#smsForm .smssl').forEach(function(e){e.hidden=v!=='solapi'});document.querySelectorAll('#smsForm .smsap').forEach(function(e){e.hidden=v!=='app'})};
-    var nt=$('#gwNewTok');if(nt)nt.onclick=function(){var b=this;b.disabled=true;call('smsConfig',{newGwToken:true}).then(function(st2){toast('새 연결 비밀번호를 만들었습니다. 폰 앱에 다시 연결하세요.');draw(st2)}).catch(function(e){b.disabled=false;toast(errText(e))})};
-    $('#smsVia').onchange=vis;vis();
-    $('#gwKeyGen').onclick=function(){var a=new Uint8Array(15);crypto.getRandomValues(a);var cs='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',k='';a.forEach(function(x){k+=cs[x%cs.length]});$('#gwKey').value=k;$('#gwKey').select();
-      $('#smsMsg').textContent='만든 암호 비밀번호를 폰 앱 설정의 Encryption → Passphrase에 똑같이 넣고, 여기서 [설정 저장]을 누르세요.'};
+    var stat=!ok?'<span class="err">아직 연결 전 — [저장]을 누른 뒤 [폰 앱에 연결]</span>':
+      '폰 앱 마지막 확인 <b>'+esc(st.gwSeen||'없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 멈춤</span>':'')+(gs.battery!=null&&gs.battery>=0?' · 배터리 '+esc(gs.battery)+'%':'')+' · 대기 '+(st.gwWait||0)+'건';
+    $('#smsForm').innerHTML='<p>'+stat+'</p>'+
+      '<div class="form"><div class="f"><label for="gwFwd">문의 전달받을 주 폰 번호</label><input id="gwFwd" inputmode="tel" value="'+esc(st.fwd||'')+'" placeholder="비우면 전달 안 함"></div></div>'+
+      '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
+      '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
+        (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
+      '<div class="form" style="margin-top:8px"><div class="f"><label for="smsTo">시험 문자 받을 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
+        '<div class="actions" style="justify-content:flex-start;align-self:end"><button class="btn" type="button" id="smsTestBtn">시험 문자</button></div></div>'+
+      (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
+      '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
-      call('smsConfig',{fwd:$('#gwFwd')?$('#gwFwd').value.trim():undefined,via:$('#smsVia').value,gwUser:$('#gwUser').value.trim(),gwPass:$('#gwPass').value.trim(),gwKey:$('#gwKey').value.trim(),key:$('#smsKey').value.trim(),secret:$('#smsSec').value.trim(),from:$('#smsFrom').value.trim(),relay:$('#smsRelay').value.trim(),relayToken:$('#smsRelayTok').value.trim(),on:$('#smsOn').checked})
+      call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim();if(!to){toast('받을 번호를 넣으세요');return}b.disabled=true;
-      call('smsTest',to).then(function(r){$('#smsMsg').innerHTML=r&&r.queued?'시험 문자를 대기열에 넣었습니다. 폰 앱이 다음 확인 때(최대 15분) 보냅니다. 발송용 폰에서 이 화면을 열었다면 <a target="_top" href="roomsms://poll">지금 보내기</a>를 누르세요.':'시험 문자를 보냈습니다. 휴대폰을 확인하세요.'}).catch(function(e){$('#smsMsg').innerHTML='<span class="err">보내지 못했습니다: '+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
+      call('smsTest',to).then(function(r){$('#smsMsg').innerHTML=r&&r.queued?'시험 문자를 넣었습니다. 발송 폰이 다음 확인 때(최대 15분) 보냅니다'+(/Android/i.test(navigator.userAgent)?' · <a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'.':'시험 문자를 보냈습니다.'})
+        .catch(function(e){$('#smsMsg').innerHTML='<span class="err">보내지 못했습니다: '+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
+    var nt=$('#gwNewTok');if(nt)nt.onclick=function(){var b=this;b.disabled=true;call('smsConfig',{newGwToken:true}).then(function(st2){toast('새 연결 비밀번호를 만들었습니다. 폰 앱에 다시 연결하세요.');draw(st2)}).catch(function(e){b.disabled=false;toast(errText(e))})};
   };
   call('smsConfig',null).then(draw).catch(function(e){$('#smsForm').innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
 }
+
 function adminArrows(){var sc=$('#aScroll'),more=sc.scrollWidth>sc.clientWidth+4,stk=sc.querySelector('th.stick');
   $('#aLeft').style.left=(stk?stk.offsetWidth+2:-6)+'px';
   $('#aLeft').hidden=!more||sc.scrollLeft<=2;$('#aRight').hidden=!more||sc.scrollLeft+sc.clientWidth>=sc.scrollWidth-2}
