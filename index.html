@@ -44,7 +44,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand small{display:block;font:500 11px var(--f-body);color:var(--muted);letter-spacing:.04em}
 .status{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 .status.demo{background:var(--hold-soft);color:var(--hold)}
-.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
+.ibadge{display:inline-block;min-width:18px;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center}.ibx-list .ithr{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 4px;cursor:pointer;color:inherit;font:inherit}.ibx-list .ithr.unread b{color:var(--warn)}.ibx-msgs{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0}.ibx-m{max-width:85%;padding:7px 10px;border-radius:12px;background:var(--sunk);border:1px solid var(--line);white-space:pre-wrap;font-size:14px}.ibx-m.out{align-self:flex-end;background:var(--accent-soft)}.ibx-m small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
 .brand,.iconbtn{white-space:nowrap}.iconbtn{flex:0 0 auto}.status{min-width:0;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:600px){.top-in{gap:6px!important;flex-wrap:nowrap!important;padding-top:6px!important;padding-bottom:6px!important}.brand{font-size:15px}.brand small{display:none}.status{font-size:11px;padding:3px 8px;flex:1 1 auto;text-align:center}.iconbtn{padding:4px 7px;font-size:12px}.iconbtn[data-s]{font-size:0;min-width:30px}.iconbtn[data-s]::after{content:attr(data-s);font-size:13px}.status{min-width:56px}}   /* 휴대폰: 위쪽 제목줄을 한 줄로 작게 */
 nav.tabs{display:flex;gap:4px}
@@ -166,7 +166,7 @@ tr.dirty td{background:var(--hold-soft)}
 .pager .info{font-size:12.5px;color:var(--muted);margin:0 6px}
 .pastebox{background:var(--surface);border:1px dashed var(--accent);border-radius:var(--r);padding:12px;margin-bottom:12px;display:grid;gap:8px}
 .pastebox>label{font-size:12px;color:var(--accent);font-weight:600;letter-spacing:.02em}
-.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
+.pastebox textarea{resize:vertical;min-height:64px;font-size:14px}.smspv pre{white-space:pre-wrap;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin:6px 0}.pocr{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pocr .note{font-size:12px;flex:1 1 180px}
 .pitem{display:grid;gap:6px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--sunk)}
 .pitem.bad{border-color:var(--warn)}
 .pitem .row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px}
@@ -287,6 +287,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="brand">객실관리<small>예약 · 청소 · 정산</small></div>
     <span id="status" class="status">연결 중</span>
     <button class="iconbtn" id="connBtn" type="button" hidden>연결</button>
+    <button class="iconbtn" id="inboxBtn" type="button" title="문자함" hidden>✉<b id="inboxN" class="ibadge" hidden></b></button>
     <button class="iconbtn" id="reload" type="button" title="새로고침" data-s="↻">새로고침</button>
   </div>
   <nav class="tabs desk-tabs" id="deskTabs"></nav>
@@ -429,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-12a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-12g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -689,7 +690,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 
 function hotelRule(h){var r=rows('호텔').find(function(x){return x.v[1]===h});return r?{base:Number(r.v[12])||0,fee:Number(r.v[13])||0,pet:Number(r.v[14])||0}:{base:0,fee:0,pet:0}}
@@ -1004,7 +1005,7 @@ $('#newRes').onclick=function(){show('new')};
 function newId(){var d=new Date();return 'B'+String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+Math.random().toString(36).slice(2,5).toUpperCase()}
 function resForm(row,inline,pre){
   var P=inline?'n':'f',g=function(x){return document.getElementById(P+x)};
-  var v=row?row.v.slice():(pre?pre.slice():new Array(44).fill(''));
+  var v=row?row.v.slice():(pre?pre.slice():new Array(46).fill(''));
   if(!row&&!pre){v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=defHotel();v[R.ppl]=2}
   var F=function(id,label,input,cls){return '<div class="f'+(cls?' '+cls:'')+'"><label for="'+P+id+'">'+label+'</label>'+input+'</div>'};
   var I=function(id,val,attr){return '<input id="'+P+id+'" '+(attr||'')+' value="'+esc(val)+'">'};
@@ -1038,11 +1039,23 @@ function resForm(row,inline,pre){
       '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> 본인계정 (매출 제외, 청소비는 청구)</label>'+
       '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'>본인계정 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
     (row?F('Cancel','취소일 (발생 시)',I('Cancel',v[R.cancel],'type="date"'))+'<div class="f"><label>예약ID</label><input readonly value="'+esc(v[R.id])+'"></div>':'')+
+    (row&&!OWNER&&LIVE?'<div class="f full smsbox"><label>문자 보내기</label><div class="chkrow"><button type="button" class="btn" data-sms="예약확인">예약확인 문자</button><button type="button" class="btn" data-sms="입실안내">입실안내 문자</button></div>'+
+      '<div class="note" id="'+P+'SmsSt">예약확인: '+esc(v[R.smsA]||'안 보냄')+' · 입실안내: '+esc(v[R.smsB]||'안 보냄')+'</div><div id="'+P+'SmsPv"></div></div>':'')+
     '<div class="full err" id="'+P+'Err"></div></form>'+
     '<div class="actions">'+(row?(v[R.cancel]?'<button class="btn" type="button" id="'+P+'Cxl" style="margin-right:auto">취소 되돌리기</button>':'<button class="btn warn" type="button" id="'+P+'Cxl" style="margin-right:auto">예약 취소</button>'):'')+
     (inline?'<button class="btn" type="button" id="'+P+'Reset">입력 지우기</button>':'<button class="btn" type="button" id="'+P+'Close">닫기</button>')+
     '<button class="btn pri" type="button" id="'+P+'Save">저장</button></div>';
   if(inline)$('#newBox').innerHTML=html; else modal('<h3>예약 수정</h3>'+html);
+  if(row&&!OWNER&&LIVE)document.querySelectorAll('[data-sms]').forEach(function(b){b.onclick=function(){var kind=b.dataset.sms,pv=g('SmsPv');pv.innerHTML='<p class="note">문구 만드는 중…</p>';   // 문구를 먼저 보여주고 [보내기]
+    call('smsSend',row.r,kind,true).then(function(d){
+      if(!d.text){pv.innerHTML='<p class="err">관리 → 문자 시트에 '+esc(v[R.hotel])+' '+kind+' 문구가 없습니다 (사용 Y).</p>';return}
+      pv.innerHTML='<div class="smspv"><div class="note">받는 번호: '+esc(d.to||'없음')+'</div><pre>'+esc(d.text)+'</pre><div class="actions" style="justify-content:flex-start"><button type="button" class="btn pri" id="'+P+'SmsGo">'+kind+' 보내기</button><button type="button" class="btn" id="'+P+'SmsNo">닫기</button></div></div>';
+      g('SmsNo').onclick=function(){pv.innerHTML=''};
+      g('SmsGo').onclick=function(){var bb=this;bb.disabled=true;bb.textContent='보내는 중…';
+        call('smsSend',row.r,kind,false).then(function(r){var q=/대기/.test(r.status||'');pv.innerHTML=q?'<p class="note">폰 앱 대기열에 넣었습니다 (최대 15분 안에 발송). '+(/Android/i.test(navigator.userAgent)?'<a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</p>':'';toast(q?kind+' 문자를 대기열에 넣었습니다':kind+' 문자를 보냈습니다');
+          var i=kind==='입실안내'?R.smsB:R.smsA;row.v[i]=v[i]=r.status;g('SmsSt').textContent='예약확인: '+(v[R.smsA]||'안 보냄')+' · 입실안내: '+(v[R.smsB]||'안 보냄')})
+        .catch(function(e){bb.disabled=false;bb.textContent=kind+' 보내기';pv.insertAdjacentHTML('beforeend','<p class="err">보내지 못했습니다: '+esc(errText(e))+'</p>')})};
+    }).catch(function(e){pv.innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}});
   function roomOpts(){if(OWNER){var oh=OWN.hotels.indexOf(g('Hotel').value)>=0?g('Hotel').value:(OWN.hotels.indexOf(v[R.hotel])>=0?v[R.hotel]:OWN.hotel);g('Hotel').innerHTML=opts(OWN.hotels,oh);g('Hotel').disabled=OWN.hotels.length<2;
       var dd=v[R.ci]||ymd(new Date()),ors=OWN.rooms.filter(function(o){if(o.h!==oh)return false;if(o.r===String(v[R.room]))return true;var rr=rows('객실').find(function(q){return q.v[1]===o.h&&String(q.v[2])===o.r});return !rr||inMgmt(rr,dd)}).map(function(o){return o.r});g('Room').innerHTML=opts(ors,ors.indexOf(String(v[R.room]))>=0?String(v[R.room]):ors[0]);g('Room').disabled=ors.length<2;return}   // 소유주: 본인 객실만 (여러 객실이면 그중에서 고름)   // 해지된 객실은 새 예약에서 뺌
     var h=g('Hotel').value,list=roomsOf(h,false,v[R.ci]||'');if(v[R.room]&&h===v[R.hotel]&&list.indexOf(String(v[R.room]))<0)list.push(String(v[R.room]));g('Room').innerHTML=opts(list,v[R.room],'선택')}
@@ -2079,8 +2092,8 @@ function person(name){
 }
 
 // ───────── 기준정보 관리 ─────────
-var EDIT={'호텔':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'객실':[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33],'플랫폼':[1,2,3,5],'청소비요율':[1,2,3,4,5,6,7,8,9,12,13],'수건규칙':[1,2,3,4,5,6,7,8,9],'달력연결':[1,2,3,4,5,8],
-  '매니저':[1,2,3,4,5,6,7],'청소담당자':[1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19],'청소실적':[1,2,3,4,5,6,10,12],'정산항목':[1,2,3,4,5,6,7,8,10],'정산입력':[1,2,3,4,5,6,7,8,10,13]};
+var EDIT={'호텔':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'객실':[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34],'플랫폼':[1,2,3,5],'청소비요율':[1,2,3,4,5,6,7,8,9,12,13],'수건규칙':[1,2,3,4,5,6,7,8,9],'달력연결':[1,2,3,4,5,8],
+  '매니저':[1,2,3,4,5,6,7],'청소담당자':[1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19],'청소실적':[1,2,3,4,5,6,10,12],'정산항목':[1,2,3,4,5,6,7,8,10],'정산입력':[1,2,3,4,5,6,7,8,10,13],'문자':[1,2,3,4,5]};
 var DATES={'객실':[15,16],'정산입력':[4],'청소담당자':[5],'청소실적':[1],'수당입력':[8]};
 var NUMS={'수건규칙':[2,3,4,5,6,7,8],'객실':[4,5,18,28,29],'플랫폼':[2],'청소비요율':[3,4,5,6,7,8,12,13],'호텔':[7,13,14,15,17,18],'청소담당자':[6,7,15],'청소실적':[5,10],'수당입력':[4,5],'정산항목':[4],'정산입력':[6,7,8]};
 var HCOL={'객실':2,'청소비요율':1,'달력연결':1};
@@ -2090,6 +2103,7 @@ function choices(n,c){
   var m={'호텔':{8:YN,10:YN,20:['','Y']},'객실':{2:hotels(true),14:YN,27:['','Y'],30:['','Y'],31:['','Y'],32:['','Y']},'청소비요율':{1:hotels(true)},'수건규칙':{1:hotels(true)},'달력연결':{1:hotels(true),2:roomsOf(adminHotel()!=='*'?adminHotel():defHotel(),true),5:YN,8:['Y','N']},'청소담당자':{11:YN,14:YN,16:hotels(true),19:YN},
     '매니저':{5:['','Y','N']},'청소실적':{2:cleaners(),3:hotels(true),6:['기본','추가','입실준비']},'수당입력':{2:[P1,P2],3:cleaners(),9:['지급완료','미지급']},
     '정산항목':{2:['B','C'],3:['자동-청소비','자동-대행수수료','자동-인원단가','자동-물수량','자동-단가*인원수*숙박일수','자동-단가*숙박일수','수동'],5:YN,6:YN,7:YN,10:['전체'].concat(hotels(true))},
+    '문자':{1:['전체'].concat(hotels(true)),2:['예약확인','입실안내'],4:['Y','N']},
     '정산입력':{2:hotels(true),5:rows('정산항목').map(function(r){return r.v[0]}).filter(function(x,i,a){return x&&a.indexOf(x)===i})}};
   return m[n]&&m[n][c];
 }
@@ -2104,7 +2118,7 @@ function adminOpen(){
   $('#aTable').innerHTML='<tr><td class="note">불러오는 중…</td></tr>';
   load([n,'정산항목']).then(renderAdmin).catch(function(e){$('#aTable').innerHTML='<tr><td class="err">불러오지 못했습니다: '+esc(e&&e.message||e)+'</td></tr>'})}
 // 화면 표시 순서(시트 열 위치와 별개)와 왼쪽에 고정할 열
-var ORDER={'정산항목':[1,10,2,3,4,5,6,7,8,9],'객실':[3,1,2,6,7,33,8,9,18,27,28,29,30,31,32,22,23,24,25,26,10,11,12,13,14,15,16,17,19,20,21]};
+var ORDER={'정산항목':[1,10,2,3,4,5,6,7,8,9],'객실':[3,1,2,6,7,33,34,8,9,18,27,28,29,30,31,32,22,23,24,25,26,10,11,12,13,14,15,16,17,19,20,21]};
 var KEYCOL={'객실':3,'호텔':2,'청소담당자':1,'청소비요율':2,'달력연결':2,'수건규칙':1,'플랫폼':1,'정산항목':1,'정산입력':3,'청소실적':1};
 A.page=1;
 function adminRowsPerPage(){
@@ -2132,6 +2146,7 @@ function renderAdmin(){
     var ch=choices(n,c);
     if(n==='청소담당자'&&c===13)return '<td'+cls+'><input data-c="13" type="color" value="'+esc(cleanerColor(r.v[0]))+'" title="표시색"></td>';
     if(ch)return '<td'+cls+'><select data-c="'+c+'">'+opts(ch.indexOf(x)<0&&x!==''?ch.concat([x]):ch,x,'')+'</select></td>';
+    if(n==='문자'&&c===3)return '<td'+cls+'><textarea data-c="3" rows="5" style="min-width:320px;font-size:13px">'+esc(x)+'</textarea></td>';
     var ty=(DATES[n]||[]).indexOf(c)>=0?'date':(NUMS[n]||[]).indexOf(c)>=0?'number':'text';
     return '<td'+cls+'><input data-c="'+c+'" type="'+ty+'"'+(ty==='number'?' step="any"':'')+' value="'+esc(x)+'"></td>'};
   $('#aTable').innerHTML='<tr>'+cols.map(function(c){return '<th'+(c===key?' class="stick"':'')+'>'+esc(sh.header[c-1])+'</th>'}).join('')+'</tr>'+
@@ -2157,6 +2172,45 @@ function renderAdmin(){
   $('#aNote').textContent=note;
   $('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';
   if(n==='달력연결')calInit();
+  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 문구 안 {고객명} {호텔} {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호}는 예약마다 자동으로 바뀝니다. {비밀번호}는 객실의 「출입문 비밀번호」 칸. 호텔을 「전체」로 두면 그 호텔 문구가 없을 때 씁니다.';smsPanel()}
+}
+// 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
+function smsPanel(){var box=$('#aExtra');
+  box.innerHTML='<div class="report" style="margin-top:12px"><h3>문자 설정</h3><div class="form" id="smsForm"><p class="note">불러오는 중…</p></div></div>';
+  if(DEMO){$('#smsForm').innerHTML='<p class="note">예시 데이터에서는 문자 설정을 쓸 수 없습니다.</p>';return}
+  var draw=function(st){var ph=st.via==='phone',ap=st.via==='app',gs=st.gwState||{},url=API||st.url||'';
+    var setup='roomsms://setup?u='+encodeURIComponent(url)+'&t='+encodeURIComponent(st.gwToken||'');
+    $('#smsForm').innerHTML='<div class="f full"><label for="smsVia">발송 방식</label><select id="smsVia"><option value="app"'+(ap?' selected':'')+'>객실문자 앱 (대표님 폰 · 무료 · 외부 서버 없음, 추천)</option><option value="phone"'+(ph?' selected':'')+'>SMS Gateway 앱 (무료 · 암호화)</option><option value="solapi"'+(!ph&&!ap?' selected':'')+'>솔라피 (유료 · 중계 서버 필요)</option></select></div>'+
+      (ap?'<div class="full smsap report" style="padding:10px">'+(st.gwToken?'<p>폰 앱 마지막 확인: <b>'+esc(st.gwSeen||'아직 없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 발송 멈춤</span>':gs.roaming?' · 로밍 중 (발송 허용)':'')+(gs.battery!==undefined&&gs.battery!==null?' · 배터리 '+esc(gs.battery)+'%':'')+' · 보낼 문자 대기 '+(st.gwWait||0)+'건</p>'+
+        '<p class="note">폰 앱 연결: 이 화면을 <b>발송용 폰</b>에서 열고 아래 [폰 앱에 연결]을 누르면 자동으로 들어갑니다. 다른 기기라면 폰 앱에 직접 넣으세요 — 서버 주소: <code style="word-break:break-all">'+esc(url)+'</code> · 연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p>'+
+        '<div class="f" style="margin:8px 0"><label for="gwFwd">손님 문의를 전달받을 내 주 폰 번호 (비우면 전달 안 함)</label><input id="gwFwd" inputmode="tel" value="'+esc(st.fwd||'')+'" placeholder="010-0000-0000"></div>'+
+        '<div class="actions" style="justify-content:flex-start"><a class="btn pri" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">폰 앱에서 지금 확인</a><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></div>':'<p class="note">발송 방식을 「객실문자 앱」으로 고르고 [설정 저장]을 누르면 연결 비밀번호가 만들어집니다.</p>')+'</div>':'')+
+      '<p class="note full">'+(st.hasKey?(ph?'폰 발송 앱 연결 정보 저장됨':'API Key 저장됨 (끝 '+esc(st.keyTail)+')'):'연결 정보 없음')+(!ph&&st.balance!==undefined?' · 잔액 <b>'+Number(st.balance).toLocaleString()+'원</b>'+(st.point?' + 포인트 '+Number(st.point).toLocaleString():''):'')+(!ph&&st.balErr?' · <span class="err">잔액 확인 실패: '+esc(st.balErr)+'</span>':'')+'</p>'+
+      '<div class="f smsph"><label for="gwUser">폰 앱 사용자명 (Cloud Server)</label><input id="gwUser" autocomplete="off" value="'+esc(st.gwUser||'')+'"></div>'+
+      '<div class="f smsph"><label for="gwPass">폰 앱 비밀번호</label><input id="gwPass" type="password" autocomplete="new-password" placeholder="'+(st.hasGwPass?'저장됨 · 바꿀 때만 입력':'앱 화면의 Password')+'"></div>'+
+      '<div class="f full smsph"><label for="gwKey">암호 비밀번호 (폰 앱 Encryption의 Passphrase와 같게)</label><div class="rpick"><input id="gwKey" autocomplete="off" placeholder="'+(st.hasGwKey?'저장됨 · 바꿀 때만 입력':'직접 입력하거나 [만들기]')+'"><button class="btn" type="button" id="gwKeyGen">만들기</button></div><span class="note">문자 내용·받는 번호를 이 비밀번호로 암호화해서 보냅니다. 중간 서버는 내용을 볼 수 없고, 같은 비밀번호를 넣은 대표님 폰에서만 풀립니다.</span></div>'+
+      '<div class="f smssl"><label for="smsKey">API Key</label><input id="smsKey" autocomplete="off" placeholder="'+(st.keyTail?'바꿀 때만 입력':'솔라피 API Key')+'"></div>'+
+      '<div class="f smssl"><label for="smsSec">API Secret</label><input id="smsSec" type="password" autocomplete="new-password" placeholder="'+(st.keyTail?'바꿀 때만 입력':'솔라피 API Secret')+'"></div>'+
+      '<div class="f smssl"><label for="smsFrom">발신번호 (솔라피에 등록한 번호)</label><input id="smsFrom" inputmode="tel" value="'+esc(st.from||'')+'"></div>'+
+      '<div class="f smssl"><label for="smsRelay">중계 서버 주소 (오라클)</label><input id="smsRelay" autocomplete="off" placeholder="https://1-2-3-4.sslip.io" value="'+esc(st.relay||'')+'"></div>'+
+      '<div class="f smssl"><label for="smsRelayTok">중계 비밀번호</label><input id="smsRelayTok" type="password" autocomplete="new-password" placeholder="'+(st.hasRelayToken?'저장됨 · 바꿀 때만 입력':'설치 파일의 RELAY_TOKEN')+'"></div>'+
+      '<label class="chk full"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 켜기 — 놀·놀호텔·떠나요·현금판매 예약: 저장 직후 「예약확인」, 입실 당일 오전 8시 「입실안내」</label>'+
+      '<div class="actions full" style="justify-content:flex-start"><button class="btn pri" type="button" id="smsSave">설정 저장</button></div>'+
+      '<div class="f"><label for="smsTo">시험 발송 받을 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
+      '<div class="actions" style="justify-content:flex-start;align-self:end"><button class="btn" type="button" id="smsTestBtn">시험 문자 보내기</button></div>'+
+      '<p class="note full" id="smsMsg">'+(st.on?(st.trigger?'자동 발송 켜짐 · 매일 오전 8시 입실안내 예약됨':'<span class="err">자동 발송은 켜져 있지만 오전 8시 예약이 없습니다. [설정 저장]을 다시 누르세요.</span>'):'자동 발송 꺼짐 (예약 화면의 [문자 보내기] 버튼으로는 보낼 수 있습니다)')+'</p>';
+    var vis=function(){var v=$('#smsVia').value;document.querySelectorAll('#smsForm .smsph').forEach(function(e){e.hidden=v!=='phone'});document.querySelectorAll('#smsForm .smssl').forEach(function(e){e.hidden=v!=='solapi'});document.querySelectorAll('#smsForm .smsap').forEach(function(e){e.hidden=v!=='app'})};
+    var nt=$('#gwNewTok');if(nt)nt.onclick=function(){var b=this;b.disabled=true;call('smsConfig',{newGwToken:true}).then(function(st2){toast('새 연결 비밀번호를 만들었습니다. 폰 앱에 다시 연결하세요.');draw(st2)}).catch(function(e){b.disabled=false;toast(errText(e))})};
+    $('#smsVia').onchange=vis;vis();
+    $('#gwKeyGen').onclick=function(){var a=new Uint8Array(15);crypto.getRandomValues(a);var cs='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',k='';a.forEach(function(x){k+=cs[x%cs.length]});$('#gwKey').value=k;$('#gwKey').select();
+      $('#smsMsg').textContent='만든 암호 비밀번호를 폰 앱 설정의 Encryption → Passphrase에 똑같이 넣고, 여기서 [설정 저장]을 누르세요.'};
+    $('#smsSave').onclick=function(){var b=this;b.disabled=true;
+      call('smsConfig',{fwd:$('#gwFwd')?$('#gwFwd').value.trim():undefined,via:$('#smsVia').value,gwUser:$('#gwUser').value.trim(),gwPass:$('#gwPass').value.trim(),gwKey:$('#gwKey').value.trim(),key:$('#smsKey').value.trim(),secret:$('#smsSec').value.trim(),from:$('#smsFrom').value.trim(),relay:$('#smsRelay').value.trim(),relayToken:$('#smsRelayTok').value.trim(),on:$('#smsOn').checked})
+        .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
+    $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim();if(!to){toast('받을 번호를 넣으세요');return}b.disabled=true;
+      call('smsTest',to).then(function(r){$('#smsMsg').innerHTML=r&&r.queued?'시험 문자를 대기열에 넣었습니다. 폰 앱이 다음 확인 때(최대 15분) 보냅니다. 발송용 폰에서 이 화면을 열었다면 <a target="_top" href="roomsms://poll">지금 보내기</a>를 누르세요.':'시험 문자를 보냈습니다. 휴대폰을 확인하세요.'}).catch(function(e){$('#smsMsg').innerHTML='<span class="err">보내지 못했습니다: '+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
+  };
+  call('smsConfig',null).then(draw).catch(function(e){$('#smsForm').innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
 }
 function adminArrows(){var sc=$('#aScroll'),more=sc.scrollWidth>sc.clientWidth+4,stk=sc.querySelector('th.stick');
   $('#aLeft').style.left=(stk?stk.offsetWidth+2:-6)+'px';
@@ -2211,6 +2265,36 @@ function calInit(){
     }).catch(function(e){$('#calMsg').textContent='가져오지 못했습니다: '+(e&&e.message||e)}).then(function(){b.disabled=false})};
 }
 
+// ───────── 문자함: 발송 폰에 온 손님 문자·전화 보기 · 답장 (관리자) ─────────
+var IBX={unread:-1,t:null};
+function inboxInit(){var b=$('#inboxBtn');b.hidden=false;b.onclick=function(){if(window.Notification&&Notification.permission==='default')try{Notification.requestPermission()}catch(e){}inboxOpen()};
+  var tick=function(){call('smsInbox',{count:true}).then(function(r){var n=r&&r.unread||0,bd=$('#inboxN');bd.hidden=!n;bd.textContent=n;
+      if(IBX.unread>=0&&n>IBX.unread)inboxNotify(n-IBX.unread);IBX.unread=n}).catch(function(){})};
+  tick();clearInterval(IBX.t);IBX.t=setInterval(tick,60000);   // 1분마다 새 문의 확인 (이 화면이 열려 있는 동안)
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()})}
+function inboxNotify(k){var msg='새 문의 '+k+'건이 왔습니다';toast('✉ '+msg);
+  try{if(window.Notification&&Notification.permission==='granted'){if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(function(rg){rg.showNotification('객실관리 문자함',{body:msg,tag:'inbox'})}).catch(function(){new Notification('객실관리 문자함',{body:msg})});else new Notification('객실관리 문자함',{body:msg})}}catch(e){}}
+function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty">불러오는 중…</div></div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+  call('smsInbox',sel?{read:sel}:{}).then(function(d){inboxDraw(d,sel)}).catch(function(e){$('#ibx').innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}
+function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],th={};
+  rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(r.kind!=='보냄'&&!r.read)t.unread++});
+  var who=function(t){return (t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>'};
+  if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).sort(function(a,b){return a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1});
+    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 손님이 보낸 문자와 부재중 전화가 여기에 모입니다.</p>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
+      return '<button type="button" class="ithr'+(t.unread?' unread':'')+'" data-num="'+esc(t.num)+'"><b>'+who(t)+(t.unread?' · 새 '+t.unread:'')+'</b><br><span class="note">'+esc(l.at)+' · '+esc(l.kind==='받음'?'':l.kind+' ')+esc(String(l.text).slice(0,60))+'</span></button>'}).join('')+'</div>':'<div class="empty">아직 받은 문자가 없습니다.</div>');
+    box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num)}});return}
+  var t=th[sel]||{num:sel,list:[]};
+  box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+who(t)+'</b></p><div class="ibx-msgs" id="ibxMsgs">'+t.list.map(function(r){var out=r.kind==='보냄';
+      return '<div class="ibx-m'+(out?' out':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+(out&&r.note?' · '+esc(r.note):'')+'</small></div>'}).join('')+'</div>'+
+    '<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>';
+  var mm=$('#ibxMsgs');mm.scrollTop=mm.scrollHeight;
+  $('#ibxBack').onclick=function(){inboxOpen()};
+  $('#ibxSend').onclick=function(){var b=this,tx=$('#ibxTxt').value.trim();if(!tx){toast('내용을 쓰세요');return}b.disabled=true;
+    call('smsReply',sel,tx).then(function(){$('#ibxTxt').value='';$('#ibxMsg').textContent='보낼 문자에 넣었습니다. 손님 문자가 온 뒤 15분 동안은 1분 안에, 그 밖에는 다음 확인 때(최대 15분) 발송 폰이 보냅니다.';b.disabled=false})
+      .catch(function(e){b.disabled=false;$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
+  IBX.unread=-1;call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,bd=$('#inboxN');bd.hidden=!n;bd.textContent=n;IBX.unread=n}).catch(function(){});
+}
+
 // ───────── 시작 ─────────
 function refreshLists(){fillResFilters();fillSettle();renderRes()}
 function boot(){
@@ -2237,6 +2321,7 @@ function boot(){
     if(OWNER){OWN.rooms=rows('객실').map(function(r){return {h:r.v[1],r:String(r.v[2])}}).sort(function(a,b){return a.h.localeCompare(b.h)||(Number(a.r)||0)-(Number(b.r)||0)});OWN.hotels=OWN.rooms.map(function(o){return o.h}).filter(function(h,i,a){return a.indexOf(h)===i});OWN.hotel=OWN.hotels[0]||'';OWN.room=(OWN.rooms[0]||{}).r||'';document.body.classList.add('owner-mode');
       [OWN.hotels.length<2?'qHotel':'','qView','sKind'].filter(String).forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=true;f.style.display='none'}});$('#qView').value='card';$('#sKind').value='room';$('#resStatus').innerHTML='';}
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}
+    if(LIVE&&!ROLE)inboxInit();   // 관리자: 문자함 (손님 문의 문자·부재중 전화)
     var now=new Date(),D=DEMO&&DEMO.defaults||{};
     $('#cDate').value=D.cleanDate||ymd(now);
     var pm=new Date(now.getFullYear(),now.getMonth()-1,1);
