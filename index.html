@@ -430,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-12j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2115,7 +2115,7 @@ var A={name:'',dirty:{},added:0};
 $('#aSheet').innerHTML=opts(Object.keys(EDIT),'호텔');
 function adminHotel(){var hc=HCOL[A.name];return hc?$('#aHotel').value:'*'}
 function adminOpen(){
-  var n=$('#aSheet').value;A.name=n;A.dirty={};A.added=0;A.page=1;$('#aSave').disabled=true;$('#aScroll').scrollLeft=0;
+  var n=$('#aSheet').value;A.name=n;A.dirty={};$('#aExtra').dataset.for='';A.added=0;A.page=1;$('#aSave').disabled=true;$('#aScroll').scrollLeft=0;
   var hc=HCOL[n];$('#aHotelBox').hidden=!hc;$('#aHotelBox').style.display=hc?'':'none';
   if(hc){var hs=hotels(true),cur=store('aHotel');if(cur!=='*'&&hs.indexOf(cur)<0)cur=defHotel();
     $('#aHotel').innerHTML=opts(hs,cur)+'<option value="*"'+(cur==='*'?' selected':'')+'>전체 호텔</option>'}
@@ -2175,9 +2175,10 @@ function renderAdmin(){
   if(n==='달력연결')note+=' · 소유주 본인 에어비앤비 계정의 리스팅은 본인달력을 Y로 하세요(정산 매출·대행수수료 제외, 청소비 청구).';
   if(n==='달력연결')note+=' · 한 객실에 리스팅이 여러 개면 줄을 여러 개 추가하세요. 주소는 에어비앤비 숙소 → 달력 → 캘린더 내보내기에서 복사합니다.';
   $('#aNote').textContent=note;
-  $('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';
+  var keepSms=n==='문자'&&$('#aExtra').dataset.for==='문자'&&$('#smsForm');   // 문자 설정은 다시 그리지 않음 (폰에서 주소창이 숨겨질 때마다 다시 불러오던 문제)
+  if(!keepSms){$('#aExtra').dataset.for=n;$('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';}
   if(n==='달력연결')calInit();
-  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';smsPanel()}
+  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
 }
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
@@ -2232,7 +2233,7 @@ function adminShift(dir){var sc=$('#aScroll'),st=sc.querySelector('th.stick'),w=
 $('#aLeft').onclick=function(){adminShift(-1)};$('#aRight').onclick=function(){adminShift(1)};
 $('#aScroll').addEventListener('scroll',adminArrows);
 $('#aPager').addEventListener('click',function(e){var b=e.target.closest('[data-pg]');if(!b||b.disabled)return;A.page=+b.dataset.pg;renderAdmin()});
-var adminRT=null;window.addEventListener('resize',function(){if($('#v-admin').hidden)return;clearTimeout(adminRT);adminRT=setTimeout(renderAdmin,200)});
+var adminRT=null,adminW=window.innerWidth;window.addEventListener('resize',function(){if($('#v-admin').hidden||window.innerWidth===adminW)return;adminW=window.innerWidth;clearTimeout(adminRT);adminRT=setTimeout(renderAdmin,200)});   // 폭이 바뀔 때만 (폰 주소창·키보드로 높이만 바뀔 때는 그대로)
 $('#aSheet').addEventListener('change',adminOpen);
 $('#aHotel').addEventListener('change',function(){store('aHotel',this.value);setHotel(this.value);A.page=1;renderAdmin()});
 $('#aFind').addEventListener('input',function(){A.page=1;renderAdmin()});
