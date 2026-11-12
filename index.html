@@ -430,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2195,7 +2195,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
       '<h4 class="cwh" style="margin-top:14px">바로 보내기</h4><div class="form"><div class="f"><label for="smsTo">받는 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000"></div>'+
         '<div class="f full"><label for="smsTx">내용</label><textarea id="smsTx" rows="3" placeholder="비우면 시험 문구를 보냅니다"></textarea></div></div>'+
-        '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="smsTestBtn">보내기</button></div>'+
+        '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="smsTestBtn">보내기</button></div><div id="smsSendMsg"></div>'+
       '<h4 class="cwh" style="margin-top:14px">플랫폼별 호텔 이름 <span class="note">(문구의 {호텔} · 비우면 원래 호텔 이름)</span></h4><div id="hnGrid"></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="hnSave">호텔 이름 저장</button></div>'+
       '<h4 class="cwh" style="margin-top:14px">호실별 출입문 비밀번호 <span class="note">(문구의 {비밀번호} · 마리나베이 157+뒤2+앞1+9, 써밋베이 456+호실4자리로 자동)</span></h4><div class="rpick" style="max-width:460px;flex-wrap:wrap"><select id="doorHotel" style="flex:1 1 150px">'+opts(hotels(true),defHotel())+'</select><button class="btn pri" type="button" id="doorSave" disabled>비밀번호 저장</button><button class="btn" type="button" id="doorFill">빈 칸 자동 채우기</button></div><div id="doorList" class="doorgrid"></div>'+
       (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
@@ -2203,9 +2203,13 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
-    $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim();if(!to){toast('받을 번호를 넣으세요');return}b.disabled=true;
-      (tx?call('smsNow',to,tx):call('smsTest',to)).then(function(r){if(tx)$('#smsTx').value='';$('#smsMsg').innerHTML=r&&r.queued?'보낼 문자에 넣었습니다. 발송 폰이 다음 확인 때(최대 15분) 보냅니다'+(/Android/i.test(navigator.userAgent)?' · <a target="_top" href="roomsms://poll">지금 보내기</a>':'')+'.':'시험 문자를 보냈습니다.'})
-        .catch(function(e){$('#smsMsg').innerHTML='<span class="err">보내지 못했습니다: '+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
+    $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim(),out=$('#smsSendMsg');if(!to){toast('받을 번호를 넣으세요');return}
+      b.disabled=true;b.textContent='넣는 중…';out.innerHTML='';
+      (tx?call('smsNow',to,tx):call('smsTest',to)).then(function(r){if(tx)$('#smsTx').value='';
+        if(r&&r.queued){toast('보낼 문자에 넣었습니다');
+          out.innerHTML='<p class="note" style="margin:6px 0">✓ 보낼 문자에 넣었습니다. 발송 폰이 다음 확인 때(최대 15분) 보냅니다.</p>'+(/Android/i.test(navigator.userAgent)?'<a class="btn pri" style="white-space:normal;max-width:100%" target="_top" href="roomsms://poll">📲 지금 바로 발송 (객실문자 앱 열기)</a><p class="note">이 폰이 발송 폰일 때 누르세요.</p>':'')}
+        else{toast('문자를 보냈습니다');out.innerHTML='<p class="note">✓ 보냈습니다.</p>'}})
+        .catch(function(e){out.innerHTML='<p class="err">보내지 못했습니다: '+esc(errText(e))+'</p>';toast('보내지 못했습니다')}).then(function(){b.disabled=false;b.textContent='보내기'})};
     var PL=['놀','놀호텔','떠나요','현금판매','ABNB'],hn=st.hnames||{};
     $('#hnGrid').innerHTML='<div class="scroll"><table class="hntab"><tr><th>호텔</th>'+PL.map(function(p){return '<th>'+esc(p)+'</th>'}).join('')+'</tr>'+hotels(true).map(function(h){return '<tr><td><b>'+esc(h)+'</b></td>'+PL.map(function(p){return '<td><input data-hn="'+esc(h)+'" data-pl="'+esc(p)+'" value="'+esc((hn[h]||{})[p]||'')+'" placeholder="'+esc(h)+'"></td>'}).join('')+'</tr>'}).join('')+'</table></div>';
     $('#hnSave').onclick=function(){var b=this,m={};document.querySelectorAll('#hnGrid [data-hn]').forEach(function(i){var v=i.value.trim();if(v)(m[i.dataset.hn]=m[i.dataset.hn]||{})[i.dataset.pl]=v});b.disabled=true;
