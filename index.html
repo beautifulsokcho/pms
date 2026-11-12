@@ -429,7 +429,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-11p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-12a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1284,9 +1284,9 @@ function nolMobile(t){
   var line1=function(lab){var a=after(lab).split('\n').map(function(x){return x.trim()});return a[0]||a[1]||''};
   var name=line1('예\\s*약\\s*자\\s*명').replace(/\s*0\d{1,3}-.*$/,'').trim();
   var tel=(after('연\\s*락\\s*처').match(/0\d{1,3}\s*-\s*\d{3,4}\s*-\s*\d{4}/)||[''])[0].replace(/\s/g,'');
-  var L=t.split('\n').map(function(x){return x.trim()}),ri=L.findIndex(function(x){return /^객\s*실\s*명/.test(x)}),room='';
-  if(ri>=0){var first=L[ri].replace(/^객\s*실\s*명\s*[:：]?\s*/,''),parts=first?[first]:[];
-    for(var j=ri+1;j<L.length&&j<ri+6;j++){if(!L[j])continue;if(/^객\s*실\s*ID|^입\s*실\s*일\s*시|^퇴\s*실/.test(L[j]))break;parts.push(L[j])}
+  var L=t.split('\n').map(function(x){return x.trim()}),ri=L.findIndex(function(x){return /^객\s*실\s*(명|정\s*보)/.test(x)}),room='';
+  if(ri>=0){var first=L[ri].replace(/^객\s*실\s*(명|정\s*보)\s*[:：]?\s*/,''),parts=first?[first]:[];
+    for(var j=ri+1;j<L.length&&j<ri+6;j++){if(!L[j])continue;if(/^객\s*실\s*ID|^입\s*실\s*일\s*시|^퇴\s*실|^예\s*약\s*자|^이\s*용\s*정\s*보/.test(L[j]))break;parts.push(L[j])}
     room=parts.join('').replace(/(\d)(호)/,'$1$2')}
   var nums=[],re=/판\s*매?\s*가?\s*[:：]?\s*([\d,]{4,})\s*원/g,m;while((m=re.exec(t)))nums.push(Number(m[1].replace(/,/g,'')));
   var sale=nums.length?Math.max.apply(null,nums):0;
@@ -1295,7 +1295,7 @@ function nolMobile(t){
     .concat(cx?['예약상태','예약취소']:[]).concat(sale?['총 판매가 '+sale.toLocaleString()+'원']:[]).join('\n');
 }
 function parsePasted(t){t=normText(t);
-  var nm=/예약\s*상세\s*정보|투숙일별|금액\s*및\s*할인|객실\s*ID\s*\d/.test(t)||!parseNol(t).length?nolMobile(t):'';   // 놀 앱 화면이면 PC 형식으로 바꿔서
+  var nm=!parseNol(t).length?nolMobile(t):'';   // PC 복사 형식('예약 번호' 줄)으로 못 읽을 때만 놀 앱 화면 형식으로 바꿔서
   return parseAbnb(t).concat(parseNol(nm||t)).concat(parseDdn(t)).concat(parseDdnList(t))}
 // ───────── 같은 호실 겹침 검사 ─────────
 function overlaps(x,selfR){
