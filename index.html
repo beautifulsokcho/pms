@@ -436,7 +436,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13v';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13w';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2249,8 +2249,10 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       $('#phBox').innerHTML='<div class="report" style="margin:8px 0;padding:10px 12px;border:2px solid var(--accent)"><div class="note">지금 발송 번호</div><div style="font-size:20px;font-weight:700">'+(cur?esc(telF(cur.n)):'<span class="err">선택 안 됨</span>')+'</div>'+(cur?'<div class="note">'+esc(cur.memo||'')+(cur.dual?' · 듀얼넘버 (받는 번호 끝에 # 붙여 보냄)':'')+'</div>':'')+'</div>'+
         '<div class="form"><div class="f"><label for="phSel">발송 번호 바꾸기 <span class="note">(등록된 번호에서 고르기)</span></label><select id="phSel">'+L.map(function(x){return '<option value="'+esc(x.n)+'"'+(x.n===st.phone?' selected':'')+'>'+esc(telF(x.n)+(x.memo?' · '+x.memo:'')+(x.dual?' (#)':''))+'</option>'}).join('')+'</select></div></div>'+
         '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="phUse">이 번호로 발송</button><button class="btn" type="button" id="phEdit">번호 목록 편집</button></div>'+
-        '<p class="note">다른 폰으로 바꿀 때: 그 폰에서 이 화면의 [폰 앱에 연결]을 누르고, 원래 폰의 객실문자 앱은 끄세요 (두 폰이 함께 켜져 있으면 먼저 확인한 폰이 보냅니다).</p><div id="phEd"></div>';
-      $('#phUse').onclick=function(){var b=this;b.disabled=true;call('smsConfig',{phone:$('#phSel').value}).then(function(s2){toast('발송 번호를 '+telF(s2.phone)+'(으)로 바꿨습니다');st.phone=s2.phone;st.phones=s2.phones;phDraw(st)}).catch(function(e){b.disabled=false;toast(errText(e))})};
+        (function(){var ds=st.devs||{},ks=Object.keys(ds);if(!ks.length)return '';ks.sort(function(a,b){return (b===st.gwDev)-(a===st.gwDev)});
+          return '<div class="note" style="margin:6px 0">앱이 깔린 폰: '+ks.map(function(k){var d=ds[k];return (k===st.gwDev?'<b style="color:var(--accent)">● 발송 중</b> ':'○ 대기 ')+esc((d.model||'폰')+(d.n?' · '+telF(d.n):''))+(d.seen?' <small>('+esc(d.seen.slice(5))+')</small>':'')}).join(' / ')+'</div>'})()+
+        '<p class="note">발송 폰은 한 대만 동작합니다: 가장 최근에 [이 번호로 발송]을 고른 폰이 보내고, 다른 폰의 객실문자 앱은 자동으로 대기합니다. 처음 쓰는 폰은 그 폰 앱에서 [이 번호로 발송 (저장)]을 한 번 누르세요.</p><div id="phEd"></div>';
+      $('#phUse').onclick=function(){var b=this;b.disabled=true;call('smsConfig',{phone:$('#phSel').value}).then(function(s2){var ds=s2.devs||{},own=Object.keys(ds).some(function(k){return ds[k].n===s2.phone});toast(own?'발송 번호를 '+telF(s2.phone)+'(으)로 바꿨습니다 (그 폰이 발송)':'번호를 바꿨습니다. 그 번호의 폰 앱에서 [이 번호로 발송 (저장)]을 한 번 눌러야 그 폰이 보냅니다');st.phone=s2.phone;st.phones=s2.phones;st.devs=s2.devs;st.gwDev=s2.gwDev;phDraw(st)}).catch(function(e){b.disabled=false;toast(errText(e))})};
       $('#phEdit').onclick=function(){var row=function(x){return '<div class="rpick" style="flex-wrap:wrap;margin:4px 0"><input data-pn value="'+esc(telF(x.n||''))+'" placeholder="010-0000-0000" inputmode="tel" style="flex:1 1 130px"><input data-pm value="'+esc(x.memo||'')+'" placeholder="메모 (예: 다른 폰)" style="flex:1 1 120px"><label class="chk"><input type="checkbox" data-pd'+(x.dual?' checked':'')+'> 듀얼(#)</label><button class="btn" type="button" data-px>삭제</button></div>'};
         $('#phEd').innerHTML='<div id="phRows">'+L.map(row).join('')+'</div><div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="phAdd">+ 번호 추가</button><button class="btn pri" type="button" id="phSave">목록 저장</button></div>';
         var bind=function(){document.querySelectorAll('#phRows [data-px]').forEach(function(x){x.onclick=function(){x.parentNode.remove()}})};bind();
