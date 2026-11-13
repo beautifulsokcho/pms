@@ -408,6 +408,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <h2>기준정보 관리</h2>
       <p>노란 칸은 입력 칸, 흐린 글씨는 자동 계산 칸입니다. 지우지 말고 사용여부를 N으로 바꾸세요.</p>
       <p class="note" id="verNote"></p>
+      <p class="note" id="tabLinks">역할별 화면을 탭으로 보기 (탭마다 따로 로그인): <a href="?role=admin&amp;tab=1" target="_blank">관리자</a> · <a href="?role=manager&amp;tab=1" target="_blank">매니저</a> · <a href="?role=owner&amp;tab=1" target="_blank">소유주</a> · <a href="?role=cleaner&amp;tab=1" target="_blank">청소담당자</a></p>
     </div>
     <div class="bar">
       <div class="f"><label for="aSheet">항목</label><select id="aSheet"></select></div>
@@ -433,7 +434,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -453,7 +454,12 @@ function nights(a,b){if(!a||!b)return '';return Math.round((Date.UTC.apply(null,
 function ymdArr(s){var a=String(s).split('-').map(Number);return [a[0],a[1]-1,a[2]]}
 var WD='일월화수목금토';
 function md(s){if(!s)return '';var d=pd(s);return (d.getMonth()+1)+'/'+d.getDate()+'('+WD[d.getDay()]+')'}
-function store(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+// 탭별 로그인: 주소에 &tab=1(또는 ?tab=1)을 붙여 연 탭은 로그인 정보를 그 탭 안(sessionStorage)에만 저장 → 같은 창에서 탭마다 다른 역할
+var TABMODE=(function(){try{if(/[?&]tab=1\b/.test(location.search))sessionStorage.setItem('tabMode','1');return sessionStorage.getItem('tabMode')==='1'}catch(e){return false}})();
+var TAB_KEYS={role:1,loginRole:1,mid:1,mpw:1,cid:1,cpw:1,pin:1};
+function store(k,v){try{var st=TABMODE&&TAB_KEYS[k]?sessionStorage:localStorage;if(v===undefined)return st.getItem(k);st.setItem(k,v)}catch(e){return null}}
+function roleTitle(){var r=store('role')||'',lr=store('loginRole')||'';var nm={'':'관리자',manager:'매니저',owner:'소유주',cleaner:'청소담당자'};
+  var lab=r?nm[r]||r:(store('pin')?'관리자':(lr?nm[lr]+' 로그인':'로그인'));try{document.title='객실관리-'+lab+(TABMODE?' (탭)':'')}catch(e){}}
 // 저장 알림: 구글시트 파일·행 번호를 함께 보여 주고, 누르면 예약검색에서 그 예약을 엶
 function savedToast(msg,d,x){var where=d&&d.saved&&d.saved.length?' · '+(d.file?'「'+d.file+'」 ':'')+'예약 시트 '+d.saved.join(', ')+'행':'';
   toast(msg+where+(x&&x.ci?' — 눌러서 예약검색에서 보기':''));
@@ -2337,7 +2343,7 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
 // ───────── 시작 ─────────
 function refreshLists(){fillResFilters();fillSettle();renderRes()}
 function boot(){
-  window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
+  roleTitle();window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
   var st=$('#status');
   if(DEMO){st.textContent='예시 데이터';st.classList.add('demo')}
   if(!DEMO&&!GAS&&location.protocol==='file:'){st.textContent='설치 필요';st.classList.add('demo');
