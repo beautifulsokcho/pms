@@ -433,7 +433,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -840,7 +840,7 @@ function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
 function cardHtml(r){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(v[R.room])+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">본인계정</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">본인계정</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">판매 '+(won(v[R.sale])||'-')+' · 입금 '+(won(v[R.fin])||'-')+' · 청소 '+(won(v[R.cfin])||'-')+'</span></div>'+
     (v[R.memo]?'<div class="memo">'+esc(v[R.memo])+'</div>':'')+'</button>'}
@@ -938,7 +938,7 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
       if(stay)info='~'+md(stay.v[R.co]).replace(/\(.\)/,'')+' 퇴실';
       var nxt=nx&&nx!==stay?(nx.v[R.ci]===d?'':md(nx.v[R.ci]).replace(/\(.\)/,'')+' ')+esc(nx.v[R.ppl])+'명 '+esc(nx.v[R.n])+'박':'';
       var tr=inn||stay||nx||out;
-      var lab=rm;if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
+      var cur=stay||inn||out,lab=cur?roomLab(cur.v):rm;if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
       return '<button type="button" class="scard '+S2[st]+'"'+(tr?' data-r="'+tr.r+'"':'')+'><span class="sr">'+esc(lab)+'</span><span class="ss">'+st+'</span>'+
         (info?'<span class="si">'+info+'</span>':'')+'<span class="si">'+(nxt||(st==='재실'?'':'예약 없음'))+'</span></button>'}).join('');
     var sum=['당일입실','퇴실→입실','퇴실','재실','공실','자가'].filter(function(k){return cnt[k]}).map(function(k){return '<span class="nw">'+k+' <b>'+cnt[k]+'</b></span>'}).join(' · ');
@@ -1176,7 +1176,7 @@ function parseAbnb(t){
     var d=L[i].match(ABNB_DATE),y=d[1]?+d[1]:guessYear(+d[2],+d[3]);o.ci=ymdOf(y,+d[2],+d[3]);
     if(d[7])o.co=addDays(o.ci,+d[7]);else{var m2=d[5]?+d[5]:+d[2];o.co=ymdOf(d[4]?+d[4]:(m2<+d[2]?y+1:y),m2,+d[6])}
     var l3=L[i+1]||'',rm=l3.match(/^(\d{3,4})\s*호?/);
-    if(rm){var f=findRoom(rm[1],l3);o.hotel=f.hotel;o.room=f.room;o.unknownRoom=!!f.unknown;var rest=l3.slice(rm[0].length).split('·')[0].trim();if(rest)o.note=rest}
+    if(rm){var f=findRoom(rm[1],l3);o.hotel=f.hotel;o.room=f.room;o.unknownRoom=!!f.unknown;var rest=l3.slice(rm[0].length).split('·')[0].trim();var ln=l3.match(/·\s*(\d{1,3})\s*\./);if(ln)o.lno=ln[1];if(rest||o.lno)o.note=(rest+(o.lno?' · '+o.lno:'')).trim()}   // '248호 윤희상님 4인 시티뷰 · 07. …' → 리스팅 번호 07
     var end=k+1<idx.length?idx[k+1]-1:L.length,blk=L.slice(i+2,end),plus=0,adults=0;
     blk.forEach(function(x,j){
       var w=x.match(/₩\s*([\d,]+)/);if(w&&o.payout===undefined)o.payout=Number(w[1].replace(/,/g,''));   // ABNB ₩금액 = 호스트 수령액
@@ -1374,6 +1374,8 @@ function restoreRes(row,cur){
 function cancelItems(list){var t=ymd(new Date());
   return list.map(function(r){return {r:r.r,v:{24:t,22:(r.v[R.note]?r.v[R.note]+' / ':'')+'새 예약과 겹쳐 취소 '+t}}})}
 // 비고의 놀·놀호텔·떠나요 예약번호
+function lnoOf(note){var m=String(note||'').match(/·\s*(\d{1,3})\s*(?:\/|$)/);return m?m[1]:''}   // 비고의 '… · 07' → 리스팅 번호 (호실 옆 (07)로 표시)
+function roomLab(v){var n=lnoOf(v[R.note]);return String(v[R.room])+(n?'('+n+')':'')}
 function resNo(s){var m=String(s||'').match(/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/);return m?m[1]:''}
 function resNos(s){var a=[],re=/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/g,m;while((m=re.exec(String(s||''))))a.push(m[1]);return a}
 function dupOf(x){   // 같은 예약: 예약코드 → 예약번호가 같으면 우선, 아니면 같은 호텔·호실·입실일 (단, 예약번호가 서로 다르면 다른 예약)
