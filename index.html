@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14n';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14o';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1849,6 +1849,11 @@ function fitTables(){document.querySelectorAll('#sOut .report.pages .pg2 .scroll
 window.addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(fitTables,150)});
 function printPages(el){var root=document.createElement('div');root.id='printRoot';
   var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('input.cedit,.scrcal').forEach(function(i){i.remove()});c.querySelectorAll('.prtcal').forEach(function(x){x.style.display='block'});c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});root.appendChild(c);document.body.appendChild(root);
+  root.style.cssText='position:fixed;left:-30000px;top:0;display:block;background:#fff';c.classList.add('repsnap');   // 쪽마다 A4 한 장에 맞게 축소 (넘쳐서 다음 장으로 밀리지 않게)
+  c.querySelectorAll('.two').forEach(function(t){t.style.display='block'});
+  c.querySelectorAll('.pg').forEach(function(pg){var land=pg.classList.contains('pg1'),PW=land?1060:716,PH=land?720:1030;pg.style.zoom='';pg.style.width=PW+'px';
+    var w=pg.scrollWidth,h=pg.scrollHeight,z=Math.min(1,PW/w,PH/h);pg.style.width='';if(z<1)pg.style.zoom=Math.floor(z*0.97*100)/100});
+  root.style.cssText='';c.classList.remove('repsnap');
   document.body.classList.add('print-pages');window.print();setTimeout(function(){document.body.classList.remove('print-pages');root.remove()},800)}
 // 정산서 쪽(달력·요약·일자별)을 그림(PNG)으로: 쪽마다 한 장
 var H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
