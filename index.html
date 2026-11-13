@@ -436,7 +436,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13t';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13u';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2220,7 +2220,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     var stat=!ok?'<span class="err">아직 연결 전 — [저장]을 누른 뒤 [폰 앱에 연결]</span>':
       '폰 앱 마지막 확인 <b>'+esc(st.gwSeen||'없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 멈춤</span>':'')+(gs.battery!=null&&gs.battery>=0?' · 배터리 '+esc(gs.battery)+'%':'')+' · 대기 '+(st.gwWait||0)+'건';
     $('#smsForm').innerHTML='<p>'+stat+'</p>'+
-      '<div class="form"><div class="f"><label for="gwFwd">문의 전달받을 주 폰 번호</label><input id="gwFwd" inputmode="tel" value="'+esc(st.fwd||'')+'" placeholder="비우면 전달 안 함"></div></div>'+
+      '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
       '<div id="phBox"></div>'+
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
@@ -2244,8 +2244,9 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
         .catch(function(e){out.innerHTML='<p class="err">보내지 못했습니다: '+esc(errText(e))+'</p>';toast('보내지 못했습니다')}).then(function(){b.disabled=false;b.textContent='보내기'})};
     var telF=function(n){n=String(n||'');return n.length===11?n.slice(0,3)+'-'+n.slice(3,7)+'-'+n.slice(7):n.length===10?n.slice(0,3)+'-'+n.slice(3,6)+'-'+n.slice(6):n};
     var phDraw=function(st){var L=st.phones||[],cur=L.filter(function(x){return x.n===st.phone})[0];
+      L=L.slice().sort(function(a,b){return (b.n===st.phone)-(a.n===st.phone)});   // 지금 발송 번호를 맨 위에
       $('#phBox').innerHTML='<div class="report" style="margin:8px 0;padding:10px 12px;border:2px solid var(--accent)"><div class="note">지금 발송 번호</div><div style="font-size:20px;font-weight:700">'+(cur?esc(telF(cur.n)):'<span class="err">선택 안 됨</span>')+'</div>'+(cur?'<div class="note">'+esc(cur.memo||'')+(cur.dual?' · 듀얼넘버 (받는 번호 끝에 # 붙여 보냄)':'')+'</div>':'')+'</div>'+
-        '<div class="form"><div class="f"><label for="phSel">발송 번호 바꾸기</label><select id="phSel">'+L.map(function(x){return '<option value="'+esc(x.n)+'"'+(x.n===st.phone?' selected':'')+'>'+esc(telF(x.n)+(x.memo?' · '+x.memo:'')+(x.dual?' (#)':''))+'</option>'}).join('')+'</select></div></div>'+
+        '<div class="form"><div class="f"><label for="phSel">발송 번호 바꾸기 <span class="note">(등록된 번호에서 고르기)</span></label><select id="phSel">'+L.map(function(x){return '<option value="'+esc(x.n)+'"'+(x.n===st.phone?' selected':'')+'>'+esc(telF(x.n)+(x.memo?' · '+x.memo:'')+(x.dual?' (#)':''))+'</option>'}).join('')+'</select></div></div>'+
         '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="phUse">이 번호로 발송</button><button class="btn" type="button" id="phEdit">번호 목록 편집</button></div>'+
         '<p class="note">다른 폰으로 바꿀 때: 그 폰에서 이 화면의 [폰 앱에 연결]을 누르고, 원래 폰의 객실문자 앱은 끄세요 (두 폰이 함께 켜져 있으면 먼저 확인한 폰이 보냅니다).</p><div id="phEd"></div>';
       $('#phUse').onclick=function(){var b=this;b.disabled=true;call('smsConfig',{phone:$('#phSel').value}).then(function(s2){toast('발송 번호를 '+telF(s2.phone)+'(으)로 바꿨습니다');st.phone=s2.phone;st.phones=s2.phones;phDraw(st)}).catch(function(e){b.disabled=false;toast(errText(e))})};
