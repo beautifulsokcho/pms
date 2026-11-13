@@ -433,7 +433,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -938,7 +938,7 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
       if(stay)info='~'+md(stay.v[R.co]).replace(/\(.\)/,'')+' 퇴실';
       var nxt=nx&&nx!==stay?(nx.v[R.ci]===d?'':md(nx.v[R.ci]).replace(/\(.\)/,'')+' ')+esc(nx.v[R.ppl])+'명 '+esc(nx.v[R.n])+'박':'';
       var tr=inn||stay||nx||out;
-      var cur=stay||inn||out,lab=cur?roomLab(cur.v):rm;if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
+      var cur=stay||inn||out,lab=cur?roomLab(cur.v):(roomLno(h,rm)?rm+'('+roomLno(h,rm)+')':rm);if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
       return '<button type="button" class="scard '+S2[st]+'"'+(tr?' data-r="'+tr.r+'"':'')+'><span class="sr">'+esc(lab)+'</span><span class="ss">'+st+'</span>'+
         (info?'<span class="si">'+info+'</span>':'')+'<span class="si">'+(nxt||(st==='재실'?'':'예약 없음'))+'</span></button>'}).join('');
     var sum=['당일입실','퇴실→입실','퇴실','재실','공실','자가'].filter(function(k){return cnt[k]}).map(function(k){return '<span class="nw">'+k+' <b>'+cnt[k]+'</b></span>'}).join(' · ');
@@ -1375,7 +1375,11 @@ function cancelItems(list){var t=ymd(new Date());
   return list.map(function(r){return {r:r.r,v:{24:t,22:(r.v[R.note]?r.v[R.note]+' / ':'')+'새 예약과 겹쳐 취소 '+t}}})}
 // 비고의 놀·놀호텔·떠나요 예약번호
 function lnoOf(note){var m=String(note||'').match(/·\s*(\d{1,3})\s*(?:\/|$)/);return m?m[1]:''}   // 비고의 '… · 07' → 리스팅 번호 (호실 옆 (07)로 표시)
-function roomLab(v){var n=lnoOf(v[R.note]);return String(v[R.room])+(n?'('+n+')':'')}
+var LNO={src:null,map:{}};
+function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d){LNO.src=d;LNO.map={};var best={};   // 호실마다 비고에 '· 07'이 있는 가장 최근 예약의 번호 → 그 호실의 모든 예약에 표시
+    rows('예약').forEach(function(r){var n=lnoOf(r.v[R.note]);if(!n)return;var k=r.v[R.hotel]+'|'+r.v[R.room],ci=String(r.v[R.ci]||'');if(!best[k]||ci>best[k]){best[k]=ci;LNO.map[k]=n}})}
+  return LNO.map[h+'|'+rm]||''}
+function roomLab(v){var n=lnoOf(v[R.note])||roomLno(v[R.hotel],String(v[R.room]));return String(v[R.room])+(n?'('+n+')':'')}
 function resNo(s){var m=String(s||'').match(/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/);return m?m[1]:''}
 function resNos(s){var a=[],re=/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/g,m;while((m=re.exec(String(s||''))))a.push(m[1]);return a}
 function dupOf(x){   // 같은 예약: 예약코드 → 예약번호가 같으면 우선, 아니면 같은 호텔·호실·입실일 (단, 예약번호가 서로 다르면 다른 예약)
