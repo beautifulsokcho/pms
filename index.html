@@ -135,6 +135,7 @@ tr.dirty td{background:var(--hold-soft)}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
 .report.manual{margin-top:16px}.intg{font-size:12px}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}
+.intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
 .owner{font-weight:600;margin:4px 0}
@@ -436,7 +437,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13x';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13y';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1978,6 +1979,7 @@ function renderIntegrated(kind){
       tbl.rows.map(function(r,i){return '<tr'+(tbl.bold.indexOf(i+1)>=0?' class="sum"':tbl.sep.indexOf(i+1)>=0?' class="sep"':'')+'>'+r.map(function(c,j){var n=typeof c==='number';return '<td'+(n?' class="n"':'')+'>'+(n?(c?Math.round(c).toLocaleString('ko-KR'):'-'):esc(c))+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>'+
       '<div class="actions no-print"><span id="xlsLink"></span><button class="btn" type="button" id="xlsBtn">엑셀 파일 만들기</button></div>'+printBtn('sAllPrint')+'</div>';
     box.innerHTML=html;
+    stickCols(box.querySelector('table.intg'),2);   // 옆으로 스크롤해도 호실·소유주 고정
     $('#xlsBtn').onclick=function(){var b=this;b.disabled=true;b.textContent='만드는 중…';
       call('exportXlsx',title,[{name:kind==='tax'?'세금신고서':'통합정산서',rows:[[title]].concat([tbl.head],tbl.rows),bold:[0,1].concat(tbl.bold.map(function(i){return i+1})),text:tbl.text,freeze:2}])
         .then(function(x){b.textContent='엑셀 파일 만들기';b.disabled=false;
@@ -1985,6 +1987,9 @@ function renderIntegrated(kind){
         .catch(function(e){b.disabled=false;b.textContent='엑셀 파일 만들기';toast('만들지 못했습니다: '+(e&&e.message||e))})};
   }).catch(function(e){box.innerHTML='<div class="empty err">계산하지 못했습니다: '+esc(e&&e.message||e)+'</div>'});
 }
+function stickCols(t,n){if(!t)return;var fix=function(){var left=0;for(var c=0;c<n;c++){var w=0;
+    t.querySelectorAll('tr').forEach(function(tr){var cell=tr.children[c];if(!cell)return;cell.classList.add('stk');if(c===n-1)cell.classList.add('stk2');cell.style.left=left+'px';w=Math.max(w,cell.getBoundingClientRect().width)});left+=w}};
+  fix();setTimeout(fix,300)}
 function intTable(d){
   var rs=d.rows,any=function(f){return rs.some(function(o){return Math.round(f(o))!==0})},labels=function(k){var L=[];rs.forEach(function(o){o[k].forEach(function(p){if(L.indexOf(p[0])<0)L.push(p[0])})});return L};
   var val=function(o,k,l){var p=o[k].find(function(q){return q[0]===l});return p?p[1]:0};
@@ -2009,10 +2014,10 @@ function intTable(d){
 }
 function taxTable(d){
   var main=d.rows.filter(function(o){return !o.extra});
-  var rows=main.map(function(o){var v=Math.max(0,Math.round(o.vat));return [o.room,v,Math.round(v/1.1),o.owner,o.biz,o.trade,o.kind,o.item,o.email]});
-  var t=rows.reduce(function(a,r){return [a[0]+r[1],a[1]+r[2]]},[0,0]);
-  rows.push(['합계',t[0],t[1],'','','','','','']);
-  return {head:['호실','세금계산서 발행액(VAT포함)','세금계산서 발행액(VAT별도)','대표자','사업자번호','상호','업태','종목','이메일'],rows:rows,bold:[rows.length],sep:[],text:[0,4,5,6,7,8]};
+  var rows=main.map(function(o){var v=Math.max(0,Math.round(o.vat));return [o.room,o.owner,v,Math.round(v/1.1),o.biz,o.trade,o.kind,o.item,o.email]});
+  var t=rows.reduce(function(a,r){return [a[0]+r[2],a[1]+r[3]]},[0,0]);
+  rows.push(['합계','',t[0],t[1],'','','','','']);
+  return {head:['호실','대표자','세금계산서 발행액(VAT포함)','세금계산서 발행액(VAT별도)','사업자번호','상호','업태','종목','이메일'],rows:rows,bold:[rows.length],sep:[],text:[0,1,4,5,6,7,8]};
 }
 
 // 정산항목 J열 '적용 호텔': 빈칸·전체 = 모든 호텔, 아니면 적힌 호텔(쉼표로 여러 개)에만
