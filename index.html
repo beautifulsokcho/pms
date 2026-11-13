@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.report.manual{margin-top:16px}.intg{font-size:12px}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1981,7 +1981,7 @@ $('#sPer').onchange=function(){sPerShow();$('#sAll').innerHTML=''};
 function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 결과 a → 달력·요약·일자별 3쪽)
     var cut=a.findIndex(function(r){return String(r[0]).indexOf('입실일 기준')>=0});
     var top=a.slice(0,cut-1).filter(function(r){return r.slice(0,3).some(function(c){return c!==''})});
-    var owner=a[cut-1]?a[cut-1][0]:'';
+    var owner=a[cut-1]?a[cut-1][0]:'',acct=!/\(/.test(String(owner||''))?'':String(owner||'').replace(/^\s*\d+\s*호\s*\(\s*/,'').replace(/\)\s*$/,'').trim();   // 시트 45행 '2001호(은행 예금주-계좌명 계좌번호)' → 정산 요약 아래 '입금 계좌'
     var bot=a.slice(cut+1).filter(function(r){return r.some(function(c){return c!==''})});
     var subR=bot.find(function(r){return /소계/.test(r[0])})||[],ownSum=subR[13]&&Number(String(subR[13]).replace(/[^\d.-]/g,''))?subR[13]:'';
     var ownFee=!rows('객실').some(function(r){return r.v[1]===p.hotel&&String(r.v[2])===String(p.room)&&String(r.v[26]||'').trim().toUpperCase()==='Y'});   // 객실 AA열 Y = 본인계정 대행수수료 제외
@@ -2013,8 +2013,8 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
     var sAct=(LIVE||DEMO?'<div class="actions no-print stop">'+(LIVE?'<button class="btn" type="button" onclick="window.__print(\'sPrint\')">인쇄</button>':'')+'<button class="btn" type="button" id="sSnap">그림으로 저장</button></div>':'');   // 인쇄·그림 저장 버튼은 위에
     return '<div class="report pages" id="'+(pid||'sPrint')+'"><div class="shead2"><h3 class="pgt0">'+ttl+'</h3>'+sAct+'</div>'+
       '<div class="pg pg1"><h3 class="pgt">'+ttl+' · 객실 달력</h3>'+calHtml(p.hotel,p.room,p.month,calList)+'</div>'+
-      '<div class="two"><div class="pg pg2"><h3 class="pgt">'+ttl+'</h3><p class="owner pgt">'+esc(owner)+'</p><div class="scroll">'+t1+'</div></div>'+
-      '<div class="pg pg3"><h3 class="pgt">'+ttl+' · 일자별 정산내역</h3><p class="owner">'+esc(owner)+'</p><p class="note">입실일 기준입니다.</p><div class="scroll">'+t2+'</div></div></div>'+
+      '<div class="two"><div class="pg pg2"><h3 class="pgt">'+ttl+'</h3><div class="scroll">'+t1+'</div>'+(acct?'<p class="acct">입금 계좌: '+esc(acct)+'</p>':'')+'</div>'+
+      '<div class="pg pg3"><h3 class="pgt">'+ttl+' · 일자별 정산내역</h3><p class="note">입실일 기준입니다.</p><div class="scroll">'+t2+'</div></div></div>'+
       (LIVE?'':printBtn('sPrint'))+'</div>';
 }
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
