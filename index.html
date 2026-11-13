@@ -437,7 +437,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13z';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2238,7 +2238,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     $('#smsForm').innerHTML='<p>'+stat+'</p>'+
       '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
       '<div id="phBox"></div>'+
-      '<div class="form"><div class="f full"><label for="smsKw">문자함에 저장할 단어 <span class="note">(쉼표로 구분 · 이 단어가 든 문자와 예약 손님 번호에서 온 문자만 저장·알림, 전화는 모두)</span></label><input id="smsKw" value="'+esc(st.kw||'에어비앤비,에어비엔비,airbnb,놀,NOL,야놀자,떠나요')+'"></div></div>'+
+      '<div class="form"><div class="f full"><label for="smsKw">문자함에 저장할 단어 <span class="note">(쉼표로 구분 · 이 단어가 든 문자와 예약 손님 번호에서 온 문자만 저장·알림, 전화는 저장 안 함)</span></label><input id="smsKw" value="'+esc(st.kw||'에어비앤비,에어비엔비,airbnb,놀,NOL,야놀자,떠나요,써밋,마리나')+'"></div></div>'+
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
