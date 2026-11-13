@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1446,6 +1446,8 @@ function updItem(y){var d0=dupOf(y),vals={};
     if(y.pets)vals[31]=y.pets;
     if(y.roomPick&&(d0.v[R.hotel]!==y.hotel||String(d0.v[R.room])!==String(y.room))){vals[2]=y.hotel;vals[3]=String(y.room)}   // [호실 바꾸기]로 고른 호실로 옮김
     if(y.code&&!d0.v[R.code])vals[28]=y.code;
+    if(y.sale!==undefined&&y.payout===undefined&&y.dep===undefined&&y.depM===undefined&&d0.v[R.depM]!=='')vals[15]='';   // 판매가만 온 문구(놀 등): 예전 입금(수동, 0 포함)을 지우고 판매×(1−수수료)로 자동
+    if(!isOwnAcct(y)&&d0.v[R.own]==='Y'&&y.plat&&y.plat!=='ABNB'){vals[37]='';vals[42]=''}   // 달력 등으로 본인계정(ABNB)으로 들어간 예약이 실제로는 놀·떠나요 예약이면 본인계정 해제
     if(isOwnAcct(y)){vals[37]='Y';vals[12]=0;vals[15]=0;if(y.payout!==undefined)vals[42]=y.payout}
     if(y.name)vals[4]=y.name; if(y.tel&&(!/\*/.test(y.tel)||!d0.v[R.tel]))vals[5]=y.tel;   // 가려진 번호(010-****-5114)는 기존 번호를 덮어쓰지 않음
     if(y.booked)vals[6]=y.booked; if(y.plat)vals[11]=y.plat; if(y.co)vals[8]=y.co; if(y.ci&&d0.v[R.ci]!==y.ci)vals[7]=y.ci; if(!y.pplGuess&&y.ppl)vals[10]=y.ppl;
