@@ -44,7 +44,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .brand small{display:block;font:500 11px var(--f-body);color:var(--muted);letter-spacing:.04em}
 .status{margin-left:auto;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 .status.demo{background:var(--hold-soft);color:var(--hold)}
-.ibadge{display:inline-block;min-width:18px;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center}.ibx-list .ithr{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 4px;cursor:pointer;color:inherit;font:inherit}.ibx-list .ithr.unread b{color:var(--warn)}.ibx-msgs{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0}.ibx-m{max-width:85%;padding:7px 10px;border-radius:12px;background:var(--sunk);border:1px solid var(--line);white-space:pre-wrap;font-size:14px}.ibx-m.out{align-self:flex-end;background:var(--accent-soft)}.ibx-m small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
+body.viewing #owPin,body.viewing #myPinBtn,body.viewing #inboxBtn,body.viewing #adOut{display:none!important}.viewbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 12px;background:#5b3fb5;color:#fff;font-size:14px}.viewbar select{max-width:180px;padding:4px 6px;border-radius:6px}.viewbar .btn{padding:4px 10px;background:#fff;color:#5b3fb5;border:0}.vpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;max-height:50vh;overflow:auto;margin:8px 0}.vpick button{padding:8px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer;color:inherit;font:inherit;text-align:left}.vpick button small{display:block;color:var(--muted);font-size:11px}.ibadge{display:inline-block;min-width:18px;margin-left:4px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center}.ibx-list .ithr{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:10px 4px;cursor:pointer;color:inherit;font:inherit}.ibx-list .ithr.unread b{color:var(--warn)}.ibx-msgs{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0}.ibx-m{max-width:85%;padding:7px 10px;border-radius:12px;background:var(--sunk);border:1px solid var(--line);white-space:pre-wrap;font-size:14px}.ibx-m.out{align-self:flex-end;background:var(--accent-soft)}.ibx-m small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
 .brand,.iconbtn{white-space:nowrap}.iconbtn{flex:0 0 auto}.status{min-width:0;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:600px){.top-in{gap:6px!important;flex-wrap:nowrap!important;padding-top:6px!important;padding-bottom:6px!important}.brand{font-size:15px}.brand small{display:none}.status{font-size:11px;padding:3px 8px;flex:1 1 auto;text-align:center}.iconbtn{padding:4px 7px;font-size:12px}.iconbtn[data-s]{font-size:0;min-width:30px}.iconbtn[data-s]::after{content:attr(data-s);font-size:13px}.status{min-width:56px}}   /* 휴대폰: 위쪽 제목줄을 한 줄로 작게 */
 nav.tabs{display:flex;gap:4px}
@@ -288,9 +288,11 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="brand">객실관리<small>예약 · 청소 · 정산</small></div>
     <span id="status" class="status">연결 중</span>
     <button class="iconbtn" id="connBtn" type="button" hidden>연결</button>
+    <button class="iconbtn" id="viewBtn" type="button" title="소유주·매니저·담당자 화면 보기" hidden>👁 화면</button>
     <button class="iconbtn" id="inboxBtn" type="button" title="문자함" hidden>✉<b id="inboxN" class="ibadge" hidden></b></button>
     <button class="iconbtn" id="reload" type="button" title="새로고침" data-s="↻">새로고침</button>
   </div>
+  <div class="viewbar" id="viewBar" hidden></div>
   <nav class="tabs desk-tabs" id="deskTabs"></nav>
 </header>
 
@@ -434,7 +436,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13q';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2342,6 +2344,45 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
   IBX.unread=-1;call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,bd=$('#inboxN');bd.hidden=!n;bd.textContent=n;IBX.unread=n}).catch(function(){});
 }
 
+// ───────── 관리자: 소유주·매니저·청소담당자 화면으로 바로 보기 (이 탭에서만, 비밀번호 없이 관리자 PIN으로) ─────────
+function viewTargets(role){
+  if(role==='owner')return rows('객실').filter(function(r){return r.v[1]&&r.v[2]!==''&&r.v[13]!=='N'&&!isSubRoom(r.v[2])}).sort(function(a,b){return String(a.v[1]).localeCompare(String(b.v[1]))||String(a.v[2]).localeCompare(String(b.v[2]),'ko',{numeric:true})})
+    .map(function(r){return {id:r.v[1]+' '+r.v[2],lab:r.v[2]+'호',sub:r.v[1]+(r.v[5]?' · '+r.v[5]:'')}});
+  if(role==='manager')return rows('매니저').filter(function(r){return r.v[0]&&r.v[2]&&String(r.v[4]).toUpperCase()!=='N'}).map(function(r){return {id:String(r.v[2]),lab:r.v[0],sub:r.v[1]}});
+  return rows('청소담당자').filter(function(r){return r.v[0]&&r.v[16]&&r.v[10]!=='N'}).map(function(r){return {id:String(r.v[16]),lab:r.v[0],sub:'아이디 '+r.v[16]}});
+}
+var VNAME={owner:'소유주',manager:'매니저',cleaner:'청소담당자'};
+function viewPick(role){var ln=['객실','매니저','청소담당자'];
+  load(ln).then(function(){var list=viewTargets(role);
+    modal('<h3>'+VNAME[role]+' 화면으로 보기</h3><p class="note">고른 사람의 화면이 이 탭에서 열립니다. 다른 탭·직원 화면에는 영향이 없습니다.</p><div class="vpick">'+
+      (list.length?list.map(function(t,i){return '<button type="button" data-vi="'+i+'"><b>'+esc(t.lab)+'</b><small>'+esc(t.sub||'')+'</small></button>'}).join(''):'<p class="note">목록이 없습니다.</p>')+'</div>'+
+      '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+    document.querySelectorAll('[data-vi]').forEach(function(b){b.onclick=function(){var t=list[+b.dataset.vi];try{sessionStorage.setItem('viewList',JSON.stringify(list))}catch(e){}viewAs(role,t.id,VNAME[role]+' · '+t.lab)}})})
+  .catch(function(e){toast(errText(e))})}
+function viewAs(role,id,label){
+  var adm='';try{adm=sessionStorage.getItem('admPin')||store('pin')||''}catch(e){adm=store('pin')||''}
+  if(!adm){toast('관리자로 로그인한 화면에서만 쓸 수 있습니다');return}
+  try{sessionStorage.setItem('tabMode','1');sessionStorage.setItem('admPin',adm);sessionStorage.setItem('viewRole',role);sessionStorage.setItem('viewLabel',label)}catch(e){toast('이 브라우저에서는 쓸 수 없습니다');return}
+  TABMODE=true;['role','loginRole','mid','mpw','cid','cpw','pin'].forEach(function(k){store(k,'')});
+  if(role==='cleaner'){store('role','cleaner');store('cid',id);store('cpw','ADM:'+adm)}else{store('role',role);store('mid',id);store('mpw','ADM:'+adm)}
+  softReload()}
+function viewBack(){var adm='';try{adm=sessionStorage.getItem('admPin')||'';['viewRole','viewLabel','viewList','admPin','tabMode','role','loginRole','mid','mpw','cid','cpw','pin'].forEach(function(k){sessionStorage.removeItem(k)})}catch(e){}
+  TABMODE=false;softReload()}
+function viewInit(){var vr='',vl='';try{vr=sessionStorage.getItem('viewRole')||'';vl=sessionStorage.getItem('viewLabel')||''}catch(e){}
+  var bar=$('#viewBar'),vb=$('#viewBtn');
+  document.body.classList.toggle('viewing',!!(vr&&TABMODE));
+  if(vr&&TABMODE){vb.hidden=true;bar.hidden=false;
+    bar.innerHTML='<span>👁 관리자 미리보기 · <b>'+esc(vl)+'</b></span><select id="vbSel" aria-label="다른 사람 고르기"><option value="">다른 '+VNAME[vr]+' 보기…</option></select><button class="btn" type="button" id="vbBack">관리자 화면으로</button>';
+    $('#vbBack').onclick=viewBack;
+    var fill=function(){var list=[];try{list=JSON.parse(sessionStorage.getItem('viewList')||'[]')}catch(e){}if(!list.length)return;$('#vbSel').hidden=false;$('#vbSel').innerHTML='<option value="">다른 '+VNAME[vr]+' 보기…</option>'+list.map(function(t,i){return '<option value="'+i+'">'+esc(t.lab+(t.sub?' · '+t.sub:''))+'</option>'}).join('');
+      $('#vbSel').onchange=function(){var t=list[+this.value];if(this.value!==''&&t)viewAs(vr,t.id,VNAME[vr]+' · '+t.lab)}};
+    $('#vbSel').hidden=true;try{fill()}catch(e){}
+    return}
+  bar.hidden=true;
+  if(LIVE&&!ROLE&&store('pin')){vb.hidden=false;vb.onclick=function(){modal('<h3>다른 화면으로 보기</h3><p class="note">비밀번호 없이 그 사람의 화면을 이 탭에서 봅니다.</p><div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" data-vr="owner">소유주 화면 (호실 선택)</button><button class="btn pri" type="button" data-vr="manager">매니저 화면 (매니저 선택)</button><button class="btn pri" type="button" data-vr="cleaner">청소담당자 화면 (담당자 선택)</button></div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+    document.querySelectorAll('[data-vr]').forEach(function(b){b.onclick=function(){viewPick(b.dataset.vr)}})}}
+  else vb.hidden=true}
+
 // ───────── 시작 ─────────
 function refreshLists(){fillResFilters();fillSettle();renderRes()}
 function boot(){
@@ -2353,7 +2394,7 @@ function boot(){
     return Promise.resolve()}
   if(!DEMO&&!GAS){var cb=$('#connBtn');cb.hidden=!!APP_API&&!store('api');cb.onclick=function(){setupScreen()};
     if(!API){st.textContent='연결 필요';st.classList.add('demo');setupScreen();return Promise.resolve()}}
-  if(!DEMO&&store('role')==='cleaner'){cleanerHome();return Promise.resolve()}
+  if(!DEMO&&store('role')==='cleaner'){cleanerHome();try{viewInit()}catch(e){}return Promise.resolve()}
   var hm=DEMO&&location.hash.match(/^#cleaner=([^&]*)(?:&d=([\d-]+))?/);if(hm){store('cid',decodeURIComponent(hm[1]));store('cpw','');return load(['호텔','객실','예약','청소담당자','청소실적','정산항목']).then(function(){var cr=rows('청소담당자').find(function(r){return String(r.v[16]||'')===store('cid')});store('cpw',cr?String(cr.v[17]||''):'');cleanerHome(hm[2]||'')})}   // 예시 데이터에서 청소담당자 화면 미리보기: #cleaner=아이디&d=날짜   // 청소담당자로 로그인한 기기
   if(!DEMO&&LIVE&&!ROLE&&!PIN){st.textContent='로그인';$('#mobTabs').style.display='none';$('#deskTabs').style.display='none';document.querySelectorAll('[data-tab]').forEach(function(x){x.hidden=true});
     askPin().then(function(){softReload()});return Promise.resolve()}   // 로그인 전: 앱 화면 없이 로그인 창만 (역할별 주소면 그 역할만)
@@ -2369,6 +2410,7 @@ function boot(){
       [OWN.hotels.length<2?'qHotel':'','qView','sKind'].filter(String).forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=true;f.style.display='none'}});$('#qView').value='card';$('#sKind').value='room';$('#resStatus').innerHTML='';}
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}
     if(LIVE&&!ROLE)inboxInit();   // 관리자: 문자함 (손님 문의 문자·부재중 전화)
+    try{viewInit()}catch(e){}
     var now=new Date(),D=DEMO&&DEMO.defaults||{};
     $('#cDate').value=D.cleanDate||ymd(now);
     var pm=new Date(now.getFullYear(),now.getMonth()-1,1);
@@ -2407,7 +2449,8 @@ function softReload(){
   $('#sHotel').disabled=false;$('#sRoom').disabled=false;$('#sRPrev').disabled=$('#sRNext').disabled=false;$('#newBox').innerHTML='';$('#resStatus').innerHTML='';
   boot();
 }
-function logoutAll(){['role','mid','mpw','cid','cpw','pin'].forEach(function(k){store(k,'')});softReload()}   // 로그아웃 → 처음 로그인 화면 (역할별 주소로 들어왔으면 그 역할 로그인)
+function logoutAll(){var vr='';try{vr=sessionStorage.getItem('viewRole')||''}catch(e){}if(vr)return viewBack();   // 관리자 미리보기 중이면 관리자 화면으로
+  ['role','mid','mpw','cid','cpw','pin'].forEach(function(k){store(k,'')});softReload()}   // 로그아웃 → 처음 로그인 화면 (역할별 주소로 들어왔으면 그 역할 로그인)
 function roleParam(cb){   // 주소의 ?role= 값 (Apps Script 웹 앱은 google.script.url로 읽음)
   var done=false;setTimeout(function(){if(!done){done=true;cb()}},2000);   // 주소 정보를 못 받아도 2초 뒤 계속
   var ok=function(r){if(done)return;done=true;r=String(r||'').toLowerCase();if(['cleaner','manager','owner','admin'].indexOf(r)>=0){LOGIN_ROLE=r==='admin'?'':r;store('loginRole',LOGIN_ROLE)}cb()};
