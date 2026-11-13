@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1178,6 +1178,7 @@ function findRoom(no,text){
 // ABNB: 'M월 D일~D일 · N박' 줄을 기준으로 인식 — 바로 윗줄은 이름('OO 님의 일행(N명)' 또는 이름만), 아랫줄은 호실
 // 연도가 붙은 형식도 인식: '2026년 12월 31일 ~ 2027년 1월 1일 · 1박'
 var ABNB_DATE=/^(?:(\d{4})\s*년\s*)?(\d{1,2})월\s*(\d{1,2})일\s*[~\-–]\s*(?:(?:(\d{4})\s*년\s*)?(\d{1,2})월\s*)?(\d{1,2})일\s*(?:·\s*(\d+)\s*박)?/;
+var ABNB_COMPANY=/써밋베이\s*개인\s*협동\s*조합|박현철|아름다운\s*속초/;   // 운영 계정 호스트 (이 호스트의 리스팅은 본인계정 아님)
 function parseAbnb(t){
   var out=[],L=t.split('\n').map(function(s){return s.trim()}).filter(Boolean);
   var idx=[];L.forEach(function(x,i){if(ABNB_DATE.test(x)&&/[~\-–]/.test(x)&&(/박/.test(x)||/님\s*의\s*일\s*행/.test(L[i-1]||'')))idx.push(i)});
@@ -1209,8 +1210,8 @@ function parseAbnb(t){
     o.ppl=hm?+hm[2]:Math.max(1+plus,adults)||2;
     if(!hm&&!plus&&!adults)o.pplGuess=true;
     if(o.door)o.note=(o.note?o.note+' / ':'')+'출입문 '+o.door;
-    // 본인계정: 비고에 '본인'(본인계정·본인 계정 포함)이 있거나, 리스팅 소유자(호스트)가 써밋베이개인협동조합이 아닌 경우
-    if(o.listOwner&&o.host&&!/써밋베이\s*개인\s*협동\s*조합/.test(o.host))o.own=true;
+    // 본인계정: 비고에 '본인'(본인계정·본인 계정 포함)이 있거나, 리스팅 소유자(호스트)가 운영 계정(ABNB_COMPANY: 써밋베이개인협동조합·박현철(아름다운속초))이 아닌 경우
+    if(o.listOwner&&o.host&&!ABNB_COMPANY.test(o.host))o.own=true;
     if(!o.room&&o.host){var hb=roomByHost(o.host);if(hb){o.hotel=hb.hotel;o.room=hb.room;o.unknownRoom=false;o.note=(o.note?o.note+' / ':'')+'호스트 '+o.host}}   // 호실 번호가 없으면 호스트 이름으로 객실 찾기
     if(!o.room){var tm,re5=/(?:^|\D)(\d{3,4})(?!\d)/g;while((tm=re5.exec(l3))){var fr=findRoom(tm[1],l3);if(!fr.unknown){o.hotel=fr.hotel;o.room=fr.room;o.unknownRoom=false;break}}}   // 그래도 없으면 숙소 제목 안의 객실 번호
     out.push(o);
@@ -1447,7 +1448,7 @@ function updItem(y){var d0=dupOf(y),vals={};
     if(y.roomPick&&(d0.v[R.hotel]!==y.hotel||String(d0.v[R.room])!==String(y.room))){vals[2]=y.hotel;vals[3]=String(y.room)}   // [호실 바꾸기]로 고른 호실로 옮김
     if(y.code&&!d0.v[R.code])vals[28]=y.code;
     if(y.sale!==undefined&&y.payout===undefined&&y.dep===undefined&&y.depM===undefined&&d0.v[R.depM]!=='')vals[15]='';   // 판매가만 온 문구(놀 등): 예전 입금(수동, 0 포함)을 지우고 판매×(1−수수료)로 자동
-    if(!isOwnAcct(y)&&d0.v[R.own]==='Y'&&y.plat&&y.plat!=='ABNB'){vals[37]='';vals[42]=''}   // 달력 등으로 본인계정(ABNB)으로 들어간 예약이 실제로는 놀·떠나요 예약이면 본인계정 해제
+    if(!isOwnAcct(y)&&d0.v[R.own]==='Y'){vals[37]='';vals[42]=''}   // 붙여넣은 문구가 본인계정이 아니면(놀·떠나요, 또는 운영 계정 ABNB) 기존 본인계정 해제
     if(isOwnAcct(y)){vals[37]='Y';vals[12]=0;vals[15]=0;if(y.payout!==undefined)vals[42]=y.payout}
     if(y.name)vals[4]=y.name; if(y.tel&&(!/\*/.test(y.tel)||!d0.v[R.tel]))vals[5]=y.tel;   // 가려진 번호(010-****-5114)는 기존 번호를 덮어쓰지 않음
     if(y.booked)vals[6]=y.booked; if(y.plat)vals[11]=y.plat; if(y.co)vals[8]=y.co; if(y.ci&&d0.v[R.ci]!==y.ci)vals[7]=y.ci; if(!y.pplGuess&&y.ppl)vals[10]=y.ppl;
