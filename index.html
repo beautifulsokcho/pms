@@ -436,7 +436,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13w';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13x';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1404,8 +1404,12 @@ function dupOf(x){   // 같은 예약: 예약코드 → 예약번호가 같으�
 function cxOf(x){   // 같은 예약번호·예약코드의 '취소된' 예약 (살아 있는 예약이 없을 때) → 붙여넣으면 그 예약을 되살림
   if(dupOf(x))return null;var no=resNo(x.note);
   return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNos(r.v[R.note]).indexOf(no)>=0))})||null}
+function cxDone(x){   // 취소 문구인데 살아 있는 예약은 없고, 같은 예약(예약번호·예약코드, 또는 같은 호실·입실일·고객)이 이미 취소돼 있음
+  if(!x.cancel||dupOf(x))return null;var no=resNo(x.note),nm=String(x.name||'').replace(/\s/g,'');
+  return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNos(r.v[R.note]).indexOf(no)>=0)||
+    (x.ci&&r.v[R.ci]===x.ci&&nm&&String(r.v[R.name]).replace(/\s/g,'')===nm&&(!x.room||String(r.v[R.room])===String(x.room))))})||null}
 function pasteIssues(x){var p=[];
-  if(x.cancel){p.push(dupOf(x)?'취소된 예약':'취소된 예약 · 해당 예약 없음');return p}   // 예약번호·예약코드가 같으면 호실을 몰라도 찾음
+  if(x.cancel){var cd=cxDone(x);p.push(dupOf(x)?'취소된 예약':cd?'이미 취소되었습니다 ('+(cd.v[R.cancel]instanceof Date?ymd(cd.v[R.cancel]):String(cd.v[R.cancel]).slice(0,10))+')':'취소된 예약 · 해당 예약 없음');return p}   // 예약번호·예약코드가 같으면 호실을 몰라도 찾음
   if(!x.room)p.push(x.roomHint?'호실 선택 ('+x.roomHint+')':'호실 선택');
   else if(x.roomGuess)p.push('호실 확인 (객실명: '+(x.roomHint||x.room)+')');
   else if(x.unknownRoom||!x.hotel)p.push(x.room+'호가 객실 목록에 없음');
@@ -1493,7 +1497,14 @@ $('#ocrIn').onchange=function(){var fs=[].slice.call(this.files||[]),inp=this,ms
     msg.textContent='사진 '+fs.length+'장 글자를 넣었습니다. 아래 인식 결과를 확인하세요 (틀린 곳은 [폼에서 수정]).'})
   .catch(function(e){msg.textContent='사진 글자를 읽지 못했습니다: '+errText(e)}).then(function(){lab.classList.remove('busy')})};
 $('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value);renderPaste();
-  if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm()},250)});
+  if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm();
+  pasteCancelAsk()},250)});
+function pasteCancelAsk(){   // 취소 문구: 살아 있는 예약이 있으면 바로 "취소할까요?" 묻기, 이미 취소돼 있으면 알림
+  var done=PASTE.filter(function(x){return cxDone(x)});
+  if(done.length){var d=cxDone(done[0]);toast(done.length===1?'이미 취소되었습니다 ('+d.v[R.hotel]+' '+d.v[R.room]+'호 '+md(d.v[R.ci])+')':'이미 취소된 예약 '+done.length+'건입니다')}
+  var ci=PASTE.findIndex(function(x){return x.cancel&&dupOf(x)&&!x.asked});if(ci<0)return;var cx=PASTE[ci];cx.asked=true;
+  cancelAsk(dupOf(cx),cx.plat+' 취소'+(cx.cxWhy&&cx.cxWhy!=='취소'?' '+cx.cxWhy.replace(/^취소/,''):'')+(resNo(cx.note)?' · 예약번호 '+resNo(cx.note):'')+(cx.code?' · 예약코드 '+cx.code:''),cx.cxDate)
+    .then(function(ok){if(ok){PASTE.splice(ci,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();toast('예약을 취소했습니다')}pasteCancelAsk()})}
 $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.closest('.pitem');if(!it||!el.dataset.p)return;var x=PASTE[+it.dataset.i];
   if(el.dataset.p==='hotel'){x.hotel=el.value;x.room='';x.unknownRoom=false}
   if(el.dataset.p==='room'){x.room=el.value;x.unknownRoom=false;x.roomGuess=false;x.roomPick=true;if(!x.hotel)x.hotel=it.querySelector('[data-p=hotel]').value;learnProduct(x)}
