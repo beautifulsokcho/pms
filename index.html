@@ -405,6 +405,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="panel-head">
       <h2>기준정보 관리</h2>
       <p>노란 칸은 입력 칸, 흐린 글씨는 자동 계산 칸입니다. 지우지 말고 사용여부를 N으로 바꾸세요.</p>
+      <p class="note" id="verNote"></p>
     </div>
     <div class="bar">
       <div class="f"><label for="aSheet">항목</label><select id="aSheet"></select></div>
@@ -430,7 +431,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2327,7 +2328,7 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
 // ───────── 시작 ─────────
 function refreshLists(){fillResFilters();fillSettle();renderRes()}
 function boot(){
-  window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER}catch(e){}
+  window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
   var st=$('#status');
   if(DEMO){st.textContent='예시 데이터';st.classList.add('demo')}
   if(!DEMO&&!GAS&&location.protocol==='file:'){st.textContent='설치 필요';st.classList.add('demo');
