@@ -430,7 +430,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1391,7 +1391,7 @@ function pasteIssues(x){var p=[];
   else if(x.unknownRoom||!x.hotel)p.push(x.room+'호가 객실 목록에 없음');
   if(x.room&&isSubRoom(x.room)&&!x.subFor)p.push('대체객실 · 대신 정산할 호실은 폼에서 수정');
   if(!x.ci||!x.co)p.push('날짜 확인');
-  if(x.room&&x.hotel&&x.ci&&dupOf(x))p.push('이미 입력된 예약');
+  var d0=x.room&&x.hotel&&x.ci?dupOf(x):null;if(d0)p.push('이미 입력된 예약'+(d0.v[R.hotel]!==x.hotel||String(d0.v[R.room])!==String(x.room)?' · 지금 '+d0.v[R.room]+'호':''));
   else if(overlaps(x,(cxOf(x)||{}).r).length)p.push('겹치는 예약 있음');
   return p}
 function roomByHost(host){var n=function(x){return String(x||'').replace(/\s+/g,'')},hh=n(host);if(!hh)return null;   // 객실 Y열 '에어비앤비 호스트명'
@@ -1417,6 +1417,7 @@ function updItem(y){var d0=dupOf(y),vals={};
     if(y.dep!==undefined)vals[15]=y.dep;
     if(y.depM!==undefined)vals[15]=y.depM;   // 떠나요 정산금액 → 입금금액
     if(y.pets)vals[31]=y.pets;
+    if(y.roomPick&&(d0.v[R.hotel]!==y.hotel||String(d0.v[R.room])!==String(y.room))){vals[2]=y.hotel;vals[3]=String(y.room)}   // [호실 바꾸기]로 고른 호실로 옮김
     if(y.code&&!d0.v[R.code])vals[28]=y.code;
     if(isOwnAcct(y)){vals[37]='Y';vals[12]=0;vals[15]=0;if(y.payout!==undefined)vals[42]=y.payout}
     if(y.name)vals[4]=y.name; if(y.tel&&(!/\*/.test(y.tel)||!d0.v[R.tel]))vals[5]=y.tel;   // 가려진 번호(010-****-5114)는 기존 번호를 덮어쓰지 않음
@@ -1443,7 +1444,7 @@ function renderPaste(){
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
         '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>본인계정</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
         (x.cancel?(dupOf(x)?'<button class="btn warn" type="button" data-p="cxl" style="margin-left:auto">기존 예약 취소'+(function(b){return ' ('+esc(b.v[R.hotel])+' '+esc(b.v[R.room])+' '+md(b.v[R.ci])+')'})(dupOf(x))+'</button>':''):
-         x.room&&x.hotel&&x.ci&&dupOf(x)?'<button class="btn" type="button" data-p="upd" style="margin-left:auto">기존 예약에 반영</button>':
+         x.room&&x.hotel&&x.ci&&dupOf(x)?'<button class="btn" type="button" data-p="upd" style="margin-left:auto">'+(x.roomPick&&String(dupOf(x).v[R.room])!==String(x.room)?'기존 예약을 '+esc(x.room)+'호로 옮겨 반영':'기존 예약에 반영')+'</button>':
          overlaps(x).length?'<button class="btn warn" type="button" data-p="ovl" style="margin-left:auto">겹침 확인</button>':'<button class="btn" type="button" data-p="form" style="margin-left:auto">폼에서 수정</button>')+'</div></div>'}).join('');
 }
 // 떠나요 상품명 → 고른 호실의 객실 Z열에 기억 (다음부터 자동 인식). 다른 호실로 바꾸면 앞에서 기억한 것은 지움
@@ -1475,7 +1476,7 @@ $('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=se
   if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm()},250)});
 $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.closest('.pitem');if(!it||!el.dataset.p)return;var x=PASTE[+it.dataset.i];
   if(el.dataset.p==='hotel'){x.hotel=el.value;x.room='';x.unknownRoom=false}
-  if(el.dataset.p==='room'){x.room=el.value;x.unknownRoom=false;x.roomGuess=false;if(!x.hotel)x.hotel=it.querySelector('[data-p=hotel]').value;learnProduct(x)}
+  if(el.dataset.p==='room'){x.room=el.value;x.unknownRoom=false;x.roomGuess=false;x.roomPick=true;if(!x.hotel)x.hotel=it.querySelector('[data-p=hotel]').value;learnProduct(x)}
   if(el.dataset.p==='learn'){x.learn=el.checked;learnProduct(x)}
   if(el.dataset.p==='ppl'){x.ppl=Number(el.value)||'';x.pplGuess=false}
   if(el.dataset.p==='noclean'){x.noClean=el.checked;x.ncSet=true}
@@ -1493,10 +1494,12 @@ $('#pasteOut').addEventListener('click',function(e){
       [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){vals[c]=v[c-1]});
       call('saveRows','예약',[{r:null,v:vals}].concat(cancelItems(ol))).then(function(d){S['예약']=d;PASTE.splice(oi,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
         toast('기존 예약 '+ol.length+'건을 취소하고 새 예약을 저장했습니다')}).catch(function(err){toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
-  var u=e.target.closest('[data-p=upd]');if(u){var k=+u.closest('.pitem').dataset.i,y=PASTE[k],it=updItem(y);
+  var u=e.target.closest('[data-p=upd]');if(u){var k=+u.closest('.pitem').dataset.i,y=PASTE[k],it=updItem(y),mv=it.v[3]!==undefined;
+    var ov=mv?overlaps({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co},it.r):[];
     u.disabled=true;
-    call('saveRows','예약',[it]).then(function(d){S['예약']=d;PASTE.splice(k,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
-      toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다')}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))});return}
+    (ov.length?conflictAsk({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co,name:y.name},ov):Promise.resolve(true)).then(function(ok){if(!ok){u.disabled=false;return}
+    call('saveRows','예약',[it].concat(cancelItems(ov))).then(function(d){S['예약']=d;PASTE.splice(k,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
+      toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다'+(mv?' (호실 옮김)':''))}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
   if(e.target.id==='pUpdAll'){   // 기존 예약에 반영할 것 모두 한 번에
     var ix=updIdx(),ub=e.target;if(!ix.length)return;ub.disabled=true;
     var todo=ix.map(function(i){return PASTE[i]}),uitems=todo.map(updItem);
