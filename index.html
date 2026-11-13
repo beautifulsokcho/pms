@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.report.manual{margin-top:16px}.intg{font-size:12px}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -892,8 +892,9 @@ function renderCal(){
 function adjOf(v){var a=v[R.xpp]==='Y'||v[R.xpet]==='Y';if(!a||v[R.cancel]||v[R.excl]==='Y'||v[R.own]==='Y')return null;
   var ss=v[R.sSale]===''||v[R.sSale]==null?Number(v[R.sale])||0:Number(v[R.sSale]),sd=Number(v[R.sDep])||0;
   return {sale:ss,fin:sd,tag:(v[R.xpet]==='Y'?'반려견':'')+(v[R.xpp]==='Y'?(v[R.xpet]==='Y'?'·':'')+'추가인원':'')+' 미정산'}}
-function shownSale(v){var a=adjOf(v);return a&&OWNER?a.sale:Number(v[R.sale])||0}
-function shownFin(v){var a=adjOf(v);return a&&OWNER?a.fin:Number(v[R.fin])||0}
+var CAL_OWNER=false;function asOwner(){return OWNER||CAL_OWNER}   // CAL_OWNER: 정산서 인쇄·그림용 달력을 소유주 모양으로 그릴 때
+function shownSale(v){var a=adjOf(v);return a&&asOwner()?a.sale:Number(v[R.sale])||0}
+function shownFin(v){var a=adjOf(v);return a&&asOwner()?a.fin:Number(v[R.fin])||0}
 function calHtml(hotel,room,ym,list){
   var y=+ym.slice(0,4),m=+ym.slice(5,7),days=new Date(y,m,0).getDate(),dow0=new Date(y,m-1,1).getDay(),today=ymd(new Date());
   var ds=function(d){return ym+'-'+String(d).padStart(2,'0')},first=ds(1),last=ds(days);
@@ -921,10 +922,10 @@ function calHtml(hotel,room,ym,list){
     segs.sort(function(a,b){return a.col-b.col});var lanes=[];
     segs.forEach(function(g){for(var l=0;;l++){if(!lanes[l]||lanes[l]<g.col){g.lane=l;lanes[l]=g.col+g.n-1;break}}});
     var bars=segs.map(function(g){var v=g.r.v,cls='rbar'+(v[R.cancel]?' cx':v[R.excl]==='Y'?' un':v[R.plat]==='개인예약'?' own':'')+(g.head?' h':'')+(g.tail?' t':'');
-      var aj=adjOf(v),tip=(v[R.name]||'(이름 없음)')+' '+v[R.ppl]+'명 · '+md(v[R.ci])+'→'+md(v[R.co])+' '+v[R.n]+'박 · '+(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+(aj&&!OWNER?' · '+aj.tag+' → 정산 판매 '+won(aj.sale)+' · 정산 입금 '+won(aj.fin):'');
+      var aj=adjOf(v),tip=(v[R.name]||'(이름 없음)')+' '+v[R.ppl]+'명 · '+md(v[R.ci])+'→'+md(v[R.co])+' '+v[R.n]+'박 · '+(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+(aj&&!asOwner()?' · '+aj.tag+' → 정산 판매 '+won(aj.sale)+' · 정산 입금 '+won(aj.fin):'');
       return '<button type="button" class="'+cls+'" data-r="'+g.r.r+'" title="'+esc(tip)+'" style="grid-column:'+g.col+' / span '+g.n+';grid-row:'+(g.lane+1)+'">'+
         '<span class="b1"><b>'+esc(v[R.name]||'(이름 없음)')+'</b> '+esc(v[R.ppl])+'명'+(v[R.cancel]?' · 취소':'')+'</span>'+
-        (aj&&!OWNER?'<span class="b2"><b class="adjtag">'+esc(aj.tag)+'</b></span><span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+'</span><span class="b2">입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin)+'</span>':
+        (aj&&!asOwner()?'<span class="b2"><b class="adjtag">'+esc(aj.tag)+'</b></span><span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+'</span><span class="b2">입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin)+'</span>':
         '<span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+'</span><span class="b2">입금 '+(won(shownFin(v))||'-')+'</span>')+'</button>'}).join('');
     wk+='<div class="cweek"><div class="cdays">'+cells+'</div><div class="cbars">'+bars+'</div></div>';
   }
@@ -1847,7 +1848,7 @@ function fitTables(){document.querySelectorAll('#sOut .report.pages .pg2 .scroll
   t.style.zoom='';var w=sc.clientWidth,tw=t.scrollWidth;if(tw>w+1)t.style.zoom=Math.max(0.55,Math.floor(w/tw*1000)/1000)})}
 window.addEventListener('resize',function(){clearTimeout(window.__fitT);window.__fitT=setTimeout(fitTables,150)});
 function printPages(el){var root=document.createElement('div');root.id='printRoot';
-  var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('input.cedit').forEach(function(i){i.remove()});c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});root.appendChild(c);document.body.appendChild(root);
+  var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('input.cedit,.scrcal').forEach(function(i){i.remove()});c.querySelectorAll('.prtcal').forEach(function(x){x.style.display='block'});c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});root.appendChild(c);document.body.appendChild(root);
   document.body.classList.add('print-pages');window.print();setTimeout(function(){document.body.classList.remove('print-pages');root.remove()},800)}
 // 정산서 쪽(달력·요약·일자별)을 그림(PNG)으로: 쪽마다 한 장
 var H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -1856,7 +1857,8 @@ function loadScript(u){return new Promise(function(ok,no){if(u===H2C?window.html
 function snapPages(el,scale){   // 정산서(.pg 3쪽)를 화면 밖에 인쇄 모양으로 만들어 쪽마다 canvas
   var root=document.createElement('div');root.className='repsnap snapmode';root.style.cssText='position:fixed;left:-30000px;top:0;width:auto;padding:0';
   var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(function(x){x.removeAttribute('id')});
-  c.querySelectorAll('input.cedit,.no-print,.pgt0,.shead2,.demo-only').forEach(function(x){x.remove()});
+  c.querySelectorAll('input.cedit,.no-print,.pgt0,.shead2,.demo-only,.scrcal').forEach(function(x){x.remove()});
+  c.querySelectorAll('.prtcal').forEach(function(x){x.style.display='block'});   // 인쇄·그림은 소유주 모양 달력 (정산 반영 금액만)
   c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});c.querySelectorAll('.scroll').forEach(function(x){x.style.overflow='visible'});
   c.querySelectorAll('.two').forEach(function(t){t.style.display='block'});
   root.appendChild(c);document.body.appendChild(root);
@@ -1909,19 +1911,7 @@ function settleBatch(fmt){
   .catch(function(e){box.remove();msg('만들지 못했습니다: '+errText(e))})}
 function snapReport(id,name){var el=document.getElementById(id),btn=$('#sSnap');if(btn)btn.disabled=true;toast('그림을 만드는 중…');
   loadScript(H2C).then(function(){
-    // 인쇄 화면과 같은 모양을 화면 밖에 따로 만들어 찍음 (다크 모드·폰 화면 폭과 상관없이 밝은 바탕, 표 전체 폭)
-    var root=document.createElement('div');root.className='repsnap snapmode';root.style.cssText='position:fixed;left:-30000px;top:0;width:auto;padding:0';
-    var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(function(x){x.removeAttribute('id')});
-    c.querySelectorAll('input.cedit,.no-print,.pgt0,.shead2,.demo-only').forEach(function(x){x.remove()});
-    c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});c.querySelectorAll('.scroll').forEach(function(x){x.style.overflow='visible'});
-    c.querySelectorAll('.two').forEach(function(t){t.style.display='block'});
-    root.appendChild(c);document.body.appendChild(root);
-    var pages=[].slice.call(c.querySelectorAll('.pg')),out=[],k=0;
-    pages.forEach(function(pg){pg.classList.add('snap');pg.style.margin='0 0 12px';
-      if(pg.classList.contains('pg1'))pg.style.width='1100px';else if(pg.classList.contains('pg2'))pg.style.width='640px';else{pg.style.width='max-content';pg.style.minWidth='680px'}});
-    var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
-      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff'}).then(function(cv){out.push(cv);return next()})};
-    return next().then(function(){root.remove();   // 3장을 위아래로 이어 붙여 그림 파일 1개로
+    return snapPages(el,2).then(function(out){   // 3장을 위아래로 이어 붙여 그림 파일 1개로
       var all=joinPages(out);
       var file=name+'_정산서.jpg',parts=['달력','정산요약','일자별'];
       snapPick([{cv:all,file:file,label:'3장 합친 그림 (1개 파일)'}].concat(out.map(function(c,k){return {cv:c,file:name+'_'+(k+1)+'_'+parts[k]+'.jpg',label:(k+1)+'. '+parts[k]}})),
@@ -2012,7 +2002,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
     var ttl=esc(top[0][0]);
     var sAct=(LIVE||DEMO?'<div class="actions no-print stop">'+(LIVE?'<button class="btn" type="button" onclick="window.__print(\'sPrint\')">인쇄</button>':'')+'<button class="btn" type="button" id="sSnap">그림으로 저장</button></div>':'');   // 인쇄·그림 저장 버튼은 위에
     return '<div class="report pages" id="'+(pid||'sPrint')+'"><div class="shead2"><h3 class="pgt0">'+ttl+'</h3>'+sAct+'</div>'+
-      '<div class="pg pg1"><h3 class="pgt">'+ttl+' · 객실 달력</h3>'+calHtml(p.hotel,p.room,p.month,calList)+'</div>'+
+      '<div class="pg pg1"><h3 class="pgt">'+ttl+' · 객실 달력</h3>'+(OWNER?calHtml(p.hotel,p.room,p.month,calList):'<div class="scrcal">'+calHtml(p.hotel,p.room,p.month,calList)+'</div><div class="prtcal">'+(function(){CAL_OWNER=true;try{return calHtml(p.hotel,p.room,p.month,calList)}finally{CAL_OWNER=false}})()+'</div>')+'</div>'+
       '<div class="two"><div class="pg pg2"><h3 class="pgt">'+ttl+'</h3><div class="scroll">'+t1+'</div>'+(acct?'<p class="acct">입금 계좌: '+esc(acct)+'</p>':'')+'</div>'+
       '<div class="pg pg3"><h3 class="pgt">'+ttl+' · 일자별 정산내역</h3><p class="note">입실일 기준입니다.</p><div class="scroll">'+t2+'</div></div></div>'+
       (LIVE?'':printBtn('sPrint'))+'</div>';
