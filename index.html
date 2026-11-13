@@ -434,7 +434,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13n';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -952,6 +952,7 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
   $('#resStatus').innerHTML='<div class="shead"><b>객실현황</b><div class="mpick"><button class="btn" type="button" data-sd="-1" aria-label="전날">‹</button><button class="btn'+(d===now?'':' pri')+'" type="button" data-sd="0">오늘 <span class="num">'+md(d)+'</span></button><button class="btn" type="button" data-sd="1" aria-label="다음날">›</button></div><input type="date" class="sdate" aria-label="날짜 고르기" value="'+d+'"><span class="note">카드를 누르면 그 예약을 엽니다</span></div>'+(html||'<div class="empty">객실이 없습니다.</div>');
 }
 function renderRes(){
+  if(OWNER&&!OWN.calDone&&OWN.room){OWN.calDone=true;if([].some.call($('#qHotel').options,function(x){return x.value===OWN.hotel}))$('#qHotel').value=OWN.hotel;$('#qRoom').value=OWN.room;if(typeof fillQRooms==='function')fillQRooms()}   // 소유주: 처음부터 본인 객실 달력
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
   var h=$('#qHotel').value,rm=$('#qRoom').value.trim(),q=$('#qName').value.trim(),f=$('#qFrom').value,t=$('#qTo').value,pl=$('#qPlat').value,cx=$('#qCancel').checked,st=$('#qSettle').value;
