@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1860,9 +1860,17 @@ function pagesPdf(out){var doc=null;   // canvas 쪽들 → A4 PDF (가로 그�
     doc.addImage(c.toDataURL('image/jpeg',0.9),'JPEG',(pw-w)/2,m,w,h)});
   return doc}
 var JSZIP='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+function joinPages(out){   // 쪽 canvas들을 위아래로 이어 붙인 그림 1장
+  var gap=40,W=Math.max.apply(null,out.map(function(c){return c.width})),H=out.reduce(function(a,c){return a+c.height},0)+gap*(out.length-1);
+  var all=document.createElement('canvas');all.width=W;all.height=H;var g=all.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);
+  var y=0;out.forEach(function(c){g.drawImage(c,Math.round((W-c.width)/2),y);y+=c.height+gap;if(y<H){g.fillStyle='#d5e0e2';g.fillRect(0,y-gap/2-1,W,2)}});
+  return all}
+function cvBlob(cv){return new Promise(function(ok){cv.toBlob(function(b){ok(b)},'image/jpeg',0.92)})}
 // 개별정산서 일괄: 호텔의 호실마다 정산서 PDF를 만들어 ZIP 파일 1개로 저장 (이다경 소유·대체객실 제외)
-function settleBatch(){
+function settleBatch(fmt){
   var h=$('#sHotel').value,m=$('#sMonth').value;if(!h||!m){toast('호텔과 정산월을 고르세요');return}
+  if(!fmt){modal('<h3>개별정산서 일괄 저장</h3><p>'+esc(h)+' '+esc(m)+' · 호실마다 파일 1개씩, ZIP 파일 하나로 받습니다 (이다경 소유·대체객실 제외)</p><div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="sbJpg">그림(JPG)으로 받기</button><button class="btn" type="button" id="sbPdf">PDF로 받기</button><button class="btn" type="button" id="sbNo">취소</button></div><p class="note">그림: 달력·정산요약·일자별 3장을 위아래로 이어 붙인 JPG · PDF: 3쪽(달력 가로)</p>');
+    $('#sbJpg').onclick=function(){settleBatch('jpg')};$('#sbPdf').onclick=function(){settleBatch('pdf')};$('#sbNo').onclick=closeModal;return}
   var list=rows('객실').filter(function(r){return r.v[1]===h&&r.v[2]!==''&&!isSubRoom(r.v[2])&&!INT_OWNER_SUM.some(function(w){return String(r.v[5]||'').replace(/\s/g,'')===w.replace(/\s/g,'')})})
     .filter(function(r){var used=r.v[13]!=='N';return used||rows('예약').some(function(q){return q.v[R.hotel]===h&&String(q.v[R.room])===String(r.v[2])&&String(q.v[R.ci]).slice(0,7)===m})})
     .map(function(r){return String(r.v[2])}).sort(function(a,b){return (Number(a)||0)-(Number(b)||0)});
@@ -1872,16 +1880,18 @@ function settleBatch(){
   $('#sbStop').onclick=function(){stop=true;this.disabled=true;this.textContent='멈추는 중…'};
   var msg=function(t){var e=$('#sbMsg');if(e)e.textContent=t};
   var box=document.createElement('div');box.style.cssText='position:fixed;left:-30000px;top:0';document.body.appendChild(box);
-  Promise.all([loadScript(H2C),loadScript(JSPDF),loadScript(JSZIP)]).then(function(){var zip=new window.JSZip(),i=0;
+  Promise.all([loadScript(H2C),fmt==='pdf'?loadScript(JSPDF):Promise.resolve(),loadScript(JSZIP)]).then(function(){var zip=new window.JSZip(),i=0;
     var one=function(){if(stop||i>=list.length)return Promise.resolve();var room=list[i++],p={hotel:h,room:room,month:m};
       msg('('+i+'/'+list.length+') '+room+'호 계산 중… 객실마다 몇 초씩 걸립니다');
       return call('report','객실정산서',p).then(function(a){if(!a)throw new Error('결과 없음');box.innerHTML=settleHtml(p,a,'sbPrint');
-          msg('('+i+'/'+list.length+') '+room+'호 PDF 만드는 중…');return snapPages(box.firstChild,1.5)})
-        .then(function(cv){zip.file(h+'_'+room+'호_'+m+'_정산서.pdf',pagesPdf(cv).output('blob'));done++})
+          msg('('+i+'/'+list.length+') '+room+'호 '+(fmt==='pdf'?'PDF':'그림')+' 만드는 중…');return snapPages(box.firstChild,fmt==='pdf'?1.5:2)})
+        .then(function(cv){var base=h+'_'+room+'호_'+m+'_정산서';
+          if(fmt==='pdf'){zip.file(base+'.pdf',pagesPdf(cv).output('blob'));done++;return}
+          return cvBlob(joinPages(cv)).then(function(b){zip.file(base+'.jpg',b);done++})})
         .catch(function(e){fail.push(room+'호('+errText(e)+')')}).then(one)};
     return one().then(function(){box.remove();if(!done){msg('만든 정산서가 없습니다'+(fail.length?' · 실패: '+fail.join(', '):''));return}
       msg('ZIP 파일로 묶는 중…');
-      return zip.generateAsync({type:'blob'}).then(function(b){saveBlob(b,h+'_'+m+'_개별정산서_'+done+'실.zip');
+      return zip.generateAsync({type:'blob'}).then(function(b){saveBlob(b,h+'_'+m+'_개별정산서_'+(fmt==='pdf'?'PDF':'그림')+'_'+done+'실.zip');
         msg('✓ '+done+'실 정산서를 ZIP 파일 1개로 저장했습니다'+(stop?' (멈춤)':'')+(fail.length?' · 실패: '+fail.join(', '):''));
         var sb=$('#sbStop');if(sb){sb.disabled=false;sb.textContent='닫기';sb.onclick=closeModal}})})})
   .catch(function(e){box.remove();msg('만들지 못했습니다: '+errText(e))})}
@@ -1900,9 +1910,7 @@ function snapReport(id,name){var el=document.getElementById(id),btn=$('#sSnap');
     var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
       return html2canvas(pg,{scale:2,backgroundColor:'#ffffff'}).then(function(cv){out.push(cv);return next()})};
     return next().then(function(){root.remove();   // 3장을 위아래로 이어 붙여 그림 파일 1개로
-      var gap=40,W=Math.max.apply(null,out.map(function(c){return c.width})),H=out.reduce(function(a,c){return a+c.height},0)+gap*(out.length-1);
-      var all=document.createElement('canvas');all.width=W;all.height=H;var g=all.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);
-      var y=0;out.forEach(function(c){g.drawImage(c,Math.round((W-c.width)/2),y);y+=c.height+gap;if(y<H){g.fillStyle='#d5e0e2';g.fillRect(0,y-gap/2-1,W,2)}});
+      var all=joinPages(out);
       var file=name+'_정산서.jpg',parts=['달력','정산요약','일자별'];
       snapPick([{cv:all,file:file,label:'3장 합친 그림 (1개 파일)'}].concat(out.map(function(c,k){return {cv:c,file:name+'_'+(k+1)+'_'+parts[k]+'.jpg',label:(k+1)+'. '+parts[k]}})),
         '<div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn pri" type="button" id="snapPdf">PDF로 받기 (3쪽)</button></div>');
