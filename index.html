@@ -433,7 +433,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1176,7 +1176,7 @@ function parseAbnb(t){
     var d=L[i].match(ABNB_DATE),y=d[1]?+d[1]:guessYear(+d[2],+d[3]);o.ci=ymdOf(y,+d[2],+d[3]);
     if(d[7])o.co=addDays(o.ci,+d[7]);else{var m2=d[5]?+d[5]:+d[2];o.co=ymdOf(d[4]?+d[4]:(m2<+d[2]?y+1:y),m2,+d[6])}
     var l3=L[i+1]||'',rm=l3.match(/^(\d{3,4})\s*호?/);
-    if(rm){var f=findRoom(rm[1],l3);o.hotel=f.hotel;o.room=f.room;o.unknownRoom=!!f.unknown;var rest=l3.slice(rm[0].length).split('·')[0].trim();var ln=l3.match(/·\s*(\d{1,3})\s*\./);if(ln)o.lno=ln[1];if(rest||o.lno)o.note=(rest+(o.lno?' · '+o.lno:'')).trim()}   // '248호 윤희상님 4인 시티뷰 · 07. …' → 리스팅 번호 07
+    if(rm){var f=findRoom(rm[1],l3);o.hotel=f.hotel;o.room=f.room;o.unknownRoom=!!f.unknown;var rest=l3.slice(rm[0].length).split('·')[0].trim();var ln=l3.match(/·\s*([0-9A-Za-z]{1,3})\s*\./);if(ln)o.lno=ln[1];if(rest||o.lno)o.note=(rest+(o.lno?' · '+o.lno:'')).trim()}   // '248호 윤희상님 4인 시티뷰 · 07. …' → 리스팅 번호 07
     var end=k+1<idx.length?idx[k+1]-1:L.length,blk=L.slice(i+2,end),plus=0,adults=0;
     blk.forEach(function(x,j){
       var w=x.match(/₩\s*([\d,]+)/);if(w&&o.payout===undefined)o.payout=Number(w[1].replace(/,/g,''));   // ABNB ₩금액 = 호스트 수령액
@@ -1374,11 +1374,12 @@ function restoreRes(row,cur){
 function cancelItems(list){var t=ymd(new Date());
   return list.map(function(r){return {r:r.r,v:{24:t,22:(r.v[R.note]?r.v[R.note]+' / ':'')+'새 예약과 겹쳐 취소 '+t}}})}
 // 비고의 놀·놀호텔·떠나요 예약번호
-function lnoOf(note){var m=String(note||'').match(/·\s*(\d{1,3})\s*(?:\/|$)/);return m?m[1]:''}   // 비고의 '… · 07' → 리스팅 번호 (호실 옆 (07)로 표시)
+function lnoOf(note){var m=String(note||'').match(/·\s*([0-9A-Za-z]{1,3})\s*(?:\/|$)/);return m?m[1].toUpperCase():''}   // 비고의 '… · 07' → 리스팅 번호 (호실 옆 (07)로 표시)
 var LNO={src:null,map:{}};
-function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d){LNO.src=d;LNO.map={};var best={};   // 호실마다 비고에 '· 07'이 있는 가장 최근 예약의 번호 → 그 호실의 모든 예약에 표시
+function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d||LNO.rsrc!==S['객실']){LNO.src=d;LNO.rsrc=S['객실'];LNO.room=null;LNO.map={};var best={};   // 호실마다 비고에 '· 07'이 있는 가장 최근 예약의 번호 → 그 호실의 모든 예약에 표시
     rows('예약').forEach(function(r){var n=lnoOf(r.v[R.note]);if(!n)return;var k=r.v[R.hotel]+'|'+r.v[R.room],ci=String(r.v[R.ci]||'');if(!best[k]||ci>best[k]){best[k]=ci;LNO.map[k]=n}})}
-  return LNO.map[h+'|'+rm]||''}
+  if(!LNO.room){LNO.room={};rows('객실').forEach(function(r){var n=lnoOf(r.v[16]);if(n)LNO.room[r.v[1]+'|'+r.v[2]]=n})}   // 관리 → 객실 비고 끝에 '· 07'을 적어도 됨
+  return LNO.map[h+'|'+rm]||LNO.room[h+'|'+rm]||''}
 function roomLab(v){var n=lnoOf(v[R.note])||roomLno(v[R.hotel],String(v[R.room]));return String(v[R.room])+(n?'('+n+')':'')}
 function resNo(s){var m=String(s||'').match(/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/);return m?m[1]:''}
 function resNos(s){var a=[],re=/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/g,m;while((m=re.exec(String(s||''))))a.push(m[1]);return a}
@@ -1431,7 +1432,7 @@ function updItem(y){var d0=dupOf(y),vals={};
     if(isOwnAcct(y)){vals[37]='Y';vals[12]=0;vals[15]=0;if(y.payout!==undefined)vals[42]=y.payout}
     if(y.name)vals[4]=y.name; if(y.tel&&(!/\*/.test(y.tel)||!d0.v[R.tel]))vals[5]=y.tel;   // 가려진 번호(010-****-5114)는 기존 번호를 덮어쓰지 않음
     if(y.booked)vals[6]=y.booked; if(y.plat)vals[11]=y.plat; if(y.co)vals[8]=y.co; if(y.ci&&d0.v[R.ci]!==y.ci)vals[7]=y.ci; if(!y.pplGuess&&y.ppl)vals[10]=y.ppl;
-    var yn=toResRow(y)[R.note];if(yn&&String(d0.v[R.note]||'').indexOf(yn)<0)vals[22]=(d0.v[R.note]?d0.v[R.note]+' / ':'')+yn;
+    var yn=toResRow(y)[R.note];if(yn&&(String(d0.v[R.note]||'').indexOf(yn)<0||(y.lno&&lnoOf(d0.v[R.note])!==String(y.lno).toUpperCase())))vals[22]=(d0.v[R.note]?d0.v[R.note]+' / ':'')+(y.lno&&String(d0.v[R.note]||'').indexOf(yn)>=0?'· '+y.lno:yn);   // 숙소 번호(· 07)가 없으면 꼭 붙임
   return {r:d0.r,v:vals}}
 function updIdx(){var a=[];PASTE.forEach(function(x,i){if(!x.cancel&&x.room&&x.hotel&&x.ci&&dupOf(x))a.push(i)});return a}
 function renderPaste(){
