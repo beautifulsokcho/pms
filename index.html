@@ -434,7 +434,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13o';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -868,10 +868,10 @@ function renderRecent(){
 // ───────── 호실 달력 보기: 예약된 밤·공실을 한눈에, 판매율·공실율 ─────────
 function calMonth(){var cur=$('#qMonth').value;return /^\d{4}-\d{2}$/.test(cur)?cur:(($('#qFrom').value||ymd(new Date())).slice(0,7))}
 function renderCal(){
-  var rm=$('#qRoom').value.trim(),h=$('#qHotel').value,cx=$('#qCancel').checked,ym=calMonth();
+  var rm=$('#qRoom').value.trim(),h=$('#qHotel').value,cx=$('#qCancel').checked,ym=calMonth(),st=$('#qSettle').value;
   $('#resList').className='';
   if(!rm){$('#resCount').textContent='';$('#resList').innerHTML='<div class="empty">달력 보기는 호실을 입력하세요. (예: 1903)</div>';return}
-  var all=rows('예약').filter(function(r){var v=r.v;return String(v[R.room])===rm&&(!h||v[R.hotel]===h)&&(cx||!v[R.cancel])&&v[R.ci]&&v[R.co]&&!(OWNER&&v[R.excl]==='Y')});   // 소유주에게는 미정산 예약을 보이지 않음
+  var all=rows('예약').filter(function(r){var v=r.v;return String(v[R.room])===rm&&(!h||v[R.hotel]===h)&&(cx||!v[R.cancel])&&v[R.ci]&&v[R.co]&&!(OWNER&&v[R.excl]==='Y')&&(st!=='un'||v[R.excl]==='Y')&&(st!=='on'||v[R.excl]!=='Y')});   // 소유주에게는 미정산 예약을 보이지 않음 · 정산 칸(미정산/정산 대상)도 달력에 적용
   var hs=[];all.forEach(function(r){if(hs.indexOf(r.v[R.hotel])<0)hs.push(r.v[R.hotel])});
   if(!hs.length)hs=(h?[h]:hotels()).filter(function(x){return roomsOf(x,true).map(String).indexOf(rm)>=0});
   if(!hs.length){$('#resCount').textContent='';$('#resList').innerHTML='<div class="empty">'+esc(rm)+'호를 찾지 못했습니다.</div>';return}
