@@ -438,7 +438,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1452,6 +1452,7 @@ function updItem(y){var d0=dupOf(y),vals={};
   return {r:d0.r,v:vals}}
 function updIdx(){var a=[];PASTE.forEach(function(x,i){if(!x.cancel&&x.room&&x.hotel&&x.ci&&dupOf(x))a.push(i)});return a}
 function renderPaste(){
+  try{mailGone()}catch(e){}
   var box=$('#pasteOut');
   if(!PASTE.length){box.innerHTML=$('#pasteIn').value.trim()?'<p class="err">예약 문구를 찾지 못했습니다. ABNB, 놀(예약 일시·예약자 명), 놀호텔(숙소 예약번호), 떠나요(예약번호·이용일) 문구를 그대로 붙여넣어 주세요.</p>':'';return}
   var ok=PASTE.filter(function(x){return !pasteIssues(x).length}).length;
@@ -1489,6 +1490,9 @@ function ocrShrink(file){return new Promise(function(ok,no){var rd=new FileReade
   rd.onload=function(){var im=new Image();im.onerror=function(){no(new Error('사진을 열지 못했습니다'))};im.onload=function(){var k=Math.min(1,1080/im.width,8000/im.height),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
     var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);var q=0.88,u=c.toDataURL('image/jpeg',q);while(u.length>2600000&&q>0.5){q-=0.1;u=c.toDataURL('image/jpeg',q)}ok(u)};im.src=rd.result};rd.readAsDataURL(file)})}
 // ───────── 메일 예약: 서버가 자동 처리하지 못한 '확인 필요' 메일 예약을 붙여넣기 카드로 ─────────
+var MAILIN=[];   // 불러온 메일 카드: 저장(카드가 사라짐)되면 서버에 '확인 완료' 알림
+function mailGone(){var g=MAILIN.filter(function(x){return PASTE.indexOf(x)<0});if(!g.length)return;MAILIN=MAILIN.filter(function(x){return PASTE.indexOf(x)>=0});
+  call('mailDone',g.map(function(x){return x.mailRow})).then(function(){var b=$('#mailBtn');if(b)call('mailPending').then(function(L){b.textContent='📧 메일 예약 확인'+(L&&L.length?' ('+L.length+')':'');b.classList.toggle('pri',!!(L&&L.length))})}).catch(function(){})}
 function mailInit(){var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){row.hidden=true;return}row.hidden=false;
   var cnt=function(){call('mailPending').then(function(L){$('#mailBtn').textContent='📧 메일 예약 확인'+(L&&L.length?' ('+L.length+')':'');$('#mailBtn').classList.toggle('pri',!!(L&&L.length))}).catch(function(){})};
   cnt();
@@ -1496,9 +1500,9 @@ function mailInit(){var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){r
       if(!L||!L.length){toast('확인할 메일 예약이 없습니다');return}
       L.forEach(function(it){var x={plat:it.plat,name:it.name||'',tel:it.tel||'',ci:it.ci,co:it.co,ppl:it.ppl||2,pplGuess:!!it.pplGuess,note:it.note||'',hotel:it.hotel||'',room:it.room||'',src:['메일']};
         if(it.code)x.code=String(it.code).toUpperCase();if(it.payout)x.payout=it.payout;if(it.sale)x.sale=it.sale;if(it.roomHint)x.roomHint=it.roomHint;if(!x.room)x.pick=true;
-        if(x.room&&x.hotel){var f=findRoom(x.room);x.unknownRoom=!!f.unknown}PASTE.push(x)});
-      renderPaste();toast('메일 예약 '+L.length+'건을 불러왔습니다 — 호실 확인 후 저장');
-      call('mailDone',L.map(function(it){return it.mailRow})).then(cnt).catch(function(){})})
+        if(x.room&&x.hotel){var f=findRoom(x.room);x.unknownRoom=!!f.unknown}x.mailRow=it.mailRow;
+        if(!PASTE.some(function(y){return y.mailRow===x.mailRow})){PASTE.push(x);MAILIN.push(x)}});
+      renderPaste();toast('메일 예약 '+L.length+'건을 불러왔습니다 — 호실 고르고 저장하면 메일 확인 완료')})
     .catch(function(e){b.disabled=false;toast(errText(e))})};
   $('#mailRunBtn').onclick=function(){var b=this;b.disabled=true;b.textContent='읽는 중…';call('mailRun').then(function(r){b.disabled=false;b.textContent='메일 지금 읽기';
       if(r&&r.busy){toast('이미 읽는 중입니다. 잠시 후 다시');return}
@@ -1516,7 +1520,7 @@ $('#ocrIn').onchange=function(){var fs=[].slice.call(this.files||[]),inp=this,ms
     ta.value=(ta.value.trim()?ta.value.trim()+'\n\n':'')+add;ta.dispatchEvent(new Event('input'));
     msg.textContent='사진 '+fs.length+'장 글자를 넣었습니다. 아래 인식 결과를 확인하세요 (틀린 곳은 [폼에서 수정]).'})
   .catch(function(e){msg.textContent='사진 글자를 읽지 못했습니다: '+errText(e)}).then(function(){lab.classList.remove('busy')})};
-$('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value);renderPaste();
+$('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value).concat(PASTE.filter(function(x){return x.mailRow}));renderPaste();
   if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm();
   pasteCancelAsk()},250)});
 function pasteCancelAsk(){   // 취소 문구: 살아 있는 예약이 있으면 바로 "취소할까요?" 묻기, 이미 취소돼 있으면 알림
@@ -1533,7 +1537,7 @@ $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.close
   if(el.dataset.p==='noclean'){x.noClean=el.checked;x.ncSet=true}
   renderPaste()});
 $('#pasteOut').addEventListener('click',function(e){
-  if(e.target.id==='pClear'){$('#pasteIn').value='';PASTE=[];renderPaste();return}
+  if(e.target.id==='pClear'){$('#pasteIn').value='';MAILIN=[];PASTE=[];renderPaste();return}   // 지우기: 메일 카드는 확인 완료로 안 바꿈 (다시 불러올 수 있음)
   var chr=e.target.closest('[data-p=chroom]');if(chr){PASTE[+chr.closest('.pitem').dataset.i].pick=true;renderPaste();return}
   var okr=e.target.closest('[data-p=okroom]');if(okr){PASTE[+okr.closest('.pitem').dataset.i].roomGuess=false;renderPaste();return}
   var b=e.target.closest('[data-p=form]');if(b){var i=+b.closest('.pitem').dataset.i,x=PASTE[i];
