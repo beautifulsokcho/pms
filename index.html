@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}
+.report.manual{margin-top:16px}.intg{font-size:12px}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -438,7 +438,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1999,7 +1999,7 @@ function renderIntegrated(kind){
     var title=h+' '+when+' '+(kind==='tax'?'세금신고서':'통합정산서');
     var html='<div class="report landscape" id="sAllPrint"><h3>'+esc(title)+'</h3><p class="note">입실일 기준 · '+esc(kind==='tax'?'세금계산서 발행액 = 객실별 부가세 발행금액('+(d.bill?'B−A':'A−B')+'), 0보다 작으면 0':'객실별 정산서를 합친 표입니다')+(per!=='month'?' · 입실일이 기간 안인 예약, 수동 항목은 일자가 기간 안인 것(일자가 없으면 그 달 전체가 기간에 들 때)':'')+'</p>'+
       '<div class="scroll"><table class="intg"><thead><tr>'+tbl.head.map(function(c){return '<th>'+esc(c)+'</th>'}).join('')+'</tr></thead><tbody>'+
-      tbl.rows.map(function(r,i){return '<tr'+(tbl.bold.indexOf(i+1)>=0?' class="sum"':tbl.sep.indexOf(i+1)>=0?' class="sep"':'')+'>'+r.map(function(c,j){var n=typeof c==='number';return '<td'+(n?' class="n"':'')+'>'+(n?(c?Math.round(c).toLocaleString('ko-KR'):'-'):esc(c))+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>'+
+      tbl.rows.map(function(r,i){return '<tr'+((tbl.ext||[]).indexOf(i+1)>=0?' class="sum ext'+((tbl.ext||[])[0]===i+1?' ext1':'')+'"':tbl.bold.indexOf(i+1)>=0?' class="sum"':tbl.sep.indexOf(i+1)>=0?' class="sep"':'')+'>'+r.map(function(c,j){var n=typeof c==='number';return '<td'+(n?' class="n"':'')+'>'+(n?(c?Math.round(c).toLocaleString('ko-KR'):'-'):esc(c))+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>'+
       '<div class="actions no-print"><span id="xlsLink"></span><button class="btn" type="button" id="xlsBtn">엑셀 파일 만들기</button></div>'+printBtn('sAllPrint')+'</div>';
     box.innerHTML=html;
     stickCols(box.querySelector('table.intg'),2);   // 옆으로 스크롤해도 호실·소유주 고정
@@ -2013,6 +2013,7 @@ function renderIntegrated(kind){
 function stickCols(t,n){if(!t)return;var fix=function(){var left=0;for(var c=0;c<n;c++){var w=0;
     t.querySelectorAll('tr').forEach(function(tr){var cell=tr.children[c];if(!cell)return;cell.classList.add('stk');if(c===n-1)cell.classList.add('stk2');cell.style.left=left+'px';w=Math.max(w,cell.getBoundingClientRect().width)});left+=w}};
   fix();setTimeout(fix,300)}
+var INT_OWNER_SUM=['이다경'];   // 통합정산서 맨 아래 따로 합계를 보여 줄 소유주
 function intTable(d){
   var rs=d.rows,any=function(f){return rs.some(function(o){return Math.round(f(o))!==0})},labels=function(k){var L=[];rs.forEach(function(o){o[k].forEach(function(p){if(L.indexOf(p[0])<0)L.push(p[0])})});return L};
   var val=function(o,k,l){var p=o[k].find(function(q){return q[0]===l});return p?p[1]:0};
@@ -2033,7 +2034,16 @@ function intTable(d){
   var main=rs.filter(function(o){return !o.extra}),ex=rs.filter(function(o){return o.extra}),rows=main.map(line),bold=[],sep=[];
   rows.push(sum(main,ex.length?'소계 ('+d.hotel+')':'합계'));bold.push(rows.length);
   if(ex.length){ex.forEach(function(o){rows.push(line(o))});rows.push(sum(rs,'합계 (추가 객실 포함)'));bold.push(rows.length)}
-  return {head:cols.map(function(c){return c[0]}),rows:rows,bold:bold,sep:sep,text:[0,1]};
+  if(hasSales&&!d.bill){   // 합계 아래: 이다경 호실 합계 · 지급할 호실 합계(마이너스 제외) · 마이너스 호실 청구합계
+    var pi=cols.findIndex(function(c){return /^지급\(이월\)합계/.test(c[0])}),nm=function(x){return String(x||'').replace(/\s/g,'')};
+    var ext0=rows.length;
+    INT_OWNER_SUM.forEach(function(w){var own=rs.filter(function(o){return nm(o.owner)===nm(w)});if(own.length){rows.push(sum(own,w+' 호실 합계 ('+own.length+'실)'));bold.push(rows.length)}});
+    var plus=rs.filter(function(o){return Math.round(o.pay)>0}),minus=rs.filter(function(o){return Math.round(o.pay)<0});
+    rows.push(sum(plus,'지급할 호실 합계 (마이너스 제외 · '+plus.length+'실)'));bold.push(rows.length);
+    if(minus.length){var mr=sum(minus,'청구합계 (마이너스 호실 '+minus.length+'실: '+minus.map(function(o){return o.room}).join(', ')+')');cols.forEach(function(c,k){if(k===pi||/세금계산서 발행액|VAT별도/.test(c[0]))mr[k]=Math.abs(mr[k])});rows.push(mr);bold.push(rows.length)}
+  }
+  var ext=[];if(typeof ext0==='number')for(var q=ext0+1;q<=rows.length;q++)ext.push(q);
+  return {head:cols.map(function(c){return c[0]}),rows:rows,bold:bold,sep:sep,ext:ext,text:[0,1]};
 }
 function taxTable(d){
   var main=d.rows.filter(function(o){return !o.extra});
