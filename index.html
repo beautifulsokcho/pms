@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.report.manual{margin-top:16px}.intg{font-size:12px}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -385,6 +385,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f" id="sFromF" style="display:none"><label for="sFrom">시작일</label><input id="sFrom" type="date"></div>
       <div class="f" id="sToF" style="display:none"><label for="sTo">종료일</label><input id="sTo" type="date"></div>
       <button class="btn pri" id="sGo" type="button">정산서 보기</button>
+      <button class="btn" id="sBatch" type="button" title="호텔의 모든 호실 정산서를 PDF로 만들어 ZIP 파일 1개로 저장 (이다경 소유 제외)">개별정산서 일괄 저장</button>
     </div>
     <div id="sOut"></div>
     <div id="sManual"></div>
@@ -438,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1839,7 +1840,51 @@ function printPages(el){var root=document.createElement('div');root.id='printRoo
 // 정산서 쪽(달력·요약·일자별)을 그림(PNG)으로: 쪽마다 한 장
 var H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
 var JSPDF='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-function loadScript(u){return new Promise(function(ok,no){if(u===H2C?window.html2canvas:(window.jspdf&&window.jspdf.jsPDF))return ok();var sc=document.createElement('script');sc.src=u;sc.onload=ok;sc.onerror=function(){no(new Error('그림 저장 도구를 불러오지 못했습니다'))};document.head.appendChild(sc)})}
+function loadScript(u){return new Promise(function(ok,no){if(u===H2C?window.html2canvas:u===JSZIP?window.JSZip:(window.jspdf&&window.jspdf.jsPDF))return ok();var sc=document.createElement('script');sc.src=u;sc.onload=ok;sc.onerror=function(){no(new Error('그림 저장 도구를 불러오지 못했습니다'))};document.head.appendChild(sc)})}
+function snapPages(el,scale){   // 정산서(.pg 3쪽)를 화면 밖에 인쇄 모양으로 만들어 쪽마다 canvas
+  var root=document.createElement('div');root.className='repsnap snapmode';root.style.cssText='position:fixed;left:-30000px;top:0;width:auto;padding:0';
+  var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(function(x){x.removeAttribute('id')});
+  c.querySelectorAll('input.cedit,.no-print,.pgt0,.shead2,.demo-only').forEach(function(x){x.remove()});
+  c.querySelectorAll('table').forEach(function(t){t.style.zoom=''});c.querySelectorAll('.scroll').forEach(function(x){x.style.overflow='visible'});
+  c.querySelectorAll('.two').forEach(function(t){t.style.display='block'});
+  root.appendChild(c);document.body.appendChild(root);
+  var pages=[].slice.call(c.querySelectorAll('.pg')),out=[],k=0;
+  pages.forEach(function(pg){pg.classList.add('snap');pg.style.margin='0 0 12px';
+    if(pg.classList.contains('pg1'))pg.style.width='1100px';else if(pg.classList.contains('pg2'))pg.style.width='640px';else{pg.style.width='max-content';pg.style.minWidth='680px'}});
+  var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
+    return html2canvas(pg,{scale:scale||2,backgroundColor:'#ffffff'}).then(function(cv){out.push(cv);return next()})};
+  return next().then(function(){root.remove();return out},function(e){root.remove();throw e})}
+function pagesPdf(out){var doc=null;   // canvas 쪽들 → A4 PDF (가로 그림은 가로 쪽)
+  out.forEach(function(c){var land=c.width>c.height,pw=land?297:210,ph=land?210:297,m=8,k=Math.min((pw-2*m)/c.width,(ph-2*m)/c.height),w=c.width*k,h=c.height*k;
+    if(!doc)doc=new window.jspdf.jsPDF({orientation:land?'landscape':'portrait',unit:'mm',format:'a4'});else doc.addPage('a4',land?'landscape':'portrait');
+    doc.addImage(c.toDataURL('image/jpeg',0.9),'JPEG',(pw-w)/2,m,w,h)});
+  return doc}
+var JSZIP='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+// 개별정산서 일괄: 호텔의 호실마다 정산서 PDF를 만들어 ZIP 파일 1개로 저장 (이다경 소유·대체객실 제외)
+function settleBatch(){
+  var h=$('#sHotel').value,m=$('#sMonth').value;if(!h||!m){toast('호텔과 정산월을 고르세요');return}
+  var list=rows('객실').filter(function(r){return r.v[1]===h&&r.v[2]!==''&&!isSubRoom(r.v[2])&&!INT_OWNER_SUM.some(function(w){return String(r.v[5]||'').replace(/\s/g,'')===w.replace(/\s/g,'')})})
+    .filter(function(r){var used=r.v[13]!=='N';return used||rows('예약').some(function(q){return q.v[R.hotel]===h&&String(q.v[R.room])===String(r.v[2])&&String(q.v[R.ci]).slice(0,7)===m})})
+    .map(function(r){return String(r.v[2])}).sort(function(a,b){return (Number(a)||0)-(Number(b)||0)});
+  if(!list.length){toast('대상 호실이 없습니다');return}
+  var stop=false,done=0,fail=[];
+  modal('<h3>개별정산서 일괄 저장</h3><p>'+esc(h)+' '+esc(m)+' · '+list.length+'실 (이다경 소유·대체객실 제외)</p><p id="sbMsg" class="note">준비 중…</p><div class="actions"><button class="btn" type="button" id="sbStop">멈추기</button></div>',true);
+  $('#sbStop').onclick=function(){stop=true;this.disabled=true;this.textContent='멈추는 중…'};
+  var msg=function(t){var e=$('#sbMsg');if(e)e.textContent=t};
+  var box=document.createElement('div');box.style.cssText='position:fixed;left:-30000px;top:0';document.body.appendChild(box);
+  Promise.all([loadScript(H2C),loadScript(JSPDF),loadScript(JSZIP)]).then(function(){var zip=new window.JSZip(),i=0;
+    var one=function(){if(stop||i>=list.length)return Promise.resolve();var room=list[i++],p={hotel:h,room:room,month:m};
+      msg('('+i+'/'+list.length+') '+room+'호 계산 중… 객실마다 몇 초씩 걸립니다');
+      return call('report','객실정산서',p).then(function(a){if(!a)throw new Error('결과 없음');box.innerHTML=settleHtml(p,a,'sbPrint');
+          msg('('+i+'/'+list.length+') '+room+'호 PDF 만드는 중…');return snapPages(box.firstChild,1.5)})
+        .then(function(cv){zip.file(h+'_'+room+'호_'+m+'_정산서.pdf',pagesPdf(cv).output('blob'));done++})
+        .catch(function(e){fail.push(room+'호('+errText(e)+')')}).then(one)};
+    return one().then(function(){box.remove();if(!done){msg('만든 정산서가 없습니다'+(fail.length?' · 실패: '+fail.join(', '):''));return}
+      msg('ZIP 파일로 묶는 중…');
+      return zip.generateAsync({type:'blob'}).then(function(b){saveBlob(b,h+'_'+m+'_개별정산서_'+done+'실.zip');
+        msg('✓ '+done+'실 정산서를 ZIP 파일 1개로 저장했습니다'+(stop?' (멈춤)':'')+(fail.length?' · 실패: '+fail.join(', '):''));
+        var sb=$('#sbStop');if(sb){sb.disabled=false;sb.textContent='닫기';sb.onclick=closeModal}})})})
+  .catch(function(e){box.remove();msg('만들지 못했습니다: '+errText(e))})}
 function snapReport(id,name){var el=document.getElementById(id),btn=$('#sSnap');if(btn)btn.disabled=true;toast('그림을 만드는 중…');
   loadScript(H2C).then(function(){
     // 인쇄 화면과 같은 모양을 화면 밖에 따로 만들어 찍음 (다크 모드·폰 화면 폭과 상관없이 밝은 바탕, 표 전체 폭)
@@ -1913,15 +1958,7 @@ function sPerShow(){var room=$('#sKind').value==='room',per=room?'month':$('#sPe
   if(mo<1){mo=12;y--}if(mo>12){mo=1;y++}$('#sMonth').value=y+'-'+String(mo).padStart(2,'0');if($('#sOut').innerHTML.trim()||$('#sAll').innerHTML.trim())$('#sGo').click()}});
 $('#sKind').onchange=function(){sPerShow();$('#sOut').innerHTML='';$('#sManual').innerHTML='';$('#sAll').innerHTML=''};
 $('#sPer').onchange=function(){sPerShow();$('#sAll').innerHTML=''};
-$('#sGo').onclick=function(){
-  if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
-  $('#sAll').innerHTML='';
-  var p={hotel:$('#sHotel').value,room:$('#sRoom').value,month:$('#sMonth').value};
-  if(!p.room||!p.month){toast('호실과 정산월을 고르세요');return}
-  $('#sOut').innerHTML='<div class="empty">계산 중…</div>';
-  renderManual(p);
-  call('report','객실정산서',p).then(function(a){
-    if(!a){$('#sOut').innerHTML=demoNote('써밋베이 2001호 2026년 9월');return}
+function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 결과 a → 달력·요약·일자별 3쪽)
     var cut=a.findIndex(function(r){return String(r[0]).indexOf('입실일 기준')>=0});
     var top=a.slice(0,cut-1).filter(function(r){return r.slice(0,3).some(function(c){return c!==''})});
     var owner=a[cut-1]?a[cut-1][0]:'';
@@ -1954,11 +1991,23 @@ $('#sGo').onclick=function(){
     var calList=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===p.hotel&&String(v[R.room])===String(p.room)&&!v[R.cancel]&&v[R.excl]!=='Y'&&v[R.ci]&&v[R.co]});   // 미정산 예약은 정산서 달력에서 감춤
     var ttl=esc(top[0][0]);
     var sAct=(LIVE||DEMO?'<div class="actions no-print stop">'+(LIVE?'<button class="btn" type="button" onclick="window.__print(\'sPrint\')">인쇄</button>':'')+'<button class="btn" type="button" id="sSnap">그림으로 저장</button></div>':'');   // 인쇄·그림 저장 버튼은 위에
-    $('#sOut').innerHTML='<div class="report pages" id="sPrint"><div class="shead2"><h3 class="pgt0">'+ttl+'</h3>'+sAct+'</div>'+
+    return '<div class="report pages" id="'+(pid||'sPrint')+'"><div class="shead2"><h3 class="pgt0">'+ttl+'</h3>'+sAct+'</div>'+
       '<div class="pg pg1"><h3 class="pgt">'+ttl+' · 객실 달력</h3>'+calHtml(p.hotel,p.room,p.month,calList)+'</div>'+
       '<div class="two"><div class="pg pg2"><h3 class="pgt">'+ttl+'</h3><p class="owner pgt">'+esc(owner)+'</p><div class="scroll">'+t1+'</div></div>'+
       '<div class="pg pg3"><h3 class="pgt">'+ttl+' · 일자별 정산내역</h3><p class="owner">'+esc(owner)+'</p><p class="note">입실일 기준입니다.</p><div class="scroll">'+t2+'</div></div></div>'+
       (LIVE?'':printBtn('sPrint'))+'</div>';
+}
+$('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
+$('#sGo').onclick=function(){
+  if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
+  $('#sAll').innerHTML='';
+  var p={hotel:$('#sHotel').value,room:$('#sRoom').value,month:$('#sMonth').value};
+  if(!p.room||!p.month){toast('호실과 정산월을 고르세요');return}
+  $('#sOut').innerHTML='<div class="empty">계산 중…</div>';
+  renderManual(p);
+  call('report','객실정산서',p).then(function(a){
+    if(!a){$('#sOut').innerHTML=demoNote('써밋베이 2001호 2026년 9월');return}
+    $('#sOut').innerHTML=settleHtml(p,a);
     $('#sOut').querySelectorAll('.rbar[data-r]').forEach(function(b){b.addEventListener('click',openCard)});
     fitTables();
     if($('#sSnap'))$('#sSnap').onclick=function(){snapReport('sPrint',p.hotel+'_'+p.room+'호_'+p.month)};
