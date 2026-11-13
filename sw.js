@@ -1,5 +1,5 @@
 // 객실관리 앱 서비스워커: 앱 화면은 항상 최신을 먼저 받고, 인터넷이 없으면 저장본으로 엽니다.
-const CACHE='gaeksil-1794592552';
+const CACHE='gaeksil-1794595252';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
