@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>객실문자 앱 연결</title>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#12181b;color:#eef3f4;padding:24px 16px;line-height:1.6}
+.box{max-width:480px;margin:0 auto}h1{font-size:22px}a.btn{display:block;text-align:center;padding:16px;margin:14px 0;border-radius:12px;background:#3fb8af;color:#06201e;font-weight:700;font-size:18px;text-decoration:none}
+a.sub{background:#24313a;color:#eef3f4;font-weight:600;font-size:16px}.note{color:#9fb0b6;font-size:14px}.err{color:#ff8a7a}</style></head>
+<body><div class="box"><h1>객실문자 앱 연결</h1><div id="c"></div></div>
+<script>
+(function(){var h=new URLSearchParams(location.hash.slice(1)),u=h.get('u')||'',t=h.get('t')||'',c=document.getElementById('c');
+if(!u||!t){c.innerHTML='<p class="err">연결 정보가 없습니다. 객실관리 → 관리 → 문자 설정에서 연결 문자를 다시 보내세요.</p>';return}
+var q='setup?u='+encodeURIComponent(u)+'&t='+encodeURIComponent(t);
+var intent='intent://'+q+'#Intent;scheme=roomsms;package=kr.roomsms;S.browser_fallback_url='+encodeURIComponent('https://beautifulsokcho.github.io/pms/roomsms.apk')+';end';
+c.innerHTML='<p>아래 버튼을 누르면 객실문자 앱에 <b>서버 주소와 연결 비밀번호</b>가 자동으로 들어가고 시작됩니다.</p>'+
+'<a class="btn" href="'+intent+'">📲 객실문자 앱에 연결</a>'+
+'<a class="btn sub" href="roomsms://'+q+'">버튼이 안 되면 여기</a>'+
+'<a class="btn sub" href="https://beautifulsokcho.github.io/pms/roomsms.apk">앱이 없으면 먼저 설치</a>'+
+'<p class="note">연결 후 앱에서 [문자·통화기록 권한 허용]과 [배터리 최적화 제외]를 눌러 주세요. 이 링크는 다른 사람에게 보내지 마세요.</p>';
+try{history.replaceState(null,'',location.pathname)}catch(e){}   // 주소창에서 비밀번호 지우기 (버튼에는 남아 있음)
+})();
+</script></body></html>

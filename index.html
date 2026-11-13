@@ -436,7 +436,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13u';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13v';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2230,6 +2230,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
         '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="smsTestBtn">보내기</button></div><div id="smsSendMsg"></div>'+
       '<h4 class="cwh" style="margin-top:14px">플랫폼별 호텔 이름 <span class="note">(문구의 {호텔} · 비우면 원래 호텔 이름)</span></h4><div id="hnGrid"></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="hnSave">호텔 이름 저장</button></div>'+
       '<h4 class="cwh" style="margin-top:14px">호실별 출입문 비밀번호 <span class="note">(문구의 {비밀번호} · 마리나베이 157+뒤2+앞1+9, 써밋베이 456+호실4자리로 자동)</span></h4><div class="rpick" style="max-width:460px;flex-wrap:wrap"><select id="doorHotel" style="flex:1 1 150px">'+opts(hotels(true),defHotel())+'</select><button class="btn pri" type="button" id="doorSave" disabled>비밀번호 저장</button><button class="btn" type="button" id="doorFill">빈 칸 자동 채우기</button></div><div id="doorList" class="doorgrid"></div>'+
+      (ok?'<h4 class="cwh" style="margin-top:14px">다른 폰 앱 연결 <span class="note">(링크 문자를 받아 누르면 주소·비밀번호가 자동으로 들어감)</span></h4><div class="rpick" style="flex-wrap:wrap;max-width:460px"><select id="cnTo" style="flex:1 1 180px">'+(st.phones||[]).map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'">'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')+'</select><button class="btn pri" type="button" id="cnSend">연결 문자 보내기</button></div><p class="note" id="cnMsg">이 화면을 그 폰에서 열었다면 위 [폰 앱에 연결]만 누르면 됩니다.</p>':'')+
       (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
@@ -2273,6 +2274,8 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     $('#doorList').oninput=function(e){if(e.target.dataset.door){e.target.dataset.dirty='1';$('#doorSave').disabled=false}};
     $('#doorSave').onclick=function(){var b=this,items=[].map.call(document.querySelectorAll('#doorList [data-dirty]'),function(i){return {r:+i.dataset.door,v:{34:i.value.trim()}}});if(!items.length)return;b.disabled=true;
       call('saveRows','객실',items).then(function(d){S['객실']=d;toast(items.length+'개 호실 비밀번호를 저장했습니다');doorDraw()}).catch(function(e){b.disabled=false;toast('저장하지 못했습니다: '+errText(e))})};
+    var cn=$('#cnSend');if(cn)cn.onclick=function(){var b=this,to=$('#cnTo').value;if(!to)return;b.disabled=true;
+      call('smsConnect',to,url).then(function(){$('#cnMsg').innerHTML='✓ 연결 문자를 넣었습니다. 발송 폰이 다음 확인 때 보냅니다. 받은 폰에서 ① 앱 설치 → ② 연결 링크를 누르세요.';toast('연결 문자를 넣었습니다')}).catch(function(e){$('#cnMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'}).then(function(){b.disabled=false})};
     var nt=$('#gwNewTok');if(nt)nt.onclick=function(){var b=this;b.disabled=true;call('smsConfig',{newGwToken:true}).then(function(st2){toast('새 연결 비밀번호를 만들었습니다. 폰 앱에 다시 연결하세요.');draw(st2)}).catch(function(e){b.disabled=false;toast(errText(e))})};
   };
   call('smsConfig',null).then(draw).catch(function(e){$('#smsForm').innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
