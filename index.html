@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.report.manual{margin-top:16px}.intg{font-size:12px}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -853,7 +853,9 @@ function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');
 function cardHtml(r){var v=r.v;
   return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">본인계정</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
-    '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">판매 '+(won(v[R.sale])||'-')+' · 입금 '+(won(v[R.fin])||'-')+' · 청소 '+(won(v[R.cfin])||'-')+'</span></div>'+
+    '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
+      if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
+      return '판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')})()+' · 청소 '+(won(v[R.cfin])||'-')+'</span></div>'+
     (v[R.memo]?'<div class="memo">'+esc(v[R.memo])+'</div>':'')+'</button>'}
 function roomId(h,room){var s=String(room==null?'':room).trim();if(!s)return '';
   var hr=rows('호텔').find(function(r){return r.v[1]===h}),p=(hr&&hr.v[11])||'R';
@@ -886,13 +888,19 @@ function renderCal(){
     hs.map(function(hh){return calHtml(hh,rm,ym,all.filter(function(r){return r.v[R.hotel]===hh}))}).join('');
   if($('#calNow'))$('#calNow').onclick=function(e){e.stopPropagation();setMonth(now)};
 }
+// 추가인원·반려견 요금 빼고 정산(예약 AF·AG=Y): 정산 판매(AH)·정산 입금(AI). 소유주는 정산 금액만, 관리자·매니저는 원래 금액과 정산 금액 함께
+function adjOf(v){var a=v[R.xpp]==='Y'||v[R.xpet]==='Y';if(!a||v[R.cancel]||v[R.excl]==='Y'||v[R.own]==='Y')return null;
+  var ss=v[R.sSale]===''||v[R.sSale]==null?Number(v[R.sale])||0:Number(v[R.sSale]),sd=Number(v[R.sDep])||0;
+  return {sale:ss,fin:sd,tag:(v[R.xpet]==='Y'?'반려견':'')+(v[R.xpp]==='Y'?(v[R.xpet]==='Y'?'·':'')+'추가인원':'')+' 미정산'}}
+function shownSale(v){var a=adjOf(v);return a&&OWNER?a.sale:Number(v[R.sale])||0}
+function shownFin(v){var a=adjOf(v);return a&&OWNER?a.fin:Number(v[R.fin])||0}
 function calHtml(hotel,room,ym,list){
   var y=+ym.slice(0,4),m=+ym.slice(5,7),days=new Date(y,m,0).getDate(),dow0=new Date(y,m-1,1).getDay(),today=ymd(new Date());
   var ds=function(d){return ym+'-'+String(d).padStart(2,'0')},first=ds(1),last=ds(days);
   var night={};list.forEach(function(r){if(r.v[R.cancel])return;for(var d=r.v[R.ci];d<r.v[R.co];d=addDays(d,1))night[d]=r});
   var sold=0,own=0,vac=0;for(var d=1;d<=days;d++){var x=night[ds(d)];if(!x)vac++;else if(x.v[R.plat]==='개인예약')own++;else sold++}
   var inM=list.filter(function(r){return !r.v[R.cancel]&&String(r.v[R.ci]).slice(0,7)===ym});
-  var sSale=inM.reduce(function(a,r){return a+(Number(r.v[R.sale])||0)},0),sFin=inM.reduce(function(a,r){return a+(Number(r.v[R.fin])||0)},0);
+  var sSale=inM.reduce(function(a,r){return a+shownSale(r.v)},0),sFin=inM.reduce(function(a,r){return a+shownFin(r.v)},0);
   var pct=function(n){return Math.round(n/days*1000)/10+'%'};
   var head='<div class="calhead"><h3>'+esc(hotel)+' '+esc(room)+'호 · '+y+'년 '+m+'월</h3><div class="calstats">'+
     '<span class="st sold">판매 <b>'+sold+'박</b> ('+pct(sold)+')</span>'+(own?'<span class="st own">개인 사용 <b>'+own+'박</b> ('+pct(own)+')</span>':'')+
@@ -913,10 +921,11 @@ function calHtml(hotel,room,ym,list){
     segs.sort(function(a,b){return a.col-b.col});var lanes=[];
     segs.forEach(function(g){for(var l=0;;l++){if(!lanes[l]||lanes[l]<g.col){g.lane=l;lanes[l]=g.col+g.n-1;break}}});
     var bars=segs.map(function(g){var v=g.r.v,cls='rbar'+(v[R.cancel]?' cx':v[R.excl]==='Y'?' un':v[R.plat]==='개인예약'?' own':'')+(g.head?' h':'')+(g.tail?' t':'');
-      var tip=(v[R.name]||'(이름 없음)')+' '+v[R.ppl]+'명 · '+md(v[R.ci])+'→'+md(v[R.co])+' '+v[R.n]+'박 · '+(v[R.plat]||'ABNB')+' · 판매 '+(won(v[R.sale])||'-')+' · 입금 '+(won(v[R.fin])||'-');
+      var aj=adjOf(v),tip=(v[R.name]||'(이름 없음)')+' '+v[R.ppl]+'명 · '+md(v[R.ci])+'→'+md(v[R.co])+' '+v[R.n]+'박 · '+(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+(aj&&!OWNER?' · '+aj.tag+' → 정산 판매 '+won(aj.sale)+' · 정산 입금 '+won(aj.fin):'');
       return '<button type="button" class="'+cls+'" data-r="'+g.r.r+'" title="'+esc(tip)+'" style="grid-column:'+g.col+' / span '+g.n+';grid-row:'+(g.lane+1)+'">'+
         '<span class="b1"><b>'+esc(v[R.name]||'(이름 없음)')+'</b> '+esc(v[R.ppl])+'명'+(v[R.cancel]?' · 취소':'')+'</span>'+
-        '<span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(v[R.sale])||'-')+'</span><span class="b2">입금 '+(won(v[R.fin])||'-')+'</span></button>'}).join('');
+        (aj&&!OWNER?'<span class="b2"><b class="adjtag">'+esc(aj.tag)+'</b></span><span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+'</span><span class="b2">입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin)+'</span>':
+        '<span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+'</span><span class="b2">입금 '+(won(shownFin(v))||'-')+'</span>')+'</button>'}).join('');
     wk+='<div class="cweek"><div class="cdays">'+cells+'</div><div class="cbars">'+bars+'</div></div>';
   }
   return '<div class="calbox w'+weeks+'">'+head+wk+'</div></div>';
@@ -978,7 +987,7 @@ function renderRes(){
     var d=ci||ho||rm;return so==='asc'?d:-d});
   // 미정산(정산 제외) 예약은 따로 모아 아래에 표시 — 입금 합계에서도 빠짐
   var main=list.filter(function(r){return r.v[R.excl]!=='Y'}),un=list.filter(function(r){return r.v[R.excl]==='Y'});
-  var sum=main.reduce(function(s,r){return s+(Number(r.v[R.fin])||0)},0);
+  var sum=main.reduce(function(s,r){return s+shownFin(r.v)},0);
   $('#resCount').innerHTML=main.length+'건 · 입금 합계 '+won(sum)+'원'+(un.length?' · <b class="unset">미정산 '+un.length+'건</b>':'');
   if(!list.length){$('#resList').className='list';$('#resList').innerHTML='<div class="empty">조건에 맞는 예약이 없습니다. 조건을 바꾸거나 새 예약을 입력하세요.</div>';return}
   var tbl=$('#qView').value==='table';$('#resList').className=tbl?'':'list';
