@@ -278,6 +278,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
   #printRoot .rbar{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printRoot .cd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+#cActs{float:right;margin:4px 0 6px 8px;gap:6px}@media (max-width:600px){#cActs{float:none;justify-content:flex-end;margin:0 0 6px}}
 </style>
 
 </head>
@@ -351,8 +352,9 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f"><label for="cAll">담당자 일괄 지정</label><select id="cAll"></select></div>
       <button class="btn pri" id="cSave" type="button">저장</button>
     </div>
-    <div class="actions no-print" id="cActs" style="justify-content:flex-start;margin:6px 0"><button class="btn" type="button" id="cPrintBtn">인쇄</button><button class="btn" type="button" id="cSnapBtn">그림으로 저장</button></div>
+    <div class="actions no-print" id="cActs"><button class="btn" type="button" id="cPrintBtn">인쇄</button><button class="btn" type="button" id="cSnapBtn">그림으로 저장</button></div>
     <div class="count" id="cCount"></div>
+    <div style="clear:both"></div>
     <div class="err" id="cDirtyNote"></div>
     <div id="cPages" class="cpages">
       <div class="cpg cp1"><h3 class="pgt" id="cT1"></h3><div class="tasks" id="cList"></div></div>
@@ -431,7 +433,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-13f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-13g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
