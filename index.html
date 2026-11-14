@@ -135,6 +135,7 @@ tr.dirty td{background:var(--hold-soft)}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
 .report.manual{margin-top:16px}.intg{font-size:12px}
+#cList.many{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#cList{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 #recentList{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#recentList{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 2px 8px}.rechead .recent-h{margin:0}.rechead .btn{padding:5px 10px;font-size:13px}#recAuto.miss{background:var(--warn);color:#fff;border-color:var(--warn)}.chip.miss{background:#fde8e8;color:#b42318;border:1px solid #f3b4b4}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
@@ -442,7 +443,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1721,14 +1722,15 @@ function renderClean(){
   $('#cCount').innerHTML='<span class="kdate">'+md(d)+'</span>'+chips.map(function(c){return '<span class="kc '+c[2]+'">'+c[0]+' <b>'+c[1]+'</b></span>'}).join('')+cWhoLine(ts);
   if(!ts.length){$('#cList').innerHTML='<div class="empty">이 날짜에 퇴실하거나 입실하는 예약이 없습니다.</div>';renderSheet();return}
   var nOut=ts.filter(function(t){return t.out}).length,nIn=ts.length-nOut;
+  $('#cList').classList.toggle('many',ts.length>=8);   // 청소 객실이 8개 이상이면 PC 가로 4칸
   $('#cList').innerHTML=ts.map(function(t,i){var o=t.out,n=t.inn,who=t.st.cleaner,uns=who!==(t.rec?t.rec.v[1]:'');
     var col=who?cleanerColor(who):'',prep=!o;
     var sec=i===0&&o?'<div class="tsec">청소 객실 (퇴실 있음) · '+nOut+'실</div>':(prep&&(i===0||ts[i-1].out)?'<div class="tsec prep">입실 준비만 있는 객실 · '+nIn+'실</div>':'');
     return sec+'<div class="task '+t.type+(prep?' prepc':(col?' whoc':''))+'" data-k="'+esc(t.key)+'"'+(prep?(col?' style="border-left-color:'+col+'"':''):(col?' style="background:'+pastel(col)+';color:#111"':''))+'><div class="row"><span class="room">'+esc(t.hotel)+' '+esc(t.room)+'</span><span class="chip '+TYPE[t.type][1]+'">'+TYPE[t.type][0]+'</span>'+
       (t.rec&&t.rec.v[12]?'<span class="chip ok" title="담당자 완료 '+esc(t.rec.v[12])+'">✓ 완료</span>':'')+(ownerCleans(t)?'<span class="who" style="margin-left:auto">소유주 직접</span>':who?'<span class="who" style="margin-left:auto"><i class="dot" style="background:'+col+'"></i>'+esc(who)+(uns?' <small class="unsv no-print">저장 전</small>':'')+'</span>':'<span class="chip x" style="margin-left:auto">미배정</span>')+'</div>'+
-      (o?'<div class="sub">퇴실: '+esc(o[R.name]||'')+' '+esc(o[R.ppl])+'명'+(t.st.bed==='교체필요'?' · <b class="red">교체필요</b>':'')+(o[R.memo]?' · <b>'+esc(o[R.memo])+'</b>':'')+'</div>':'')+
-      (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(n[R.memo]?' · <b>'+esc(n[R.memo])+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
-      (!n&&t.next5?'<div class="sub">다음 입실 '+md(t.next5[R.ci])+': '+esc(t.next5[R.ppl])+'명 '+esc(t.next5[R.n])+'박 · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.next5[R.memo]?' · <b>'+esc(t.next5[R.memo])+'</b>':'')+'</div>':'')+
+      (o?'<div class="sub">퇴실: '+esc(o[R.name]||'')+' '+esc(o[R.ppl])+'명'+(t.st.bed==='교체필요'?' · <b class="red">교체필요</b>':'')+(memoHide(o[R.memo])?' · <b>'+esc(memoHide(o[R.memo]))+'</b>':'')+'</div>':'')+
+      (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(memoHide(n[R.memo])?' · <b>'+esc(memoHide(n[R.memo]))+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
+      (!n&&t.next5?'<div class="sub">다음 입실 '+md(t.next5[R.ci])+': '+esc(t.next5[R.ppl])+'명 '+esc(t.next5[R.n])+'박 · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(memoHide(t.next5[R.memo])?' · <b>'+esc(memoHide(t.next5[R.memo]))+'</b>':'')+'</div>':'')+
       (t.def?'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅 수건 '+t.towel+'장 · 물 '+t.water+'개</div>':'')+
       (o&&!isOwnerClean(t.hotel,t.room)?'<label class="chk ownchk no-print"><input type="checkbox" data-f="own"'+(t.st.own?' checked':'')+'> 소유주 직접 청소 <small>(정산 청소비 0 · 수당 없음)</small>'+(t.st.own!==t.st.own0?' <small class="unsv">저장 전</small>':'')+'</label>':'')+
       (ownerCleans(t)?'':'<div class="row cform no-print"><div class="f"><label>담당자</label><select data-f="cleaner">'+cleanerOpts(t.hotel,t.st.cleaner,'미배정')+'</select></div>'+
@@ -1771,9 +1773,11 @@ function snapPick(items,extra){   // items: [{cv:canvas, file:'이름.png', labe
   var all=$('#snapAll');if(all)all.onclick=function(){items.forEach(function(o,i){setTimeout(function(){o.blob?saveBlob(o.blob,o.file):saveCanvas(o.cv,o.file)},i*700)});all.textContent='저장함 ✓'};
 }
 function snapClean(){var b=$('#cSnapBtn');b.disabled=true;toast('그림을 만드는 중…');var d=$('#cDate').value,h=$('#cHotel').value||'전체';
-  loadScript(H2C).then(function(){var root=cleanPagesClone(false),pages=[].slice.call(root.children),out=[],k=0,nm=['카드','현황판','청소지시서'];
+  loadScript(H2C).then(function(){var root=cleanPagesClone(true),pages=[].slice.call(root.children),out=[],k=0,nm=['카드','현황판','청소지시서'];
+    root.style.cssText='display:block;position:fixed;left:-30000px;top:0;background:#fff';
+    pages.forEach(function(c){c.style.zoom='';c.dataset.w=Math.max(c.scrollWidth,PG_W)});   // 인쇄와 같은 폭(줄바꿈)으로 그린 뒤 그대로 찍어 오른쪽이 잘리지 않게
     var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
-      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',windowWidth:PG_W+40}).then(function(cv){out.push({cv:cv,label:k+'. '+nm[k-1],file:'청소배정_'+h+'_'+d+'_'+k+'_'+nm[k-1]+'.jpg'});return next()})};
+      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',width:Math.max(pg.scrollWidth,PG_W),height:pg.scrollHeight,windowWidth:Math.max(pg.scrollWidth,PG_W)+40}).then(function(cv){out.push({cv:cv,label:k+'. '+nm[k-1],file:'청소배정_'+h+'_'+d+'_'+k+'_'+nm[k-1]+'.jpg'});return next()})};
     return next().then(function(){root.remove();snapPick(out)})
   }).catch(function(e){var r=document.getElementById('printRoot');if(r)r.remove();toast('그림을 만들지 못했습니다: '+(e&&e.message||e))}).then(function(){b.disabled=false})}
 $('#cPrintBtn').onclick=printClean;$('#cSnapBtn').onclick=snapClean;
@@ -1802,8 +1806,8 @@ function boardRows(h,d,ts){
     row.nIn=next?(next[R.ci]===d?'오늘':mmdd(next[R.ci])):'기본';row.nPpl=next?next[R.ppl]:'';row.nN=next?next[R.n]:'';
     var prev=stay||out;row.pOut=stay?'('+mmdd(stay[R.co])+')':out?'오늘':'기본';row.pPpl=prev?prev[R.ppl]:'';row.pN=stay?stay[R.n]:'';   // 재실=퇴실일·인원·박수, 청소=오늘·퇴실 인원
     row.prep=inn&&Number(inn[R.ppl])>=3?'일반이불':'';
-    var mi=[],mo=[];if(out&&out[R.memo])mo.push({t:out[R.memo],red:1});   // 고객 이름·연락처는 넣지 않음
-    if(inn&&inn[R.memo])mi.push({t:inn[R.memo],red:1});else if(!inn&&next&&next[R.memo]&&st!=='재실')mi.push({t:next[R.memo]});
+    var mi=[],mo=[],mh=function(v){return memoHide(v)};if(out&&mh(out[R.memo]))mo.push({t:mh(out[R.memo]),red:1});   // 고객 이름·연락처는 넣지 않음
+    if(inn&&mh(inn[R.memo]))mi.push({t:mh(inn[R.memo]),red:1});else if(!inn&&next&&mh(next[R.memo])&&st!=='재실')mi.push({t:mh(next[R.memo])});
     if(stay&&ownUse(stay))mi.push({t:'소유주사용',red:1});
     if(t&&t.short)mi.push({t:t.short,red:1});
     row.mi=mi;row.mo=mo;return row});
@@ -1857,6 +1861,11 @@ var NOCLEAN_TAG='연속예약/청소안함';
 function nmKey(x){return String(x||'').replace(/\s+/g,'')}
 function contNext(v,list){if(!v[R.co]||!nmKey(v[R.name]))return null;return (list||rows('예약').map(function(r){return r.v})).find(function(q){return q!==v&&!q[R.cancel]&&q[R.hotel]===v[R.hotel]&&String(q[R.room])===String(v[R.room])&&nmKey(q[R.name])===nmKey(v[R.name])&&q[R.ci]===v[R.co]&&(!v[R.id]||q[R.id]!==v[R.id])})||null}
 function contPrevRows(v){if(!v[R.ci]||!nmKey(v[R.name]))return [];return rows('예약').filter(function(r){var q=r.v;return !q[R.cancel]&&q[R.noClean]!=='Y'&&q[R.hotel]===v[R.hotel]&&String(q[R.room])===String(v[R.room])&&nmKey(q[R.name])===nmKey(v[R.name])&&q[R.co]===v[R.ci]&&(!v[R.id]||q[R.id]!==v[R.id])})}
+// 청소 화면에 보이는 메모: 손님 이름·전화번호는 빼고 보여 줌 (청소담당자에게 개인정보가 가지 않게)
+function memoHide(m){var t=String(m==null?'':m);
+  t=t.replace(/(?:[가-힣A-Za-z][가-힣A-Za-z*·\s]{0,9})?\s*(?:\+?82[-\s]?)?0\d{1,3}[-\s.)]?\d{3,4}[-\s.]?\d{4}/g,' ');   // 이름 + 전화번호(010·0503·0507 등)
+  t=t.replace(/뒤\s*4\s*자리\s*\d{4}/g,' ').replace(/\s{2,}/g,' ').replace(/^[\s·,/]+|[\s·,/]+$/g,'');
+  return t}
 function memoNoClean(m,on){m=String(m||'').replace(/\s*연속예약\/청소안함\s*/g,' ').trim();return on?(NOCLEAN_TAG+(m?' '+m:'')):m}
 function noCleanItems(prs){return prs.map(function(r){return {r:r.r,v:{44:'Y',23:memoNoClean(r.v[R.memo],true)}}})}   // 앞 예약에 청소안함 표시
 function ownerCleans(t){if(t.out&&t.st&&t.st.own!==undefined?t.st.own:t.out&&t.out[R.ownCl]==='Y')return true;var v=t.out||t.inn;return isOwnerClean(t.hotel,t.room)&&!(v&&v[R.cleanY]==='Y')}   // 이번 청소를 소유주가 하는지 (청소배정 체크 · 소유주 청소 객실, 업체 청소 Y면 아님)   // 이번 청소를 소유주가 하는지 (업체 청소 Y면 아님)
@@ -1867,7 +1876,7 @@ function renderSheet(){
   ts.forEach(function(t){var c=who(t);g[c]=g[c]||{c:0,p:0};g[c][t.out?'c':'p']++});
   var names=Object.keys(g).sort(function(a,b){var k=function(x){return x==='소유주 직접'?2:x==='미배정'?1:0};return k(a)-k(b)||g[b].c-g[a].c||a.localeCompare(b,'ko')});   // 담당자(청소 많은 순) → 미배정 → 소유주 직접
   var list=ts.slice().sort(function(a,b){return names.indexOf(who(a))-names.indexOf(who(b))||(a.out?0:1)-(b.out?0:1)||dir*a.room.localeCompare(b.room,'ko',{numeric:true})});   // 담당자별로 묶고, 그 안에서 청소 → 입실준비, 각각 호실 순
-  var mm=function(v,kind){if(!v)return '';var r=rows('예약').find(function(q){return q.v===v||q.v[R.id]===v[R.id]});if(!r)return esc(v[R.memo]||'');var m=CMEMO[r.r]!=null?CMEMO[r.r]:String(v[R.memo]||'');
+  var mm=function(v,kind){if(!v)return '';var r=rows('예약').find(function(q){return q.v===v||q.v[R.id]===v[R.id]});if(!r)return esc(memoHide(v[R.memo]));var m=CMEMO[r.r]!=null?CMEMO[r.r]:memoHide(v[R.memo]);
     return '<textarea class="mm no-print" rows="1" data-r="'+r.r+'" data-kind="'+kind+'" placeholder="'+(kind==='in'?'입실':'퇴실')+' 메모">'+esc(m)+'</textarea><span class="mprint">'+esc(m)+'</span>'};
   var html='<div class="sheet"><h3>청소 지시서 · '+esc(d)+' ('+WD[pd(d).getDay()]+')'+($('#cHotel').value?' · '+esc($('#cHotel').value):'')+'</h3>'+
     '<div class="legend">'+names.map(function(c){return '<span><i class="dot" style="background:'+cleanerColor(c==='미배정'||c==='소유주 직접'?'':c)+'"></i>'+esc(c)+' 청소 <b>'+g[c].c+'</b>실'+(g[c].p?' · 입실준비 '+g[c].p+'실':'')+'</span>'}).join('')+'</div>'+
