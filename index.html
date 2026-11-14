@@ -442,7 +442,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -707,7 +707,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,dLock:47,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 
 function hotelRule(h){var r=rows('호텔').find(function(x){return x.v[1]===h});return r?{base:Number(r.v[12])||0,fee:Number(r.v[13])||0,pet:Number(r.v[14])||0}:{base:0,fee:0,pet:0}}
@@ -1082,6 +1082,7 @@ function resForm(row,inline,pre){
     A('DepM','입금금액')+A('CfM','청소비')+A('TowelM','수건 (장)')+A('WaterM','물 (개)')+
     F('Pets','반려견 (마리)',I('Pets',v[R.pets],'type="number" min="0" inputmode="numeric" placeholder="0"'),LIMITED?'ownhide':'')+
     '<div class="f full'+(LIMITED?' ownhide':'')+'"><label class="chk"><input type="checkbox" id="'+P+'NoClean"'+(v[R.noClean]==='Y'?' checked':'')+'> 청소안함 (연속예약) — 같은 손님이 이 퇴실일에 이어서 묵어 이날 청소배정 제외</label><small class="note" id="'+P+'NcHint"></small></div>'+
+    '<div class="f full'+(LIMITED?' ownhide':'')+'"><label class="chk"><input type="checkbox" id="'+P+'DLock"'+(v[R.dLock]==='Y'?' checked':'')+'> 달력 날짜 고정 — 에어비앤비 달력이 이 예약의 입실일·퇴실일을 바꾸지 않음 <small class="note">(날짜를 직접 고쳐 저장하면 자동으로 켜집니다)</small></label></div>'+
     '<div class="f full" id="'+P+'CyWrap" style="display:none"><label class="chk"><input type="checkbox" id="'+P+'CleanY"'+(v[R.cleanY]==='Y'?' checked':'')+'> 업체 청소 — 이번 예약은 소유주 청소가 아니라 요율대로 청소비 청구</label></div>'+
     '<div class="f full'+(LIMITED?' ownhide':'')+'"><label>호실별 정산서</label><div class="chkrow">'+   // 소유주에게는 숨김 (청소안함·정산 설정은 관리자만)
       '<label class="chk"><input type="checkbox" id="'+P+'Excl"'+(v[R.excl]==='Y'?' checked':'')+'> 미정산 (객실 정산서 제외, 청소는 포함)</label>'+
@@ -1121,7 +1122,7 @@ function resForm(row,inline,pre){
     x[R.booked]=g('Booked').value;x[R.plat]=g('Plat').value;x[R.ci]=g('In').value;x[R.co]=g('Out').value;
     x[R.ppl]=num('Ppl');x[R.sale]=num('Sale');Object.keys(AUTO).forEach(function(k){x[AUTO[k][0]]=MAN[k]?num(k):''});
     x[R.memo]=txt('Memo');x[R.note]=txt('Note');if(row)x[R.cancel]=g('Cancel').value;
-    x[R.pets]=num('Pets');x[R.excl]=g('Excl').checked?'Y':'';x[R.xpp]=g('Xpp').checked?'Y':'';x[R.xpet]=g('Xpet').checked?'Y':'';x[R.own]=g('Own').checked?'Y':'';x[R.ownAmt]=g('Own').checked?num('OwnAmt'):'';x[R.subFor]=isSubRoom(x[R.room])?g('Sub').value:'';x[R.cleanY]=g('CleanY').checked?'Y':'';x[R.noClean]=g('NoClean').checked?'Y':'';x[R.memo]=memoNoClean(x[R.memo],x[R.noClean]==='Y');return calcRes(x)}
+    x[R.pets]=num('Pets');x[R.excl]=g('Excl').checked?'Y':'';x[R.xpp]=g('Xpp').checked?'Y':'';x[R.xpet]=g('Xpet').checked?'Y':'';x[R.own]=g('Own').checked?'Y':'';x[R.ownAmt]=g('Own').checked?num('OwnAmt'):'';x[R.subFor]=isSubRoom(x[R.room])?g('Sub').value:'';x[R.cleanY]=g('CleanY').checked?'Y':'';x[R.noClean]=g('NoClean').checked?'Y':'';x[R.dLock]=g('DLock').checked?'Y':'';x[R.memo]=memoNoClean(x[R.memo],x[R.noClean]==='Y');return calcRes(x)}
   function autoOf(){var y=collect().slice();Object.keys(AUTO).forEach(function(k){y[AUTO[k][0]]=''});return calcRes(y)}
   // 판매금액 ↔ 입금금액 연동: 판매금액을 바꾸면 입금 = 판매×(1−수수료), 입금을 바꾸면 판매 = 입금÷(1−수수료)
   // 되돌리기 = 이 화면을 열었을 때의 값으로 (판매·입금은 함께)
@@ -1181,7 +1182,8 @@ function resForm(row,inline,pre){
     else if(isSubRoom(x[R.room])&&!x[R.subFor])err='대체객실은 입금을 대신 정산할 호실을 고르세요.';
     if(err){g('Err').textContent=err;return}
     if(!x[R.id])x[R.id]=newId();
-    var vals={};[1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){vals[c]=x[c-1]});
+    if(row&&x[R.code]&&x[R.dLock]!=='Y'&&(String(row.v[R.ci])!==String(x[R.ci])||String(row.v[R.co])!==String(x[R.co]))){x[R.dLock]='Y';var dl=g('DLock');if(dl)dl.checked=true;toast('날짜를 직접 고쳤으므로 「달력 날짜 고정」을 켰습니다')}   // 달력이 되돌리지 않게
+    var vals={};[1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48].forEach(function(c){vals[c]=x[c-1]});
     var btn=this;btn.disabled=true;
     var ov=x[R.cancel]?[]:overlaps({hotel:x[R.hotel],room:x[R.room],ci:x[R.ci],co:x[R.co]},row?row.r:null);
     var go=ov.length?conflictAsk({hotel:x[R.hotel],room:x[R.room],ci:x[R.ci],co:x[R.co],name:x[R.name]},ov):Promise.resolve(true);
@@ -1443,7 +1445,7 @@ function restoreRes(row,cur){
   var go=ov.length?conflictAsk(x,ov):Promise.resolve(true);
   return go.then(function(ok){if(!ok)return false;
     var vals={24:'',15:'',22:(v[R.note]?v[R.note]+' / ':'')+'취소 되돌림 '+ymd(new Date())};
-    if(cur){[1,2,3,4,5,6,7,8,10,11,12,18,23,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){if(vals[c]===undefined)vals[c]=cur[c-1]})}   // 폼에서 바꾼 호실·날짜·금액도 함께
+    if(cur){[1,2,3,4,5,6,7,8,10,11,12,18,23,30,31,32,28,33,37,38,39,41,42,43,44,48].forEach(function(c){if(vals[c]===undefined)vals[c]=cur[c-1]})}   // 폼에서 바꾼 호실·날짜·금액도 함께
     return call('saveRows','예약',[{r:row.r,v:vals}].concat(cancelItems(ov))).then(function(d){
       S['예약']=d;renderRes();renderRecent();toast('취소를 되돌렸습니다');return true})});
 }
@@ -1619,7 +1621,7 @@ $('#pasteOut').addEventListener('click',function(e){
     cancelAsk(dupOf(cx),cx.plat+' 취소'+(cx.cxWhy&&cx.cxWhy!=='취소'?' '+cx.cxWhy.replace(/^취소/,''):'')+(resNo(cx.note)?' · 예약번호 '+resNo(cx.note):'')+(cx.code?' · 예약코드 '+cx.code:''),cx.cxDate).then(function(ok){if(ok){PASTE.splice(ci,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste()}});return}
   var ob=e.target.closest('[data-p=ovl]');if(ob){var oi=+ob.closest('.pitem').dataset.i,ox=PASTE[oi],ol=overlaps(ox);
     conflictAsk(ox,ol).then(function(ok){if(!ok)return;var v=toResRow(ox),vals={};v[R.id]=newId();
-      [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){vals[c]=v[c-1]});
+      [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48].forEach(function(c){vals[c]=v[c-1]});
       call('saveRows','예약',[{r:null,v:vals}].concat(cancelItems(ol))).then(function(d){S['예약']=d;PASTE.splice(oi,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
         toast('기존 예약 '+ol.length+'건을 취소하고 새 예약을 저장했습니다')}).catch(function(err){toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
   var u=e.target.closest('[data-p=upd]');if(u){var k=+u.closest('.pitem').dataset.i,y=PASTE[k],it=updItem(y),mv=it.v[3]!==undefined;
@@ -1635,7 +1637,7 @@ $('#pasteOut').addEventListener('click',function(e){
     if(!upd.length&&!go.length)return;btn.disabled=true;
     var items=upd.map(updItem),pvx=[];
     items=items.concat(go.map(function(x){var v=toResRow(x),vals={},cx=cxOf(x);v[R.id]=cx?cx.v[R.id]:newId();contPrevRows(v).forEach(function(r){if(pvx.indexOf(r)<0)pvx.push(r)});
-      [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){vals[c]=v[c-1]});
+      [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48].forEach(function(c){vals[c]=v[c-1]});
       if(cx){vals[24]='';vals[22]=(v[R.note]?v[R.note]+' / ':'')+'취소 되돌림 '+ymd(new Date())}   // 취소된 같은 예약 → 새로 만들지 않고 그 예약을 되살림 (호실·날짜는 붙여넣은 대로)
       return {r:cx?cx.r:null,v:vals}}));
     items=items.concat(noCleanItems(pvx));   // 이미 저장된 앞 예약이 같은 손님 연속예약이면 청소안함
