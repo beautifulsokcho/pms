@@ -134,7 +134,7 @@ tr.dirty td{background:var(--hold-soft)}
 @media (max-width:900px){.report .two{grid-template-columns:minmax(0,1fr)}}
 .report table td,.report table th{padding:5px 8px}
 .report table.daily th{white-space:normal;word-break:keep-all;max-width:84px;line-height:1.25;vertical-align:bottom}.report table.daily td,.report table.daily th{padding:4px 6px}.report table.daily td{white-space:nowrap}
-.report.manual{margin-top:16px}.intg{font-size:12px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.report.manual{margin-top:16px}.intg{font-size:12px}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14o';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -704,7 +704,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 
 function hotelRule(h){var r=rows('호텔').find(function(x){return x.v[1]===h});return r?{base:Number(r.v[12])||0,fee:Number(r.v[13])||0,pet:Number(r.v[14])||0}:{base:0,fee:0,pet:0}}
@@ -770,6 +770,7 @@ function calcRes(v){
   v[R.sSale]=(!v[R.ci]||X||isBlank(v[R.sale]))?'':Number(v[R.sale])-(v[R.xpp]==='Y'?exF:0)-(v[R.xpet]==='Y'?peF:0);
   v[R.sDep]=(!v[R.ci]||X||v[R.own]==='Y')?0:((!adj||v[R.cancel]||v[R.sSale]==='')?(Number(v[R.fin])||0):Math.round(v[R.sSale]*(1-(Number(v[R.rate])||0))));
   v[R.sClean]=(!v[R.ci]||X||v[R.cancel])?0:(!isBlank(v[R.cfM])?Number(v[R.cfM]):(v[R.xpp]==='Y'?(Number(cleanFee(v[R.hotel],v[R.room],hr.base>0?Math.min(pp,hr.base):pp,nn))||0):(Number(v[R.cf])||0)));
+  if(v[R.ownCl]==='Y')v[R.sClean]=0;   // 소유주 직접 청소 (청소배정에서 체크) → 정산 청소비 0
   return v;
 }
 
@@ -1589,7 +1590,7 @@ $('#pasteOut').addEventListener('click',function(e){
 
 // ───────── 청소배정 ─────────
 var CS={},CMEMO={},CNOTE={};   // 저장 버튼을 누르기 전까지 화면에서 고친 값 (담당자·이불 / 예약 메모 / 공지)
-function cDirty(){var d=$('#cDate').value,n=0;cleanTasks().forEach(function(t){if(t.st.cleaner!==(t.rec?t.rec.v[1]:'')||t.st.bed!==t.st.bed0)n++});return n+Object.keys(CMEMO).length+Object.keys(CNOTE).length}
+function cDirty(){var d=$('#cDate').value,n=0;cleanTasks().forEach(function(t){if(t.st.cleaner!==(t.rec?t.rec.v[1]:'')||t.st.bed!==t.st.bed0||t.st.own!==t.st.own0)n++});return n+Object.keys(CMEMO).length+Object.keys(CNOTE).length}
 function showDirty(){var n=cDirty(),b=$('#cSave');b.textContent=n?'저장 ('+n+'건 변경)':'저장';b.classList.toggle('warn',!!n);$('#cDirtyNote').textContent=n?'저장하지 않은 변경이 '+n+'건 있습니다. 다 고친 뒤 [저장]을 누르세요.':''}
 function leaveOk(){return !cDirty()||confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 이동할까요?')}  // 객실별 담당자·인원 선택값
 function cleanTasks(){
@@ -1612,7 +1613,7 @@ function cleanTasks(){
     t.rec=done.find(function(r){return r.v[2]===p[0]&&String(r.v[3])===p[1]});
     var bedOf=function(rec){if(!rec)return t.out&&Number(t.out[R.ppl])>=extraTh(p[0],p[1])?'교체필요':(t.out&&hasBlanket(p[0],p[1])?'일반이불':'');return rec.v[5]==='추가'?'교체필요':/일반이불/.test(rec.v[11]||'')?'일반이불':''};
     var ck=d+'|'+k,st=CS[ck]||(CS[ck]={cleaner:t.rec?t.rec.v[1]:'',ppl:t.out?t.out[R.ppl]:(nx?nx[R.ppl]:''),on:true,bed:bedOf(t.rec)});st.bed0===undefined&&(st.bed0=st.bed);   // 실적 저장 전에는 미배정
-    t.st=st;if(t.type==='in')t.short=prepShort(t,d);return t;
+    if(st.own===undefined&&t.out)st.own0=st.own=t.out[R.ownCl]==='Y';t.st=st;if(t.type==='in')t.short=prepShort(t,d);return t;
   }).sort(function(a,b){var o={turn:0,out:0,in:1},dir=$('#cSort').value==='desc'?-1:1;return o[a.type]-o[b.type]||dir*a.room.localeCompare(b.room,'ko',{numeric:true})});
 }
 // 호실 이름이 '대체객실'인 객실: 청소배정·객실정산에서 빼고, 객실현황에는 예약이 있는 날만 보임
@@ -1667,6 +1668,7 @@ function renderClean(){
       (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(n[R.memo]?' · <b>'+esc(n[R.memo])+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
       (!n&&t.next5?'<div class="sub">다음 입실 '+md(t.next5[R.ci])+': '+esc(t.next5[R.ppl])+'명 '+esc(t.next5[R.n])+'박 · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.next5[R.memo]?' · <b>'+esc(t.next5[R.memo])+'</b>':'')+'</div>':'')+
       (t.def?'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅 수건 '+t.towel+'장 · 물 '+t.water+'개</div>':'')+
+      (o&&!isOwnerClean(t.hotel,t.room)?'<label class="chk ownchk no-print"><input type="checkbox" data-f="own"'+(t.st.own?' checked':'')+'> 소유주 직접 청소 <small>(정산 청소비 0 · 수당 없음)</small>'+(t.st.own!==t.st.own0?' <small class="unsv">저장 전</small>':'')+'</label>':'')+
       (ownerCleans(t)?'':'<div class="row cform no-print"><div class="f"><label>담당자</label><select data-f="cleaner">'+cleanerOpts(t.hotel,t.st.cleaner,'미배정')+'</select></div>'+
       '<div class="f s"><label>청소 인원</label><input data-f="ppl" type="number" min="1" value="'+esc(t.st.ppl)+'"></div>'+
       '<label class="chk"><input type="checkbox" data-f="on"'+(t.st.on?' checked':'')+'> 실적 저장</label></div>')+'</div>'}).join('');
@@ -1675,7 +1677,7 @@ function renderClean(){
 // 카드·현황판·지시서에서 고친 값은 [저장]을 눌러야 구글시트에 저장됨
 $('#cList').addEventListener('change',function(e){var el=e.target,card=el.closest('.task');if(!card||!el.dataset.f)return;var st=CS[$('#cDate').value+'|'+card.dataset.k];
   st[el.dataset.f]=el.type==='checkbox'?el.checked:el.value;
-  if(el.dataset.f==='cleaner')renderClean();else showDirty()});
+  if(el.dataset.f==='cleaner'||el.dataset.f==='own'){if(el.dataset.f==='own'&&el.checked)st.cleaner='';renderClean()}else showDirty()});
 var C_PREV={date:'',hotel:''};
 ['cDate','cHotel'].forEach(function(id){$('#'+id).addEventListener('focus',function(){C_PREV={date:$('#cDate').value,hotel:$('#cHotel').value}});
   $('#'+id).addEventListener('change',function(){if(cDirtyFor(C_PREV)&&!confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 이동할까요?')){$('#cDate').value=C_PREV.date;$('#cHotel').value=C_PREV.hotel;return}
@@ -1795,7 +1797,7 @@ function contNext(v,list){if(!v[R.co]||!nmKey(v[R.name]))return null;return (lis
 function contPrevRows(v){if(!v[R.ci]||!nmKey(v[R.name]))return [];return rows('예약').filter(function(r){var q=r.v;return !q[R.cancel]&&q[R.noClean]!=='Y'&&q[R.hotel]===v[R.hotel]&&String(q[R.room])===String(v[R.room])&&nmKey(q[R.name])===nmKey(v[R.name])&&q[R.co]===v[R.ci]&&(!v[R.id]||q[R.id]!==v[R.id])})}
 function memoNoClean(m,on){m=String(m||'').replace(/\s*연속예약\/청소안함\s*/g,' ').trim();return on?(NOCLEAN_TAG+(m?' '+m:'')):m}
 function noCleanItems(prs){return prs.map(function(r){return {r:r.r,v:{44:'Y',23:memoNoClean(r.v[R.memo],true)}}})}   // 앞 예약에 청소안함 표시
-function ownerCleans(t){var v=t.out||t.inn;return isOwnerClean(t.hotel,t.room)&&!(v&&v[R.cleanY]==='Y')}   // 이번 청소를 소유주가 하는지 (업체 청소 Y면 아님)
+function ownerCleans(t){if(t.out&&t.st&&t.st.own!==undefined?t.st.own:t.out&&t.out[R.ownCl]==='Y')return true;var v=t.out||t.inn;return isOwnerClean(t.hotel,t.room)&&!(v&&v[R.cleanY]==='Y')}   // 이번 청소를 소유주가 하는지 (청소배정 체크 · 소유주 청소 객실, 업체 청소 Y면 아님)   // 이번 청소를 소유주가 하는지 (업체 청소 Y면 아님)
 function isOwnerClean(h,rm){return rows('청소비요율').some(function(q){return q.v[0]===h&&String(q.v[1])===String(rm)})&&cleanFee(h,rm,2,1)===0}
 function renderSheet(){
   var ts=cleanTasks(),d=$('#cDate').value,g={},dir=$('#cSort').value==='desc'?-1:1;
@@ -1830,6 +1832,8 @@ $('#cSave').onclick=function(){   // 한 번에 저장: 이 날짜·호텔 청�
   var clear=old.map(function(r){return {r:r.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:''}}});
   var items=ts.map(function(t){var x=recItem(t);x.r=null;return x});
   var memos=Object.keys(CMEMO).map(function(r){return {r:+r,v:{23:CMEMO[r]}}});
+  all.forEach(function(t){if(!t.out||t.st.own===t.st.own0)return;var rr=rows('예약').find(function(q){return q.v===t.out||q.v[R.id]===t.out[R.id]});if(!rr)return;
+    var m=memos.find(function(x){return x.r===rr.r});if(m)m.v[47]=t.st.own?'Y':'';else memos.push({r:rr.r,v:{47:t.st.own?'Y':''}})});   // 소유주 직접 청소 체크 → 예약 AU열
   var notes=Object.keys(CNOTE).map(function(hh){var hr=rows('호텔').find(function(x){return x.v[1]===hh});return hr?{r:hr.r,v:{16:CNOTE[hh]}}:null}).filter(Boolean);
   if(!clear.length&&!items.length&&!memos.length&&!notes.length){toast('저장할 내용이 없습니다');return}
   var b=this;b.disabled=true;b.textContent='저장 중…';
