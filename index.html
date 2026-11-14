@@ -417,6 +417,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <h2>기준정보 관리</h2>
       <p>노란 칸은 입력 칸, 흐린 글씨는 자동 계산 칸입니다. 지우지 말고 사용여부를 N으로 바꾸세요.</p>
       <p class="note" id="verNote"></p>
+      <p class="note" id="srvNote">서버 코드 <b id="srvVer">확인 중…</b> <button class="btn" type="button" id="srvUpd">업데이트 확인</button> <span id="srvMsg"></span></p>
       <p class="note" id="tabLinks">역할별 화면을 탭으로 보기 (탭마다 따로 로그인): <a href="?role=admin&amp;tab=1" target="_blank">관리자</a> · <a href="?role=manager&amp;tab=1" target="_blank">매니저</a> · <a href="?role=owner&amp;tab=1" target="_blank">소유주</a> · <a href="?role=cleaner&amp;tab=1" target="_blank">청소담당자</a></p>
     </div>
     <div class="bar">
@@ -443,7 +444,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2647,8 +2648,13 @@ function verCheck(force){
     toast('새 화면 '+m[1]+'이 나왔습니다 — 위 [새 화면 받기]를 누르세요')}).catch(function(){})}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)verCheck()});
 setInterval(function(){verCheck()},15*60000);
+function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='manager'||ROLE==='owner'||store('role')==='cleaner'||store('role')==='manager'||store('role')==='owner'){n.hidden=true;return}   // 서버 코드(Code.gs) 버전·자동 업데이트 — 관리자만
+  call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');if(i.last)$('#srvMsg').textContent='최근 '+i.last}).catch(function(){n.hidden=true});
+  $('#srvUpd').onclick=function(){var b=this;b.disabled=true;$('#srvMsg').textContent='깃허브에서 확인 중…';
+    call('codeUpdate').then(function(r){b.disabled=false;$('#srvMsg').textContent=r.msg||'';if(r.ver)$('#srvVer').textContent=r.ver+' · 자동 업데이트 켜짐';toast(r.msg||'확인했습니다')})
+      .catch(function(e){b.disabled=false;$('#srvMsg').textContent='';toast(errText(e))})}}
 function boot(){
-  roleTitle();window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
+  roleTitle();window.__booted=true;setTimeout(srvInit,1500);try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
   var st=$('#status');
   if(DEMO){st.textContent='예시 데이터';st.classList.add('demo')}
   if(!DEMO&&!GAS&&location.protocol==='file:'){st.textContent='설치 필요';st.classList.add('demo');
