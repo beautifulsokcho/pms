@@ -441,7 +441,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1523,7 +1523,10 @@ function renderPaste(){
   var ok=PASTE.filter(function(x){return !pasteIssues(x).length}).length;
   var pvs=PASTE.map(function(x){var y=Object.assign({},x);delete y.noClean;return toResRow(y)}),exist=rows('예약').map(function(r){return r.v});
   PASTE.forEach(function(x,i){x.ncNext=contNext(pvs[i],pvs.concat(exist));if(x.ncSet===undefined)x.noClean=!!x.ncNext;x.ncPrev=contPrevRows(pvs[i]).length});   // 같은 손님 연속예약이면 앞 예약 청소안함
-  box.innerHTML='<div class="pbar"><span class="count">'+PASTE.length+'건 인식 · 저장 가능 '+ok+'건</span><span style="display:flex;gap:8px"><button class="btn" type="button" id="pClear">지우기</button>'+(updIdx().length>1?'<button class="btn" type="button" id="pUpdAll">'+updIdx().length+'건 모두 기존 예약에 반영</button>':'')+'<button class="btn pri" type="button" id="pSaveAll"'+(ok?'':' disabled')+'>'+ok+'건 모두 저장</button></span></div>'+
+  box.innerHTML='<div class="pbar"><span class="count">'+PASTE.length+'건 인식 · 저장 가능 '+ok+'건'+(updIdx().length?' · 기존 반영 '+updIdx().length+'건':'')+'</span><span style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn" type="button" id="pClear">지우기</button>'+(updIdx().length>1?'<button class="btn" type="button" id="pUpdAll">'+updIdx().length+'건 모두 기존 예약에 반영</button>':'')+
+      (ok&&updIdx().length?'<button class="btn pri" type="button" id="pAllAll">모두 저장 (새 '+ok+'건 · 반영 '+updIdx().length+'건)</button>':'')+
+      '<button class="btn'+(ok&&updIdx().length?'':' pri')+'" type="button" id="pSaveAll"'+(ok?'':' disabled')+'>'+ok+'건 모두 저장</button></span></div>'+
     PASTE.map(function(x,i){var iss=pasteIssues(x),v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
       return '<div class="pitem'+(iss.length?' bad':'')+'" data-i="'+i+'"><div class="row"><span class="chip">'+esc(x.plat)+'</span>'+(!x.cancel&&cxOf(x)?'<span class="chip hold">취소된 예약 되살림</span>':'')+(x.pets?'<span class="chip">반려견 '+x.pets+'</span>':'')+'<span class="ttl">'+esc((x.hotel||'')+' '+(x.room||'호실 ?'))+'</span>'+
         '<span class="num">'+(x.ci?md(x.ci):'?')+' → '+(x.co?md(x.co):'?')+(v[R.n]!==''?' · '+v[R.n]+'박':'')+'</span><span>'+esc(x.name||'')+'</span>'+
@@ -1624,22 +1627,24 @@ $('#pasteOut').addEventListener('click',function(e){
     (ov.length?conflictAsk({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co,name:y.name},ov):Promise.resolve(true)).then(function(ok){if(!ok){u.disabled=false;return}
     call('saveRows','예약',[it].concat(cancelItems(ov))).then(function(d){S['예약']=d;PASTE.splice(k,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
       toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다'+(mv?' (호실 옮김)':''))}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
-  if(e.target.id==='pUpdAll'){   // 기존 예약에 반영할 것 모두 한 번에
-    var ix=updIdx(),ub=e.target;if(!ix.length)return;ub.disabled=true;
-    var todo=ix.map(function(i){return PASTE[i]}),uitems=todo.map(updItem);
-    call('saveRows','예약',uitems).then(function(d){S['예약']=d;PASTE=PASTE.filter(function(x){return todo.indexOf(x)<0});if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
-      toast(todo.length+'건을 기존 예약에 반영했습니다')}).catch(function(err){ub.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))});return}
-  if(e.target.id==='pSaveAll'){
-    var go=PASTE.filter(function(x){return !pasteIssues(x).length}),btn=e.target;if(!go.length)return;btn.disabled=true;
-    var pvx=[],items=go.map(function(x){var v=toResRow(x),vals={},cx=cxOf(x);v[R.id]=cx?cx.v[R.id]:newId();contPrevRows(v).forEach(function(r){if(pvx.indexOf(r)<0)pvx.push(r)});
+  if(e.target.id==='pUpdAll'||e.target.id==='pSaveAll'||e.target.id==='pAllAll'){
+    var mode=e.target.id,btn=e.target;
+    var upd=(mode!=='pSaveAll')?updIdx().map(function(i){return PASTE[i]}):[];
+    var go=(mode!=='pUpdAll')?PASTE.filter(function(x){return !pasteIssues(x).length}):[];
+    if(!upd.length&&!go.length)return;btn.disabled=true;
+    var items=upd.map(updItem),pvx=[];
+    items=items.concat(go.map(function(x){var v=toResRow(x),vals={},cx=cxOf(x);v[R.id]=cx?cx.v[R.id]:newId();contPrevRows(v).forEach(function(r){if(pvx.indexOf(r)<0)pvx.push(r)});
       [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44].forEach(function(c){vals[c]=v[c-1]});
       if(cx){vals[24]='';vals[22]=(v[R.note]?v[R.note]+' / ':'')+'취소 되돌림 '+ymd(new Date())}   // 취소된 같은 예약 → 새로 만들지 않고 그 예약을 되살림 (호실·날짜는 붙여넣은 대로)
-      return {r:cx?cx.r:null,v:vals}});
+      return {r:cx?cx.r:null,v:vals}}));
     items=items.concat(noCleanItems(pvx));   // 이미 저장된 앞 예약이 같은 손님 연속예약이면 청소안함
-    call('saveRows','예약',items).then(function(d){S['예약']=d;PASTE=PASTE.filter(function(x){return go.indexOf(x)<0});
-      if(!PASTE.length)$('#pasteIn').value='';store('hotel',go[0].hotel);renderPaste();renderRecent();renderRes();savedToast(items.length+'건 예약을 저장했습니다',d,go[0])})
+    var done=upd.concat(go);
+    call('saveRows','예약',items).then(function(d){S['예약']=d;PASTE=PASTE.filter(function(x){return done.indexOf(x)<0});
+      if(!PASTE.length)$('#pasteIn').value='';if(go.length)store('hotel',go[0].hotel);renderPaste();renderRecent();renderRes();
+      var msg=[go.length?'새 예약 '+go.length+'건 저장':'',upd.length?'기존 예약 '+upd.length+'건 반영':''].filter(Boolean).join(' · ');
+      if(go.length)savedToast(msg,d,go[0]);else toast(msg)})
       .catch(function(err){btn.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))});
-  }
+    return}
 });
 
 // ───────── 청소배정 ─────────
