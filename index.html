@@ -439,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-14p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-14q';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2341,6 +2341,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     $('#smsForm').innerHTML='<p>'+stat+'</p>'+
       '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
       '<div id="phBox"></div>'+
+      '<div class="form"><div class="f full"><label for="smsBlk">문자함에 저장 안 하는 번호 <span class="note">(쉼표로 구분 · 지우면 다시 받음)</span></label><input id="smsBlk" inputmode="tel" value="'+esc((st.blocks||[]).join(', '))+'" placeholder="없음"></div></div>'+
       '<div class="form"><div class="f full"><label for="smsKw">문자함에 저장할 단어 <span class="note">(쉼표로 구분 · 이 단어가 든 문자와 예약 손님 번호에서 온 문자만 저장·알림, 전화는 저장 안 함)</span></label><input id="smsKw" value="'+esc(st.kw||'에어비앤비,에어비엔비,airbnb,놀,NOL,야놀자,떠나요,써밋,마리나')+'"></div></div>'+
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
@@ -2354,7 +2355,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
-      call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value})
+      call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim(),out=$('#smsSendMsg');if(!to){toast('받을 번호를 넣으세요');return}
       b.disabled=true;b.textContent='넣는 중…';out.innerHTML='';
@@ -2479,11 +2480,13 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
       cb.disabled=true;cb.textContent='지우는 중…';call('smsInboxClear').then(function(r){toast('문자함 '+(r&&r.n||0)+'줄을 지웠습니다');var bd=$('#inboxN');if(bd)bd.hidden=true;IBX.unread=0;inboxOpen()}).catch(function(e){cb.disabled=false;cb.textContent='문자함 모두 비우기';toast(errText(e))})};
     return}
   var t=th[sel]||{num:sel,list:[]};
-  box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+who(t)+'</b></p><div class="ibx-msgs" id="ibxMsgs">'+t.list.map(function(r){var out=r.kind==='보냄';
+  box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+who(t)+'</b></p><p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p><div class="ibx-msgs" id="ibxMsgs">'+t.list.map(function(r){var out=r.kind==='보냄';
       return '<div class="ibx-m'+(out?' out':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+(out&&r.note?' · '+esc(r.note):'')+'</small></div>'}).join('')+'</div>'+
     '<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>';
   var mm=$('#ibxMsgs');mm.scrollTop=mm.scrollHeight;
   $('#ibxBack').onclick=function(){inboxOpen()};
+  $('#ibxBlock').onclick=function(){var b=this;if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='이 번호 문자를 앞으로 저장하지 않을까요? (한 번 더 누르기)';return}
+    b.disabled=true;call('smsBlock',sel,true,$('#ibxPurge').checked).then(function(r){toast(sel+' 번호는 앞으로 문자함에 저장하지 않습니다'+(r&&r.deleted?' · 지난 문자 '+r.deleted+'줄 지움':''));inboxOpen()}).catch(function(e){b.disabled=false;toast(errText(e))})};
   $('#ibxSend').onclick=function(){var b=this,tx=$('#ibxTxt').value.trim();if(!tx){toast('내용을 쓰세요');return}b.disabled=true;
     call('smsReply',sel,tx).then(function(){$('#ibxTxt').value='';$('#ibxMsg').textContent='보낼 문자에 넣었습니다. 손님 문자가 온 뒤 15분 동안은 1분 안에, 그 밖에는 다음 확인 때(최대 15분) 발송 폰이 보냅니다.';b.disabled=false})
       .catch(function(e){b.disabled=false;$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
