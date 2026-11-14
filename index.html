@@ -293,6 +293,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <button class="iconbtn" id="connBtn" type="button" hidden>연결</button>
     <button class="iconbtn" id="viewBtn" type="button" title="소유주·매니저·담당자 화면 보기" hidden>👁 화면</button>
     <button class="iconbtn" id="inboxBtn" type="button" title="문자함" hidden>✉<b id="inboxN" class="ibadge" hidden></b></button>
+    <button class="iconbtn pri" id="verNew" type="button" hidden>새 화면 받기</button>
     <button class="iconbtn" id="reload" type="button" title="새로고침" data-s="↻">새로고침</button>
   </div>
   <div class="viewbar" id="viewBar" hidden></div>
@@ -441,7 +442,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2595,6 +2596,19 @@ function viewInit(){var vr='',vl='';try{vr=sessionStorage.getItem('viewRole')||'
 
 // ───────── 시작 ─────────
 function refreshLists(){fillResFilters();fillSettle();renderRes()}
+// ───────── 화면 자동 업데이트: 새 버전이 올라오면 알리고, 입력 중이 아니면 바로 새로 받음 ─────────
+var VERCHK=0;
+function verCheck(force){
+  if(DEMO||location.protocol==='file:')return;
+  if(!force&&Date.now()-VERCHK<10*60000)return;VERCHK=Date.now();
+  fetch('index.html?v='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():''}).then(function(t){
+    var m=t.match(/APP_VER='([^']+)'/);if(!m||m[1]===APP_VER)return;
+    var ae=document.activeElement,busy=!!($('#modalRoot').innerHTML||$('#pasteIn').value.trim()||(typeof cDirty==='function'&&cDirty()>0)||(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)));
+    if(!busy){toast('새 화면('+m[1]+')으로 바꾸는 중…');setTimeout(function(){location.reload()},900);return}
+    var b=$('#verNew');if(b){b.hidden=false;b.textContent='새 화면 '+m[1]+' 받기';b.onclick=function(){location.reload()}}
+    toast('새 화면 '+m[1]+'이 나왔습니다 — 위 [새 화면 받기]를 누르세요')}).catch(function(){})}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)verCheck()});
+setInterval(function(){verCheck()},15*60000);
 function boot(){
   roleTitle();window.__booted=true;try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
   var st=$('#status');
@@ -2620,6 +2634,7 @@ function boot(){
       [OWN.hotels.length<2?'qHotel':'','qView','sKind'].filter(String).forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=true;f.style.display='none'}});$('#qView').value='card';$('#sKind').value='room';$('#resStatus').innerHTML='';}
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}
     if(LIVE&&!ROLE)inboxInit();
+    setTimeout(function(){verCheck(true)},4000);
     try{mailInit()}catch(e){}   // 관리자: 문자함 (손님 문의 문자·부재중 전화)
     try{viewInit()}catch(e){}
     var now=new Date(),D=DEMO&&DEMO.defaults||{};
