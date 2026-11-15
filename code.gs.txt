@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.23d50efb';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.84932d86';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2798,6 +2798,15 @@ function codeIdx_(files) {   // Apps Script의 Index 사본도 깃허브 화면�
     return v;
   } catch (e) { return ''; }
 }
+function codeLive_() {   // 앱이 들어온 주소에서 '지금 쓰는 배포 ID'를 뽑아 기록 (주소 안에 들어 있음 · 추가 요청 없음)
+  try {
+    var u = ScriptApp.getService().getUrl() || '', m = u.match(/\/macros\/s\/([^\/]+)\/exec/);
+    if (!m) return '';
+    var p = PropertiesService.getScriptProperties();
+    if (p.getProperty('CODE_DEPLOY') !== m[1]) { p.setProperty('CODE_DEPLOY', m[1]); p.setProperty('CODE_LIVE', 'Y'); }
+    return m[1];
+  } catch (e) { return ''; }
+}
 function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있는 배포에 그 버전 달기 (주소 그대로)
   var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id;
   var cur = codeApi_(tk, 'get', api + '/content'), files = (cur.files || []).map(function (f) { return { name: f.name, type: f.type, source: f.source }; });
@@ -2812,7 +2821,13 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   codeApi_(tk, 'put', api + '/content', { files: files });
   var v = codeApi_(tk, 'post', api + '/versions', { description: desc });
   if (idx) desc += ' · 화면 ' + idx;
-  var vn = v.versionNumber, p = PropertiesService.getScriptProperties(), pin = p.getProperty('CODE_DEPLOY') || '';
+  var vn = v.versionNumber, p = PropertiesService.getScriptProperties(), pin = codeLive_() || p.getProperty('CODE_DEPLOY') || '';
+  if (pin) {   // 쓰는 배포를 알면 그 하나만 바로 (목록 조회 없이)
+    try {
+      codeApi_(tk, 'put', api + '/deployments/' + pin, { deploymentConfig: { scriptId: id, versionNumber: vn, manifestFileName: 'appsscript', description: desc + (idx ? ' · 화면 ' + idx : '') } });
+      return { version: vn, deployed: true, idx: idx, deployId: pin, count: 1 };
+    } catch (e) { }   // 안 되면 아래에서 목록을 뒤져 찾음
+  }
   var dps = codeDeps_(tk, api).filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber; });
   var url = '';
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) { }
@@ -2856,52 +2871,6 @@ function codeDeps_(tk, api) {   // 배포 목록 전부 (페이지 넘겨가며)
   } while (tok && n < 8);
   return out;
 }
-function codeWeb_(dps) { return dps.filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); }); }
-function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드를 새 버전으로 만들어 '모든 웹 앱 배포'에 적용 (배포가 안 따라올 때 복구용)
-  var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id;
-  var v = codeApi_(tk, 'post', api + '/versions', { description: '수동 재배포 ' + CODE_VER });
-  var dps = codeWeb_(codeDeps_(tk, api));
-  var out = [];
-  dps.slice(0, 400).forEach(function (d) {
-    var u = ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, '');
-    try {
-      codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: v.versionNumber, manifestFileName: 'appsscript', description: '수동 재배포 ' + CODE_VER } });
-      out.push('OK  v' + (d.deploymentConfig.versionNumber) + '→v' + v.versionNumber + '  …' + u.slice(-12));
-    } catch (e) { out.push('실패  …' + u.slice(-12) + ': ' + (e && e.message || e)); }
-  });
-  var my = ''; try { my = (ScriptApp.getService().getUrl() || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); } catch (e) { }
-  if (my) { var hit = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.webApp && String(e.webApp.url || '').indexOf(my) >= 0; }); })[0]; if (hit) PropertiesService.getScriptProperties().setProperty('CODE_DEPLOY', hit.deploymentId); }
-  var msg = '새 버전 v' + v.versionNumber + ' · 웹 앱 배포 ' + out.length + '개' + (my ? ' · 이 스크립트 주소 …' + my.slice(-12) : '') + '\n' + out.join('\n');
-  Logger.log(msg); codeLog_('수동 재배포', CODE_VER, CODE_VER, 'v' + v.versionNumber + ' · ' + out.join(' / '));
-  return msg;
-}
-function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하나만 남기고 나머지 웹 앱 배포를 지움
-  var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id, p = PropertiesService.getScriptProperties();
-  var my = ''; try { my = (ScriptApp.getService().getUrl() || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); } catch (e) { }
-  var dps = codeWeb_(codeDeps_(tk, api));
-  var urlOf = function (d) { return ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); };
-  var pin = p.getProperty('CODE_DEPLOY') || '';
-  var keep = (my && my.indexOf('/dev') < 0) ? dps.filter(function (d) { return urlOf(d).indexOf(my) >= 0; })[0] : null;
-  if (!keep && pin && p.getProperty('CODE_LIVE') === 'Y') keep = dps.filter(function (d) { return d.deploymentId === pin; })[0];
-  if (!keep) { Logger.log('어느 배포를 쓰고 있는지 확인되지 않아 멈췄습니다. 앱에서 [업데이트 확인]을 한 번 누른 뒤(그때 쓰는 배포가 기록됩니다) 다시 실행해 주세요.'); return '중단: 쓰는 배포가 확인되지 않음'; }
-  var del = dps.filter(function (d) { return d.deploymentId !== keep.deploymentId; });
-  if (!doIt) {
-    var msg0 = '남길 배포: …' + urlOf(keep).slice(-12) + ' (v' + keep.deploymentConfig.versionNumber + ')\n지울 배포 ' + del.length + '개:\n' +
-      del.map(function (d) { return '  …' + urlOf(d).slice(-12) + ' (v' + d.deploymentConfig.versionNumber + ')'; }).join('\n') +
-      '\n\n※ 지우면 그 주소들은 더 이상 열리지 않습니다. 폰의 객실문자 앱·즐겨찾기가 남길 주소를 쓰는지 확인한 뒤,\n   정말 지우려면 편집기에서 codeClean(true) 로 한 번 더 실행하세요.';
-    Logger.log(msg0); return msg0;
-  }
-  var out = [];
-  del.slice(0, 400).forEach(function (d) {
-    try { codeApi_(tk, 'delete', api + '/deployments/' + d.deploymentId); out.push('지움 …' + urlOf(d).slice(-12)); }
-    catch (e) { out.push('실패 …' + urlOf(d).slice(-12) + ': ' + String(e && e.message || e).slice(0, 60)); }
-    Utilities.sleep(1100);   // 분당 요청 제한(429)에 걸리지 않게
-  });
-  p.setProperty('CODE_DEPLOY', keep.deploymentId);
-  var msg = '남긴 배포 …' + urlOf(keep).slice(-12) + ' · ' + out.length + '개 정리\n' + out.join('\n');
-  Logger.log(msg); codeLog_('배포 정리', CODE_VER, CODE_VER, out.join(' / '));
-  return msg;
-}
 function codeRollback() {   // 편집기에서 실행: 가장 최근 백업으로 되돌림
   var it = DriveApp.getFoldersByName('코드백업');
   if (!it.hasNext()) throw new Error('백업 폴더가 없습니다');
@@ -2915,15 +2884,7 @@ function codeRollback() {   // 편집기에서 실행: 가장 최근 백업으�
   codeLog_('되돌리기', CODE_VER, (src.match(CODE_RE_) || [])[1] || '', fs[0].getName() + ' → v' + out.version);
   return fs[0].getName() + ' 로 되돌렸습니다 (v' + out.version + ')';
 }
-function codeInfo(pin) { checkPin_(pin); adminOnly_();   // 관리 화면: 서버 코드 버전·자동 업데이트 상태
+function codeInfo(pin) { checkPin_(pin); adminOnly_(); codeLive_();   // 관리 화면: 서버 코드 버전·자동 업데이트 상태
   var p = PropertiesService.getScriptProperties();
   return { ver: CODE_VER, auto: p.getProperty('CODE_AUTO') !== 'N' && ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'codeTick'; }), last: p.getProperty('CODE_VER_AT') || '' };
-}
-function codeDiag() {   // 진단: Apps Script API 응답을 그대로 보여 줌 (편집기에서 실행 → 실행 로그 확인)
-  var id = ScriptApp.getScriptId();
-  var r = UrlFetchApp.fetch('https://script.googleapis.com/v1/projects/' + id + '/content', { muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
-  Logger.log('scriptId: ' + id);
-  Logger.log('code: ' + r.getResponseCode());
-  Logger.log('body: ' + r.getContentText().slice(0, 700));
-  return r.getResponseCode();
 }
