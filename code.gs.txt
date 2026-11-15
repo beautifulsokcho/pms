@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.87aab4af';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.23d50efb';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2817,7 +2817,8 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   var url = '';
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) { }
   var tgt = pin ? dps.filter(function (d) { return d.deploymentId === pin; })[0] : null;
-  if (!tgt && url) tgt = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP' && e.webApp && String(e.webApp.url || '').indexOf(url.replace(/\/exec.*$/, '')) === 0; }); })[0];
+  if (!tgt && url && url.indexOf('/exec') > 0) { tgt = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP' && e.webApp && String(e.webApp.url || '').indexOf(url.replace(/\/exec.*$/, '')) === 0; }); })[0];
+    if (tgt) { p.setProperty('CODE_DEPLOY', tgt.deploymentId); p.setProperty('CODE_LIVE', 'Y'); } }   // 앱이 들어온 주소와 맞은 배포 = 확인됨
   if (!tgt) tgt = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); }).sort(function (a, b) { return b.deploymentConfig.versionNumber - a.deploymentConfig.versionNumber; })[0];
   if (!tgt) return { version: vn, deployed: false, idx: idx, note: '새 버전만 만들었습니다 — 배포 관리에서 한 번 눌러 주세요' };
   // 쓰고 있는 배포를 먼저, 이어서 나머지 웹 앱 배포도 같은 버전으로 (어느 주소로 들어와도 새 코드가 돌도록)
@@ -2880,8 +2881,9 @@ function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하
   var dps = codeWeb_(codeDeps_(tk, api));
   var urlOf = function (d) { return ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); };
   var pin = p.getProperty('CODE_DEPLOY') || '';
-  var keep = dps.filter(function (d) { return my && urlOf(d).indexOf(my) >= 0; })[0] || dps.filter(function (d) { return d.deploymentId === pin; })[0];
-  if (!keep) { Logger.log('어느 배포를 쓰고 있는지 알 수 없어 멈췄습니다. 먼저 codeRedeploy()를 실행해 주세요.'); return '중단: 쓰는 배포를 못 찾음'; }
+  var keep = (my && my.indexOf('/dev') < 0) ? dps.filter(function (d) { return urlOf(d).indexOf(my) >= 0; })[0] : null;
+  if (!keep && pin && p.getProperty('CODE_LIVE') === 'Y') keep = dps.filter(function (d) { return d.deploymentId === pin; })[0];
+  if (!keep) { Logger.log('어느 배포를 쓰고 있는지 확인되지 않아 멈췄습니다. 앱에서 [업데이트 확인]을 한 번 누른 뒤(그때 쓰는 배포가 기록됩니다) 다시 실행해 주세요.'); return '중단: 쓰는 배포가 확인되지 않음'; }
   var del = dps.filter(function (d) { return d.deploymentId !== keep.deploymentId; });
   if (!doIt) {
     var msg0 = '남길 배포: …' + urlOf(keep).slice(-12) + ' (v' + keep.deploymentConfig.versionNumber + ')\n지울 배포 ' + del.length + '개:\n' +
@@ -2892,7 +2894,8 @@ function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하
   var out = [];
   del.slice(0, 400).forEach(function (d) {
     try { codeApi_(tk, 'delete', api + '/deployments/' + d.deploymentId); out.push('지움 …' + urlOf(d).slice(-12)); }
-    catch (e) { out.push('실패 …' + urlOf(d).slice(-12) + ': ' + (e && e.message || e)); }
+    catch (e) { out.push('실패 …' + urlOf(d).slice(-12) + ': ' + String(e && e.message || e).slice(0, 60)); }
+    Utilities.sleep(1100);   // 분당 요청 제한(429)에 걸리지 않게
   });
   p.setProperty('CODE_DEPLOY', keep.deploymentId);
   var msg = '남긴 배포 …' + urlOf(keep).slice(-12) + ' · ' + out.length + '개 정리\n' + out.join('\n');
