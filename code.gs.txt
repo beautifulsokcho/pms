@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-15.6c7fcf2b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-15.0dba2450';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2820,9 +2820,15 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   if (!tgt && url) tgt = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP' && e.webApp && String(e.webApp.url || '').indexOf(url.replace(/\/exec.*$/, '')) === 0; }); })[0];
   if (!tgt) tgt = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); }).sort(function (a, b) { return b.deploymentConfig.versionNumber - a.deploymentConfig.versionNumber; })[0];
   if (!tgt) return { version: vn, deployed: false, idx: idx, note: '새 버전만 만들었습니다 — 배포 관리에서 한 번 눌러 주세요' };
-  codeApi_(tk, 'put', api + '/deployments/' + tgt.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: vn, manifestFileName: 'appsscript', description: desc } });
+  // 쓰고 있는 배포를 먼저, 이어서 나머지 웹 앱 배포도 같은 버전으로 (어느 주소로 들어와도 새 코드가 돌도록)
+  var webs = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); });
+  var list = [tgt].concat(webs.filter(function (d) { return d.deploymentId !== tgt.deploymentId; })), done = 0, errs = [];
+  list.slice(0, 8).forEach(function (d) {
+    try { codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: vn, manifestFileName: 'appsscript', description: desc } }); done++; }
+    catch (e) { errs.push(d.deploymentId.slice(-6) + ': ' + (e && e.message || e)); }
+  });
   p.setProperty('CODE_DEPLOY', tgt.deploymentId);
-  return { version: vn, deployed: true, idx: idx, deployId: tgt.deploymentId };
+  return { version: vn, deployed: done > 0, idx: idx, deployId: tgt.deploymentId, count: done, errs: errs.join(' / ') };
 }
 function codeRun_(by) {
   var p = PropertiesService.getScriptProperties();
@@ -2837,8 +2843,8 @@ function codeRun_(by) {
   if (ver === CODE_VER) return { ok: true, same: true, ver: CODE_VER, msg: '서버 코드가 이미 최신입니다 (' + CODE_VER + ')' };
   var out = codePush_(src, '자동 업데이트 ' + ver + ' (' + by + ')');
   p.setProperty('CODE_VER_AT', Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + ' ' + ver);
-  codeLog_(by, CODE_VER, ver, (out.deployed ? '배포 완료 v' + out.version : (out.note || '버전만 만듦')) + (out.idx ? ' · Index 사본 ' + out.idx : ''));
-  return { ok: true, ver: ver, from: CODE_VER, version: out.version, deployed: out.deployed, msg: '서버 코드를 ' + ver + '(으)로 바꾸고 다시 배포했습니다' + (out.deployed ? '' : ' — ' + out.note) };
+  codeLog_(by, CODE_VER, ver, (out.deployed ? '배포 완료 v' + out.version + ' (' + (out.count || 1) + '개)' : (out.note || '버전만 만듦')) + (out.idx ? ' · Index 사본 ' + out.idx : '') + (out.errs ? ' · 실패 ' + out.errs : ''));
+  return { ok: true, ver: ver, from: CODE_VER, version: out.version, deployed: out.deployed, count: out.count, errs: out.errs, msg: '서버 코드를 ' + ver + '(으)로 바꾸고 다시 배포했습니다 (배포 ' + (out.count || 1) + '개)' + (out.deployed ? '' : ' — ' + out.note) };
 }
 function codeRollback() {   // 편집기에서 실행: 가장 최근 백업으로 되돌림
   var it = DriveApp.getFoldersByName('코드백업');

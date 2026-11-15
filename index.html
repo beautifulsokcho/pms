@@ -119,6 +119,7 @@ button.chip.mvb:hover{background:var(--accent-soft);color:var(--accent)}
 .awaybox{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;grid-column:1/-1}
 .awaybox .aw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:5px 10px;border-radius:8px;background:#fff6e5;color:#8a5200;border:1px solid #f0d9ac}
 .mvnote{font-size:12px;color:#8a5200;align-self:center}
+.mrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .kc.k-mv{background:#ffe9c9;color:#8a5200}
 .chip.hold{background:var(--hold-soft);color:var(--hold)}
 .card .dates{font-size:14px}
@@ -451,7 +452,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2681,7 +2682,10 @@ setInterval(function(){verCheck()},15*60000);
 function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='manager'||ROLE==='owner'||store('role')==='cleaner'||store('role')==='manager'||store('role')==='owner'){n.hidden=true;return}   // 서버 코드(Code.gs) 버전·자동 업데이트 — 관리자만
   call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');if(i.last)$('#srvMsg').textContent='최근 '+i.last}).catch(function(){n.hidden=true});
   $('#srvUpd').onclick=function(){var b=this;b.disabled=true;$('#srvMsg').textContent='깃허브에서 확인 중…';
-    call('codeUpdate').then(function(r){b.disabled=false;$('#srvMsg').textContent=r.msg||'';if(r.ver)$('#srvVer').textContent=r.ver+' · 자동 업데이트 켜짐';toast(r.msg||'확인했습니다')})
+    call('codeUpdate').then(function(r){b.disabled=false;$('#srvMsg').textContent=r.msg||'';toast(r.msg||'확인했습니다');
+      return call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐');   // 지금 돌고 있는 코드로 확인
+        if(r.ver&&i.ver!==r.ver){$('#srvMsg').textContent='';modal('<h3>배포에 반영되지 않았습니다</h3><p>새 코드(<b>'+esc(r.ver)+'</b>)는 저장됐지만, 앱이 쓰는 배포는 아직 <b>'+esc(i.ver)+'</b>입니다.</p><p>Apps Script에서 <b>배포 → 배포 관리 → 연필 → 버전 「새 버전」 → 배포</b>를 한 번만 해 주세요. 그 뒤부터는 자동으로 됩니다.</p><div class="mrow"><button class="btn pri" id="mvNo2" type="button">알겠습니다</button></div>');$('#mvNo2').onclick=closeModal}
+        else $('#srvMsg').textContent='지금 돌고 있는 코드 '+i.ver})})
       .catch(function(e){b.disabled=false;$('#srvMsg').textContent='';toast(errText(e))})}}
 function boot(){
   roleTitle();window.__booted=true;setTimeout(srvInit,1500);try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
