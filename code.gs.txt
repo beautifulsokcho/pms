@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.d63ad0b2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.fab9c31b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2864,6 +2864,33 @@ function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드�
   if (my) { var hit = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.webApp && String(e.webApp.url || '').indexOf(my) >= 0; }); })[0]; if (hit) PropertiesService.getScriptProperties().setProperty('CODE_DEPLOY', hit.deploymentId); }
   var msg = '새 버전 v' + v.versionNumber + ' · 웹 앱 배포 ' + out.length + '개' + (my ? ' · 이 스크립트 주소 …' + my.slice(-12) : '') + '\n' + out.join('\n');
   Logger.log(msg); codeLog_('수동 재배포', CODE_VER, CODE_VER, 'v' + v.versionNumber + ' · ' + out.join(' / '));
+  return msg;
+}
+function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하나만 남기고 나머지 웹 앱 배포를 지움
+  var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id, p = PropertiesService.getScriptProperties();
+  var my = ''; try { my = (ScriptApp.getService().getUrl() || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); } catch (e) { }
+  var dps = (codeApi_(tk, 'get', api + '/deployments?pageSize=60').deployments || []).filter(function (d) {
+    return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
+  });
+  var urlOf = function (d) { return ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); };
+  var pin = p.getProperty('CODE_DEPLOY') || '';
+  var keep = dps.filter(function (d) { return my && urlOf(d).indexOf(my) >= 0; })[0] || dps.filter(function (d) { return d.deploymentId === pin; })[0];
+  if (!keep) { Logger.log('어느 배포를 쓰고 있는지 알 수 없어 멈췄습니다. 먼저 codeRedeploy()를 실행해 주세요.'); return '중단: 쓰는 배포를 못 찾음'; }
+  var del = dps.filter(function (d) { return d.deploymentId !== keep.deploymentId; });
+  if (!doIt) {
+    var msg0 = '남길 배포: …' + urlOf(keep).slice(-12) + ' (v' + keep.deploymentConfig.versionNumber + ')\n지울 배포 ' + del.length + '개:\n' +
+      del.map(function (d) { return '  …' + urlOf(d).slice(-12) + ' (v' + d.deploymentConfig.versionNumber + ')'; }).join('\n') +
+      '\n\n※ 지우면 그 주소들은 더 이상 열리지 않습니다. 폰의 객실문자 앱·즐겨찾기가 남길 주소를 쓰는지 확인한 뒤,\n   정말 지우려면 편집기에서 codeClean(true) 로 한 번 더 실행하세요.';
+    Logger.log(msg0); return msg0;
+  }
+  var out = [];
+  del.slice(0, 60).forEach(function (d) {
+    try { codeApi_(tk, 'delete', api + '/deployments/' + d.deploymentId); out.push('지움 …' + urlOf(d).slice(-12)); }
+    catch (e) { out.push('실패 …' + urlOf(d).slice(-12) + ': ' + (e && e.message || e)); }
+  });
+  p.setProperty('CODE_DEPLOY', keep.deploymentId);
+  var msg = '남긴 배포 …' + urlOf(keep).slice(-12) + ' · ' + out.length + '개 정리\n' + out.join('\n');
+  Logger.log(msg); codeLog_('배포 정리', CODE_VER, CODE_VER, out.join(' / '));
   return msg;
 }
 function codeRollback() {   // 편집기에서 실행: 가장 최근 백업으로 되돌림
