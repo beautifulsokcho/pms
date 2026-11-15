@@ -487,7 +487,7 @@ function goRes(x){show('res');var h=$('#qHotel');if(h&&[].some.call(h.options,fu
 function toast(msg){var t=$('#toast'),bad=/못했습니다|실패|오류/.test(msg);t.textContent=msg+(bad?'  (눌러서 닫기)':'');t.hidden=false;t.onclick=function(){t.hidden=true};clearTimeout(toast.h);toast.h=setTimeout(function(){t.hidden=true},bad?15000:2600)}   // 오류는 15초 동안 보여 줌
 
 var GAS=!DEMO&&typeof google!=='undefined'&&google.script&&google.script.run;   // Apps Script 안에서 열린 경우
-var APP_API='https://script.google.com/macros/s/AKfycbxQHBXB19H78ab5K2yUZjv24fXF_Cq4FG8TPx3tu0k78b14HUCf5bupch0WEH_69MjQXw/exec';/*APP_API*/   // 설치형 앱(GitHub Pages)에 미리 넣는 웹 앱 주소
+var APP_API='https://script.google.com/macros/s/AKfycby2-qHCNmJ22_ZO5X4-eLF-gcgH-XePHsRoa8pmJETsH_2tROO5uqPKujcwSWTh0eEr5w/exec';/*APP_API*/   // 설치형 앱(GitHub Pages)에 미리 넣는 웹 앱 주소
 var API=(!DEMO&&!GAS&&(store('api')||APP_API))||'';                                          // 설치형 앱: 이 기기에 저장된 웹 앱 주소
 var LIVE=!!(GAS||API);
 var ROLE=store('role')||'',LOGIN_ROLE=store('loginRole')||'';   // LOGIN_ROLE: 역할별 접속 주소(?role=cleaner|manager|owner)
