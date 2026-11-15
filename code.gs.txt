@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.fab9c31b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.87aab4af';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2813,7 +2813,7 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   var v = codeApi_(tk, 'post', api + '/versions', { description: desc });
   if (idx) desc += ' · 화면 ' + idx;
   var vn = v.versionNumber, p = PropertiesService.getScriptProperties(), pin = p.getProperty('CODE_DEPLOY') || '';
-  var dps = (codeApi_(tk, 'get', api + '/deployments?pageSize=50').deployments || []).filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber; });
+  var dps = codeDeps_(tk, api).filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber; });
   var url = '';
   try { url = ScriptApp.getService().getUrl() || ''; } catch (e) { }
   var tgt = pin ? dps.filter(function (d) { return d.deploymentId === pin; })[0] : null;
@@ -2822,8 +2822,8 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   if (!tgt) return { version: vn, deployed: false, idx: idx, note: '새 버전만 만들었습니다 — 배포 관리에서 한 번 눌러 주세요' };
   // 쓰고 있는 배포를 먼저, 이어서 나머지 웹 앱 배포도 같은 버전으로 (어느 주소로 들어와도 새 코드가 돌도록)
   var webs = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); });
-  var list = [tgt].concat(webs.filter(function (d) { return d.deploymentId !== tgt.deploymentId; })), done = 0, errs = [];
-  list.slice(0, 60).forEach(function (d) {
+  var list = (pin && tgt.deploymentId === pin ? [tgt] : [tgt].concat(webs.filter(function (d) { return d.deploymentId !== tgt.deploymentId; }))), done = 0, errs = [];   // 쓰는 배포를 알면 그 하나만
+  list.slice(0, 400).forEach(function (d) {
     try { codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: vn, manifestFileName: 'appsscript', description: desc } }); done++; }
     catch (e) { errs.push(d.deploymentId.slice(-6) + ': ' + (e && e.message || e)); }
   });
@@ -2846,14 +2846,22 @@ function codeRun_(by) {
   codeLog_(by, CODE_VER, ver, (out.deployed ? '배포 완료 v' + out.version + ' (' + (out.count || 1) + '개)' : (out.note || '버전만 만듦')) + (out.idx ? ' · Index 사본 ' + out.idx : '') + (out.errs ? ' · 실패 ' + out.errs : ''));
   return { ok: true, ver: ver, from: CODE_VER, version: out.version, deployed: out.deployed, count: out.count, errs: out.errs, msg: '서버 코드를 ' + ver + '(으)로 바꾸고 다시 배포했습니다 (배포 ' + (out.count || 1) + '개)' + (out.deployed ? '' : ' — ' + out.note) };
 }
+function codeDeps_(tk, api) {   // 배포 목록 전부 (페이지 넘겨가며)
+  var out = [], tok = '', n = 0;
+  do {
+    var r = codeApi_(tk, 'get', api + '/deployments?pageSize=100' + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''));
+    (r.deployments || []).forEach(function (d) { out.push(d); });
+    tok = r.nextPageToken || ''; n++;
+  } while (tok && n < 8);
+  return out;
+}
+function codeWeb_(dps) { return dps.filter(function (d) { return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); }); }
 function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드를 새 버전으로 만들어 '모든 웹 앱 배포'에 적용 (배포가 안 따라올 때 복구용)
   var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id;
   var v = codeApi_(tk, 'post', api + '/versions', { description: '수동 재배포 ' + CODE_VER });
-  var dps = (codeApi_(tk, 'get', api + '/deployments?pageSize=50').deployments || []).filter(function (d) {
-    return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
-  });
+  var dps = codeWeb_(codeDeps_(tk, api));
   var out = [];
-  dps.slice(0, 60).forEach(function (d) {
+  dps.slice(0, 400).forEach(function (d) {
     var u = ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, '');
     try {
       codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: v.versionNumber, manifestFileName: 'appsscript', description: '수동 재배포 ' + CODE_VER } });
@@ -2869,9 +2877,7 @@ function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드�
 function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하나만 남기고 나머지 웹 앱 배포를 지움
   var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id, p = PropertiesService.getScriptProperties();
   var my = ''; try { my = (ScriptApp.getService().getUrl() || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); } catch (e) { }
-  var dps = (codeApi_(tk, 'get', api + '/deployments?pageSize=60').deployments || []).filter(function (d) {
-    return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
-  });
+  var dps = codeWeb_(codeDeps_(tk, api));
   var urlOf = function (d) { return ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); };
   var pin = p.getProperty('CODE_DEPLOY') || '';
   var keep = dps.filter(function (d) { return my && urlOf(d).indexOf(my) >= 0; })[0] || dps.filter(function (d) { return d.deploymentId === pin; })[0];
@@ -2884,7 +2890,7 @@ function codeClean(doIt) {   // 편집기에서 실행: 쓰고 있는 배포 하
     Logger.log(msg0); return msg0;
   }
   var out = [];
-  del.slice(0, 60).forEach(function (d) {
+  del.slice(0, 400).forEach(function (d) {
     try { codeApi_(tk, 'delete', api + '/deployments/' + d.deploymentId); out.push('지움 …' + urlOf(d).slice(-12)); }
     catch (e) { out.push('실패 …' + urlOf(d).slice(-12) + ': ' + (e && e.message || e)); }
   });
