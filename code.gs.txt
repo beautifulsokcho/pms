@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.fe101d0a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.d63ad0b2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2823,7 +2823,7 @@ function codePush_(src, desc) {   // 코드 넣기 → 새 버전 → 쓰고 있
   // 쓰고 있는 배포를 먼저, 이어서 나머지 웹 앱 배포도 같은 버전으로 (어느 주소로 들어와도 새 코드가 돌도록)
   var webs = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; }); });
   var list = [tgt].concat(webs.filter(function (d) { return d.deploymentId !== tgt.deploymentId; })), done = 0, errs = [];
-  list.slice(0, 8).forEach(function (d) {
+  list.slice(0, 60).forEach(function (d) {
     try { codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: vn, manifestFileName: 'appsscript', description: desc } }); done++; }
     catch (e) { errs.push(d.deploymentId.slice(-6) + ': ' + (e && e.message || e)); }
   });
@@ -2853,14 +2853,16 @@ function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드�
     return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
   });
   var out = [];
-  dps.slice(0, 10).forEach(function (d) {
+  dps.slice(0, 60).forEach(function (d) {
     var u = ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, '');
     try {
       codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: v.versionNumber, manifestFileName: 'appsscript', description: '수동 재배포 ' + CODE_VER } });
       out.push('OK  v' + (d.deploymentConfig.versionNumber) + '→v' + v.versionNumber + '  …' + u.slice(-12));
     } catch (e) { out.push('실패  …' + u.slice(-12) + ': ' + (e && e.message || e)); }
   });
-  var msg = '새 버전 v' + v.versionNumber + ' · 웹 앱 배포 ' + out.length + '개\n' + out.join('\n');
+  var my = ''; try { my = (ScriptApp.getService().getUrl() || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, ''); } catch (e) { }
+  if (my) { var hit = dps.filter(function (d) { return (d.entryPoints || []).some(function (e) { return e.webApp && String(e.webApp.url || '').indexOf(my) >= 0; }); })[0]; if (hit) PropertiesService.getScriptProperties().setProperty('CODE_DEPLOY', hit.deploymentId); }
+  var msg = '새 버전 v' + v.versionNumber + ' · 웹 앱 배포 ' + out.length + '개' + (my ? ' · 이 스크립트 주소 …' + my.slice(-12) : '') + '\n' + out.join('\n');
   Logger.log(msg); codeLog_('수동 재배포', CODE_VER, CODE_VER, 'v' + v.versionNumber + ' · ' + out.join(' / '));
   return msg;
 }
