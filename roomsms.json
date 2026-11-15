@@ -1,1 +1,6 @@
-{"code":10,"name":"1.9","url":"https://beautifulsokcho.github.io/pms/roomsms.apk","note":"떠나요 알림 서버 등록"}
+{
+  "code": 11,
+  "name": "1.10",
+  "url": "https://beautifulsokcho.github.io/pms/roomsms.apk",
+  "note": "서버 주소가 바뀌면 스스로 맞춤"
+}
