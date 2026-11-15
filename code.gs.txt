@@ -2737,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-15.0dba2450';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.fe101d0a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2845,6 +2845,24 @@ function codeRun_(by) {
   p.setProperty('CODE_VER_AT', Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + ' ' + ver);
   codeLog_(by, CODE_VER, ver, (out.deployed ? '배포 완료 v' + out.version + ' (' + (out.count || 1) + '개)' : (out.note || '버전만 만듦')) + (out.idx ? ' · Index 사본 ' + out.idx : '') + (out.errs ? ' · 실패 ' + out.errs : ''));
   return { ok: true, ver: ver, from: CODE_VER, version: out.version, deployed: out.deployed, count: out.count, errs: out.errs, msg: '서버 코드를 ' + ver + '(으)로 바꾸고 다시 배포했습니다 (배포 ' + (out.count || 1) + '개)' + (out.deployed ? '' : ' — ' + out.note) };
+}
+function codeRedeploy() {   // 편집기에서 실행: 지금 저장된 코드를 새 버전으로 만들어 '모든 웹 앱 배포'에 적용 (배포가 안 따라올 때 복구용)
+  var id = ScriptApp.getScriptId(), tk = ScriptApp.getOAuthToken(), api = 'https://script.googleapis.com/v1/projects/' + id;
+  var v = codeApi_(tk, 'post', api + '/versions', { description: '수동 재배포 ' + CODE_VER });
+  var dps = (codeApi_(tk, 'get', api + '/deployments?pageSize=50').deployments || []).filter(function (d) {
+    return d.deploymentConfig && d.deploymentConfig.versionNumber && (d.entryPoints || []).some(function (e) { return e.entryPointType === 'WEB_APP'; });
+  });
+  var out = [];
+  dps.slice(0, 10).forEach(function (d) {
+    var u = ((d.entryPoints || []).map(function (e) { return e.webApp && e.webApp.url || ''; }).join('') || '').replace(/^.*\/s\//, '').replace(/\/exec.*$/, '');
+    try {
+      codeApi_(tk, 'put', api + '/deployments/' + d.deploymentId, { deploymentConfig: { scriptId: id, versionNumber: v.versionNumber, manifestFileName: 'appsscript', description: '수동 재배포 ' + CODE_VER } });
+      out.push('OK  v' + (d.deploymentConfig.versionNumber) + '→v' + v.versionNumber + '  …' + u.slice(-12));
+    } catch (e) { out.push('실패  …' + u.slice(-12) + ': ' + (e && e.message || e)); }
+  });
+  var msg = '새 버전 v' + v.versionNumber + ' · 웹 앱 배포 ' + out.length + '개\n' + out.join('\n');
+  Logger.log(msg); codeLog_('수동 재배포', CODE_VER, CODE_VER, 'v' + v.versionNumber + ' · ' + out.join(' / '));
+  return msg;
 }
 function codeRollback() {   // 편집기에서 실행: 가장 최근 백업으로 되돌림
   var it = DriveApp.getFoldersByName('코드백업');
