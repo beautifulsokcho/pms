@@ -11,7 +11,7 @@ var SHEETS = {
   '객실':     { cols: 35, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35], dates: [15,16], texts: [3,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
-  '예약':     { cols: 48, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48], dates: [6,7,8,24], texts: [3,43] },
+  '예약':     { cols: 49, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49], dates: [6,7,8,24,49], texts: [3,43] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
   '수건규칙': { cols: 9,  key: 1, edit: [1,2,3,4,5,6,7,8,9] },
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
@@ -220,7 +220,7 @@ var V10_OWNNOTE_ = "=IF(RC1=\"\",\"\",IF(COUNTIFS(예약!R2C2:R2001C2,R1C2,예�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 67) return;
+  if (ver >= 68) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1127,6 +1127,15 @@ function ensureSchema_() {
     if (String(rv67.getRange(1, 48).getValue() || '') === '') rv67.getRange(1, 48).setValue('달력 날짜 고정 (Y)');
   }
   props.setProperty('SCHEMA', '67');
+  }
+  if (ver < 68) {   // v68: 예약 AW열(49) '청소 이월일' — 그날 못 한 청소를 다음날·지정일로 넘김 (청소배정·지시서가 그 날짜에 나옴)
+  var rv68 = ss.getSheetByName('예약');
+  if (rv68) {
+    if (rv68.getMaxColumns() < 49) rv68.insertColumnsAfter(rv68.getMaxColumns(), 49 - rv68.getMaxColumns());
+    if (String(rv68.getRange(1, 49).getValue() || '') === '') rv68.getRange(1, 49).setValue('청소 이월일');
+    if (rv68.getLastRow() > 1) rv68.getRange(2, 49, rv68.getLastRow() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  }
+  props.setProperty('SCHEMA', '68');
   }
 }
 function hotelNames_() {
@@ -2728,7 +2737,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-15.71699392';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-15.6c7fcf2b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

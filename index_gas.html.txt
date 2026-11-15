@@ -104,6 +104,12 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
 .chip{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:500}
 .chip.x{background:var(--warn-soft);color:var(--warn)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.mv{background:#ffe9c9;color:#8a5200}
+button.chip.mvb{border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit}
+button.chip.mvb:hover{background:var(--accent-soft);color:var(--accent)}
+.awaybox{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;grid-column:1/-1}
+.awaybox .aw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:5px 10px;border-radius:8px;background:#fff6e5;color:#8a5200;border:1px solid #f0d9ac}
+.mrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .chip.hold{background:var(--hold-soft);color:var(--hold)}
 .card .dates{font-size:14px}
 .card .meta{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
@@ -433,7 +439,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-15i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -698,7 +704,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,dLock:47,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 
 function hotelRule(h){var r=rows('호텔').find(function(x){return x.v[1]===h});return r?{base:Number(r.v[12])||0,fee:Number(r.v[13])||0,pet:Number(r.v[14])||0}:{base:0,fee:0,pet:0}}
@@ -1673,17 +1679,35 @@ var CS={},CMEMO={},CNOTE={};   // 저장 버튼을 누르기 전까지 화면에
 function cDirty(){var d=$('#cDate').value,n=0;cleanTasks().forEach(function(t){if(t.st.cleaner!==(t.rec?t.rec.v[1]:'')||t.st.bed!==t.st.bed0||t.st.own!==t.st.own0)n++});return n+Object.keys(CMEMO).length+Object.keys(CNOTE).length}
 function showDirty(){var n=cDirty(),b=$('#cSave');b.textContent=n?'저장 ('+n+'건 변경)':'저장';b.classList.toggle('warn',!!n);$('#cDirtyNote').textContent=n?'저장하지 않은 변경이 '+n+'건 있습니다. 다 고친 뒤 [저장]을 누르세요.':''}
 function leaveOk(){return !cDirty()||confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 이동할까요?')}  // 객실별 담당자·인원 선택값
+function cleanDay(v){return String(v[R.cmove]||'')||v[R.co]}   // 청소를 하는 날 (이월일이 있으면 그 날)
+function cleanAway(d,h){   // 그날 퇴실이지만 다른 날로 넘긴 청소 (원래 날짜 화면에 안내로 보여 줌)
+  return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&!isSubst(v)&&(!h||v[R.hotel]===h)&&v[R.co]===d&&v[R.noClean]!=='Y'&&String(v[R.cmove]||'')&&String(v[R.cmove])!==d});
+}
+function cMoveAsk(rr){
+  var row=rows('예약').find(function(q){return q.r===rr});if(!row)return;
+  var cur=String(row.v[R.cmove]||''),co=row.v[R.co],nd=addDays(co,1);
+  modal('<h3>청소 이월</h3><p>'+esc(row.v[R.hotel])+' '+esc(row.v[R.room])+' · '+md(co)+' 퇴실 청소를 다른 날로 넘깁니다.</p>'+
+    '<div class="f"><label for="mvDate">청소할 날짜</label><input id="mvDate" type="date" value="'+esc(cur||nd)+'"></div>'+
+    '<p class="note">넘긴 날짜의 청소배정·현황판·지시서에 「이월」로 나옵니다. 수당과 정산은 실제로 청소한 날 기준입니다.</p>'+
+    '<div class="mrow"><button class="btn pri" id="mvOk" type="button">이 날짜로 이월</button><button class="btn" id="mvNext" type="button">다음날 '+md(nd)+'</button>'+(cur?'<button class="btn" id="mvClear" type="button">이월 취소</button>':'')+'<button class="btn" id="mvNo" type="button">닫기</button></div>');
+  var save=function(val){closeModal();call('saveRows','예약',[{r:rr,v:{49:val}}]).then(function(x){S['예약']=x;renderClean();
+      toast(val?md(co)+' 청소를 '+md(val)+'로 넘겼습니다':'이월을 취소했습니다 ('+md(co)+')')}).catch(function(e){toast(errText(e))})};
+  $('#mvOk').onclick=function(){var v=$('#mvDate').value;if(!v)return;save(v)};
+  $('#mvNext').onclick=function(){save(nd)};
+  $('#mvNo').onclick=closeModal;
+  if(cur)$('#mvClear').onclick=function(){save('')};
+}
 function cleanTasks(){
   var d=$('#cDate').value,h=$('#cHotel').value;
   var res=rows('예약').filter(function(r){return !r.v[R.cancel]&&!isSubst(r.v)&&(!h||r.v[R.hotel]===h)});
   var map={};
-  res.forEach(function(r){var v=r.v,k=v[R.hotel]+'|'+v[R.room];
-    if(v[R.co]===d){(map[k]=map[k]||{}).out=v}
+  res.forEach(function(r){var v=r.v,k=v[R.hotel]+'|'+v[R.room],cd=cleanDay(v);
+    if(cd===d){(map[k]=map[k]||{}).out=v;map[k].outR=r.r}
     if(v[R.ci]===d){(map[k]=map[k]||{}).inn=v}});
   var done=rows('청소실적').filter(function(r){return r.v[0]===d});
   Object.keys(map).forEach(function(k){if(map[k].out&&map[k].out[R.noClean]==='Y')delete map[k]});   // 연속예약(청소안함): 그날 퇴실 청소·입실 준비 모두 없음
   return Object.keys(map).map(function(k){var t=map[k],p=k.split('|'),info=roomInfo(p[0],p[1])||[];
-    t.hotel=p[0];t.room=p[1];t.key=k;
+    t.hotel=p[0];t.room=p[1];t.key=k;t.moved=!!(t.out&&t.out[R.cmove]);
     t.type=t.out&&t.inn?'turn':t.out?'out':'in';
     if(!t.inn){var lim=addDays(d,5);t.next5=rows('예약').map(function(r){return r.v}).filter(function(v){return !v[R.cancel]&&!isSubst(v)&&v[R.hotel]===p[0]&&String(v[R.room])===p[1]&&v[R.ci]>d&&v[R.ci]<=lim}).sort(function(a,b){return String(a[R.ci]).localeCompare(String(b[R.ci]))})[0]||null}   // 퇴실만 있는 객실: 5일 안 다음 입실 손님 기준
     var nx=t.inn||t.next5;
@@ -1737,13 +1761,17 @@ function renderClean(){
     ['입실점검',ts.filter(function(t){return !t.out}).length,'k-chk'],['미배정',ts.filter(function(t){return !t.st.cleaner&&!ownerCleans(t)}).length,'k-un']];
   chips=chips.filter(function(c){return c[1]||['자가','소유주직접'].indexOf(c[0])<0});   // 자가·소유주직접은 있을 때만
   $('#cCount').innerHTML='<span class="kdate">'+md(d)+'</span>'+chips.map(function(c){return '<span class="kc '+c[2]+'">'+c[0]+' <b>'+c[1]+'</b></span>'}).join('')+cWhoLine(ts);
-  if(!ts.length){$('#cList').innerHTML='<div class="empty">이 날짜에 퇴실하거나 입실하는 예약이 없습니다.</div>';renderSheet();return}
+  var away=cleanAway(d,$('#cHotel').value);
+  var awayHtml=away.length?'<div class="awaybox no-print">'+away.map(function(r){return '<span class="aw">'+esc(r.v[R.hotel])+' '+esc(r.v[R.room])+' · '+md(r.v[R.co])+' 퇴실 → <b>'+md(r.v[R.cmove])+' 청소로 이월</b> <button type="button" class="chip mvb" data-mv="'+r.r+'">바꾸기</button></span>'}).join('')+'</div>':'';
+  if(!ts.length){$('#cList').innerHTML=awayHtml+'<div class="empty">이 날짜에 퇴실하거나 입실하는 예약이 없습니다.'+(away.length?' (위 이월 건은 넘긴 날짜에 나옵니다)':'')+'</div>';renderSheet();return}
   var nOut=ts.filter(function(t){return t.out}).length,nIn=ts.length-nOut;
   $('#cList').classList.toggle('many',ts.length>=8);   // 청소 객실이 8개 이상이면 PC 가로 4칸
-  $('#cList').innerHTML=ts.map(function(t,i){var o=t.out,n=t.inn,who=t.st.cleaner,uns=who!==(t.rec?t.rec.v[1]:'');
+  $('#cList').innerHTML=awayHtml+ts.map(function(t,i){var o=t.out,n=t.inn,who=t.st.cleaner,uns=who!==(t.rec?t.rec.v[1]:'');
     var col=who?cleanerColor(who):'',prep=!o;
     var sec=i===0&&o?'<div class="tsec">청소 객실 (퇴실 있음) · '+nOut+'실</div>':(prep&&(i===0||ts[i-1].out)?'<div class="tsec prep">입실 준비만 있는 객실 · '+nIn+'실</div>':'');
     return sec+'<div class="task '+t.type+(prep?' prepc':(col?' whoc':''))+'" data-k="'+esc(t.key)+'"'+(prep?(col?' style="border-left-color:'+col+'"':''):(col?' style="background:'+pastel(col)+';color:#111"':''))+'><div class="row"><span class="room">'+esc(t.hotel)+' '+esc(t.room)+'</span><span class="chip '+TYPE[t.type][1]+'">'+TYPE[t.type][0]+'</span>'+
+      (t.moved?'<span class="chip mv" title="'+esc(md(t.out[R.co]))+' 퇴실 청소를 넘겨받음">이월 '+md(t.out[R.co])+'</span>':'')+
+      (o?'<button type="button" class="chip mvb no-print" data-mv="'+t.outR+'">'+(t.moved?'이월 바꾸기':'이월')+'</button>':'')+
       (t.rec&&t.rec.v[12]?'<span class="chip ok" title="담당자 완료 '+esc(t.rec.v[12])+'">✓ 완료</span>':'')+(ownerCleans(t)?'<span class="who" style="margin-left:auto">소유주 직접</span>':who?'<span class="who" style="margin-left:auto"><i class="dot" style="background:'+col+'"></i>'+esc(who)+(uns?' <small class="unsv no-print">저장 전</small>':'')+'</span>':'<span class="chip x" style="margin-left:auto">미배정</span>')+'</div>'+
       (o?'<div class="sub">퇴실: '+esc(o[R.name]||'')+' '+esc(o[R.ppl])+'명'+(t.st.bed==='교체필요'?' · <b class="red">교체필요</b>':'')+(memoHide(o[R.memo])?' · <b>'+esc(memoHide(o[R.memo]))+'</b>':'')+'</div>':'')+
       (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(memoHide(n[R.memo])?' · <b>'+esc(memoHide(n[R.memo]))+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
@@ -1755,6 +1783,7 @@ function renderClean(){
       '<label class="chk"><input type="checkbox" data-f="on"'+(t.st.on?' checked':'')+'> 실적 저장</label></div>')+'</div>'}).join('');
   renderSheet();showDirty();
 }
+$('#cList').addEventListener('click',function(e){var b=e.target.closest('[data-mv]');if(b)cMoveAsk(+b.dataset.mv)});   // 청소 이월
 // 카드·현황판·지시서에서 고친 값은 [저장]을 눌러야 구글시트에 저장됨
 $('#cList').addEventListener('change',function(e){var el=e.target,card=el.closest('.task');if(!card||!el.dataset.f)return;var st=CS[$('#cDate').value+'|'+card.dataset.k];
   st[el.dataset.f]=el.type==='checkbox'?el.checked:el.value;
@@ -1811,7 +1840,7 @@ function boardRows(h,d,ts){
   var mmdd=function(x){return String(x).slice(5)};
   return rooms.map(function(rm){
     var mine=res.filter(function(v){return String(v[R.room])===rm});
-    var out=mine.find(function(v){return v[R.co]===d}),stay=mine.find(function(v){return v[R.ci]<d&&d<v[R.co]});
+    var out=mine.find(function(v){return cleanDay(v)===d}),stay=mine.find(function(v){return v[R.ci]<d&&d<v[R.co]});
     if(out&&out[R.noClean]==='Y'&&!stay){stay=mine.find(function(v){return v[R.ci]===d&&v!==out})||null;if(stay)out=null}   // 연속예약은 재실로
     var from=stay?stay[R.co]:d,next=mine.find(function(v){return v[R.ci]>=from&&v!==stay});
     if(next&&Math.round((pd(next[R.ci])-pd(d))/864e5)>5)next=null;   // 5일 안에 다음 예약이 없으면 '기본'
@@ -1899,7 +1928,7 @@ function renderSheet(){
     '<div class="legend">'+names.map(function(c){return '<span><i class="dot" style="background:'+cleanerColor(c==='미배정'||c==='소유주 직접'?'':c)+'"></i>'+esc(c)+' 청소 <b>'+g[c].c+'</b>실'+(g[c].p?' · 입실준비 '+g[c].p+'실':'')+'</span>'}).join('')+'</div>'+
     '<div class="scroll"><table class="byc"><tr><th>담당자</th><th>객실</th><th>상태</th><th>구분</th><th>수건</th><th>물</th><th>추가이불</th><th>입실 메모</th><th>퇴실 메모</th><th>다음 입실</th></tr>';
   html+=list.map(function(t,i){var c=who(t),col=cleanerColor(c==='미배정'||c==='소유주 직접'?'':c),n=t.inn||t.next5,nd=!t.inn&&t.next5?md(t.next5[R.ci])+' ':(t.inn?'오늘 ':'');
-      return (i===0||who(list[i-1])!==c?'<tr class="csep'+(c==='소유주 직접'?' own':'')+'" style="--sepc:'+(c==='미배정'?'#999':c==='소유주 직접'?'#d07bc0':col)+'"><td colspan="10"><i class="dot" style="background:'+(c==='미배정'?'#999':col)+'"></i>'+esc(c)+' · 청소 '+g[c].c+'실'+(g[c].p?' · 입실준비 '+g[c].p+'실':'')+'</td></tr>':'')+'<tr class="crow'+(t.out?'':' prep')+'" style="'+(t.out?'--rowc:'+(c==='미배정'?'#eeeeee':pastel(col))+';--dotc:'+col:'--rowc:#fff;--dotc:'+col)+'"><td>'+esc(c)+'</td><td class="nw">'+esc(t.hotel)+' '+esc(t.room)+'</td><td class="nw">'+(t.out?'<b>청소</b>':'입실준비')+'</td><td class="nw">'+TYPE[t.type][0]+'</td>'+
+      return (i===0||who(list[i-1])!==c?'<tr class="csep'+(c==='소유주 직접'?' own':'')+'" style="--sepc:'+(c==='미배정'?'#999':c==='소유주 직접'?'#d07bc0':col)+'"><td colspan="10"><i class="dot" style="background:'+(c==='미배정'?'#999':col)+'"></i>'+esc(c)+' · 청소 '+g[c].c+'실'+(g[c].p?' · 입실준비 '+g[c].p+'실':'')+'</td></tr>':'')+'<tr class="crow'+(t.out?'':' prep')+'" style="'+(t.out?'--rowc:'+(c==='미배정'?'#eeeeee':pastel(col))+';--dotc:'+col:'--rowc:#fff;--dotc:'+col)+'"><td>'+esc(c)+'</td><td class="nw">'+esc(t.hotel)+' '+esc(t.room)+'</td><td class="nw">'+(t.out?'<b>청소</b>':'입실준비')+'</td><td class="nw">'+TYPE[t.type][0]+(t.moved?' <b class="red">이월 '+md(t.out[R.co])+'</b>':'')+'</td>'+
         '<td class="n">'+(t.towel===''?'-':t.towel+'장')+'</td><td class="n">'+(t.water===''?'-':t.water+'개')+'</td><td class="nw">'+(t.out&&t.st.bed==='교체필요'?'<b class="red">교체필요</b>':'')+'</td>'+
         '<td class="mcell">'+(t.short?'<b class="red">'+esc(t.short)+'</b>':'')+mm(n,'in')+'</td><td class="mcell">'+mm(t.out,'out')+'</td>'+
         '<td class="nw">'+(n?nd+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박':'기본 세팅')+'</td></tr>'}).join('');
