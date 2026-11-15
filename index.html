@@ -36,7 +36,7 @@ body{margin:0;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:cont
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 button,input,select,textarea{font:inherit;color:inherit}
-.num,td.n,.money{font-variant-numeric:tabular-nums}
+.num,td.n{font-variant-numeric:tabular-nums}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
 .top-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -114,8 +114,6 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
 .chip.x{background:var(--warn-soft);color:var(--warn)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
 .chip.mv{background:#ffe9c9;color:#8a5200}
-button.chip.mvb{border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit}
-button.chip.mvb:hover{background:var(--accent-soft);color:var(--accent)}
 .awaybox{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;grid-column:1/-1}
 .awaybox .aw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:5px 10px;border-radius:8px;background:#fff6e5;color:#8a5200;border:1px solid #f0d9ac}
 .mvnote{font-size:12px;color:#8a5200;align-self:center}
@@ -452,7 +450,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-15l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1889,10 +1887,6 @@ function renderBoard(ts){
 function recItem(t){var d=$('#cDate').value,bed=t.st.bed||'',memo=[bed,(t.out&&t.out[R.memo])||''].filter(Boolean).join(' · ');
   if(!t.st.cleaner)return t.rec?{r:t.rec.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:''}}:null;
   return {r:t.rec?t.rec.r:null,v:{1:d,2:t.st.cleaner,3:t.hotel,4:t.room,5:Number(t.st.ppl)||'',6:t.type==='in'?'입실준비':bed==='교체필요'?'추가':bed==='일반이불'?'기본':'',12:memo}}}
-function saveRecs(ts){var items=ts.map(recItem).filter(Boolean);if(!items.length){renderClean();return}
-  call('saveRows','청소실적',items).then(function(x){S['청소실적']=x;ts.forEach(function(t){var keep={cleaner:t.st.cleaner,bed:t.st.bed,ppl:t.st.ppl};delete CS[t.key];var n=cleanTasks().find(function(z){return z.key===t.key});if(n){n.st.cleaner=keep.cleaner;n.st.bed=keep.bed;n.st.ppl=keep.ppl;n.st.on=true}});
-    renderClean();toast('청소실적에 저장했습니다')})
-    .catch(function(e){toast('저장하지 못했습니다: '+(e&&e.message||e));renderClean()})}
 $('#cBoard').addEventListener('change',function(e){var s=e.target.closest('.ksel,.bsel');if(!s)return;var k=s.dataset.k,t=cleanTasks().find(function(z){return z.key===k});if(!t)return;
   if(s.classList.contains('ksel'))t.st.cleaner=s.value;else t.st.bed=s.value;
   renderClean()});

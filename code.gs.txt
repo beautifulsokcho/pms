@@ -1407,7 +1407,7 @@ function ocrImage(pin, dataUrl) {
     .concat(Utilities.base64Decode(m[2])).concat(Utilities.newBlob('\r\n--' + bd + '--').getBytes());
   var up = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=ko', {
     method: 'post', contentType: 'multipart/related; boundary=' + bd, payload: body, headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
-  if (up.getResponseCode() >= 300) throw new Error('사진 글자 읽기 실패 (' + up.getResponseCode() + '). 관리자가 편집기에서 authDrive를 한 번 실행해 권한을 허용하세요.');
+  if (up.getResponseCode() >= 300) throw new Error('사진 글자 읽기 실패 (' + up.getResponseCode() + '). 관리자가 편집기에서 codeSetup을 한 번 실행해 권한을 다시 허용하세요.');
   var id = JSON.parse(up.getContentText()).id, text = '';
   try {
     var ex = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '/export?mimeType=text/plain', { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
@@ -1537,7 +1537,6 @@ function smsDay_(d) {   // 'M월 D일(요일)'
   if (isNaN(x)) return String(d); return (x.getMonth() + 1) + '월 ' + x.getDate() + '일(' + '일월화수목금토'.charAt(x.getDay()) + ')';
 }
 // '문자' 시트 (v61): A 종류 · B 호텔(전체/호텔) · C 플랫폼(전체 또는 놀,떠나요 …) · D 호텔 표시 이름({호텔}) · E 기준(예약 즉시/입실일/퇴실일/수동) · F 일(-1=전날) · G 시각(HH:mm) · H 문구 · I 사용(Y) · J 비고
-var SMS_BASES_ = ['예약 즉시', '입실일', '퇴실일', '수동'];
 function smsTemplates_() {
   var sh = SpreadsheetApp.getActive().getSheetByName('문자'); if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 10).getValues().map(function (x, i) {
@@ -1930,7 +1929,6 @@ function smsSend(pin, r, kind, preview) {   // 예약 화면 [문자]: 종류 �
   if (preview) return { text: smsText_(v, kind), to: v[4] };
   return { status: smsDo_(sh, r, kind, true) };
 }
-function authDrive() { DriveApp.getRootFolder(); }   // 처음 한 번 편집기에서 실행해 구글 드라이브 권한 허용
 var P1_PAY_ = '전반(1-15일)', P2_PAY_ = '후반(16-말일)';
 function payRange_(month, period) {   // 지급월·지급기간 → [시작일, 끝일]
   if (!/^\d{4}-\d{2}$/.test(String(month))) throw new Error('지급월을 고르세요');
@@ -2737,7 +2735,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.84932d86';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.b1799a93';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
