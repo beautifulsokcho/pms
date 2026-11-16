@@ -1929,8 +1929,11 @@ function smsInboxClear(pin) {   // 관리자: 문자함 모두 비우기 (머리
 function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.read = 번호 → 읽음 처리
   checkPin_(pin); adminOnly_(); opt = opt || {};
   var sh = inboxSheet_(), lr = sh.getLastRow();
-  if (opt.read && lr > 1) { var k = telKey_(opt.read), col = sh.getRange(2, 3, lr - 1, 7).getValues(); col.forEach(function (x, i) { if (telKey_(x[1]) === k && x[0] !== '보냄' && x[6] !== 'Y') sh.getRange(i + 2, 9).setValue('Y'); }); }
-  if (opt.count) { if (lr < 2) return { unread: 0 }; return { unread: sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[0] !== '보냄' && x[6] !== 'Y'; }).length }; }
+  if (opt.read && lr > 1) { var k = telKey_(opt.read), eq = k ? function (a) { return telKey_(a) === k; } : function (a) { return String(a) === String(opt.read); };   // 번호가 아닌 묶음('자동등록' 경고)은 글자 그대로 비교
+    var col = sh.getRange(2, 3, lr - 1, 7).getValues(); col.forEach(function (x, i) { if (eq(x[1]) && x[0] !== '보냄' && x[6] !== 'Y') sh.getRange(i + 2, 9).setValue('Y'); }); }
+  if (opt.count) { if (lr < 2) return { unread: 0, warn: 0 };
+    var cv = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[0] !== '보냄' && x[6] !== 'Y'; });
+    return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length }; }
   var from = Math.max(2, lr - 399), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
   return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
@@ -2698,9 +2701,24 @@ function gwNoti(token, items) {
     var stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
     lg.appendRow([key, stamp, Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'), (it.plat === '떠나요' ? '떠나요' : '놀') + (it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), it.name || '', it.resNo || '', String(txt).slice(0, 300)]);
     if (key) done[key] = 1;
+    if (r.warn) { try { notiWarn_(it, r, at); } catch (e) { } }   // 자동등록이 안 된 알림은 문자함에 경고로 남김 (관리자가 바로 보고 처리)
     out.push({ key: key, ok: !r.warn, warn: !!r.warn, msg: r.result + (r.hotel ? ' · ' + r.hotel + ' ' + r.room : '') + (it.name ? ' ' + it.name : '') });
   });
   return { items: out };
+}
+// 알림 자동등록이 안 됐을 때 문자함에 경고로 남김 — 번호 자리에 '자동등록'을 넣어 한 묶음으로 모임
+var NOTI_WARN_NUM_ = '자동등록';
+function notiWarn_(it, r, at) {
+  var d = function (s) { s = String(s || ''); return s.length >= 10 ? (+s.slice(5, 7)) + '/' + (+s.slice(8, 10)) : s; };
+  var pn = it.plat === '떠나요' ? '떠나요' : '놀';
+  var lines = ['[자동등록 실패] ' + String(r.result).replace(/^자동등록 실패 · /, '')];
+  lines.push(pn + ' ' + (it.kind === 'cancel' ? '취소 알림' : '예약 알림') + (it.resNo ? ' · 예약번호 ' + it.resNo : ''));
+  lines.push((r.hotel || it.place || '') + ' ' + (r.room || it.room || '호실 모름') + '호 · ' + d(it.ci) + '~' + d(it.co) + (it.nights ? ' (' + it.nights + '박)' : ''));
+  lines.push((it.name || '이름 없음') + (it.tel ? ' ' + it.tel : '') + (it.sale ? ' · ' + Number(it.sale).toLocaleString() + '원' : ''));
+  if (r.dup) lines.push('→ 이미 있는 예약: ' + d(r.dup.ci) + '~' + d(r.dup.co) + ' ' + (r.dup.name || '이름 없음') + (r.dup.plat ? ' (' + r.dup.plat + ')' : '') + ' · 예약 시트 ' + r.dup.row + '행');
+  lines.push(r.dup ? '→ 예약검색에서 그 호실·날짜를 확인하고, 맞으면 손으로 넣으세요.' : '→ 새 예약 화면에서 손으로 넣으세요.');
+  inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(at || Date.now()), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+    '알림', NOTI_WARN_NUM_, lines.join('\n'), r.hotel || '', String(r.room || it.room || ''), it.name || '', '', '자동등록 경고']);
 }
 function notiLog_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('알림처리');
@@ -2838,7 +2856,11 @@ function notiReg_(ctx, it, at) {
     return { result: '정보 채움', hotel: v[1], room: v[2], changed: true };
   }
   var cx = no ? mailFind_(ctx, function (v) { return v[23] && hasNo(v); }) : null;
-  if (!cx && mailOverlap_(ctx, pp.hotel, it.room, it.ci, it.co)) return { result: '겹치는 예약 있음 (확인 필요)', hotel: pp.hotel, room: it.room, warn: true };
+  if (!cx) {
+    var ov = mailOverlap_(ctx, pp.hotel, it.room, it.ci, it.co);
+    if (ov) return { result: '자동등록 실패 · 중복예약(객실 겹침)', hotel: pp.hotel, room: it.room, warn: true,
+      dup: { ci: mailYmd_(ov.v[6]), co: mailYmd_(ov.v[7]), name: String(ov.v[3] || ''), plat: String(ov.v[10] || ''), row: ov.r } };
+  }
   var pn = pp.plat === '놀호텔' ? '놀호텔' : pp.plat === '떠나요' ? '떠나요' : '놀';
   var note = [it.plat === '떠나요' ? String(it.roomName || '').trim() : String(it.roomName || '').replace(/\(.*$/, '').trim(), no ? pn + ' 예약번호 ' + no : '', it.way, '알림 자동등록'].filter(String).join(' / ');
   var nv = { 2: pp.hotel, 3: it.room, 4: it.name || '', 6: Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd'), 7: it.ci, 8: it.co, 10: it.ppl || 2, 11: pp.plat || '놀', 22: note };
@@ -2855,7 +2877,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.ba0ffbba';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.ebefa18b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
