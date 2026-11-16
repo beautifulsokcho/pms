@@ -454,7 +454,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -930,9 +930,7 @@ function renderCal(){
 function newFromCal(h,room,date){   // 객실별 달력의 빈 날짜 클릭 → 그 호실·날짜로 새 예약 열기
   var v=new Array(46).fill('');
   v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=h;v[R.room]=room;v[R.ci]=date;v[R.co]=addDays(date,1);v[R.ppl]=2;
-  store('hotel',h);show('new');resForm(null,true,v);
-  var b=$('#newBox');if(b)b.scrollIntoView({behavior:'smooth',block:'start'});
-  toast(h+' '+room+'호 · '+md(date)+' 입실로 새 예약을 엽니다 (1박 · 2명으로 채워 둠)');
+  resForm(null,false,v);   // 예약 수정처럼 이 화면에서 창으로 (저장하면 달력이 바로 갱신됨)
 }
 $('#resList').addEventListener('click',function(e){   // 공실 칸(지난달·다음달 칸 제외)만
   var cd=e.target.closest('.cd.vac:not(.adj)');if(!cd||!cd.dataset.d)return;
@@ -1123,7 +1121,7 @@ function resForm(row,inline,pre){
     '<div class="actions">'+(row?(v[R.cancel]?'<button class="btn pri" type="button" id="'+P+'Cxl" style="margin-right:auto">취소 되돌리기 (이 호실·날짜로)</button>':'<button class="btn warn" type="button" id="'+P+'Cxl" style="margin-right:auto">예약 취소</button>'):'')+
     (inline?'<button class="btn" type="button" id="'+P+'Reset">입력 지우기</button>':'<button class="btn" type="button" id="'+P+'Close">닫기</button>')+
     '<button class="btn pri" type="button" id="'+P+'Save">저장</button></div>';
-  if(inline)$('#newBox').innerHTML=html; else modal('<h3>예약 수정</h3>'+html);
+  if(inline)$('#newBox').innerHTML=html; else modal('<h3>'+(row?'예약 수정':'새 예약')+'</h3>'+html);
   if(row&&!OWNER&&LIVE)(function(){var sb=g('SmsBox'),pv=g('SmsPv');   // 이 예약에 쓸 수 있는 문자 종류 → 문구 보기 → 바로 보내기 · 보낸 기록
     var load2=function(){call('smsSend',row.r,'').then(function(d){var ks=d.kinds||[];
       sb.innerHTML=(ks.length?'<div class="rpick"><select id="'+P+'SmsKind">'+opts(ks,ks[0])+'</select><button type="button" class="btn" id="'+P+'SmsPrev">문구 보기</button></div>':'<span class="note">이 예약(호텔·플랫폼)에 맞는 문자 문구가 없습니다. 관리 → 문자에서 만드세요.</span>')+
@@ -1220,7 +1218,7 @@ function resForm(row,inline,pre){
     call('saveRows','예약',[{r:row?row.r:null,v:vals}].concat(cancelItems(ov)).concat(pvs)).then(function(d){
       S['예약']=d;renderRes();
       if(inline){store('hotel',x[R.hotel]);resForm(null,true);renderRecent();savedToast(x[R.hotel]+' '+x[R.room]+'호 예약을 저장했습니다'+(pvs.length?' · 앞 예약 청소안함':''),d,{hotel:x[R.hotel],room:x[R.room],ci:x[R.ci]});g('Room').focus()}
-      else{closeModal();renderRecent();toast('예약을 수정했습니다')}
+      else{closeModal();renderRecent();toast(row?'예약을 수정했습니다':x[R.hotel]+' '+x[R.room]+'호 예약을 저장했습니다')}
     }).catch(function(e){g('Err').textContent='저장하지 못했습니다: '+(e&&e.message||e);btn.disabled=false});
     });
   };
