@@ -132,6 +132,9 @@ tr.sum td{font-weight:700;background:var(--sunk)}
 tr.final td{font-weight:700;background:var(--accent-soft);color:var(--accent)}
 .grid-edit td{padding:3px 4px}
 .grid-edit input,.grid-edit select{padding:5px 7px;border-radius:6px;min-width:90px}
+#aTable[data-sheet="객실"] input[data-c="12"]{min-width:190px}   /* 계좌번호 칸은 두 배로 */
+#aTable[data-sheet="객실"] input[data-c="33"],#aTable[data-sheet="객실"] input[data-c="34"],#aTable[data-sheet="객실"] input[data-c="18"],#aTable[data-sheet="객실"] input[data-c="28"],#aTable[data-sheet="객실"] input[data-c="29"]{min-width:70px}
+#aTable th{white-space:normal;line-height:1.25;max-width:170px}
 .grid-edit td.auto{color:var(--muted);font-size:12.5px;padding:3px 8px}
 tr.dirty td{background:var(--hold-soft)}
 .report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:12px}
@@ -450,7 +453,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2428,6 +2431,7 @@ function renderAdmin(){
     if(n==='문자'&&c===7)return '<td'+cls+'><input data-c="7" type="time" value="'+esc(x)+'"></td>';
     var ty=(DATES[n]||[]).indexOf(c)>=0?'date':(NUMS[n]||[]).indexOf(c)>=0?'number':'text';
     return '<td'+cls+'><input data-c="'+c+'" type="'+ty+'"'+(ty==='number'?' step="any"':'')+' value="'+esc(x)+'"></td>'};
+  $('#aTable').dataset.sheet=n;
   $('#aTable').innerHTML='<tr>'+cols.map(function(c){return '<th'+(c===key?' class="stick"':'')+'>'+esc(sh.header[c-1])+'</th>'}).join('')+'</tr>'+
     shown.map(function(r){return '<tr data-r="'+r.r+'"'+(A.dirty[r.r]?' class="dirty"':'')+'>'+cols.map(function(c){return cell(r,c)}).join('')+'</tr>'}).join('');
   // 페이지
