@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 71) return;
+  if (ver >= 73) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1219,6 +1219,29 @@ function ensureSchema_() {
     st71.getRange('C25:C39').setFormula(stCFormula_());
   }
   props.setProperty('SCHEMA', '71');
+  }
+  if (ver < 72) {   // v72: 정산항목 '송금수수료'를 수식이 찾는 범위(2~61행) 안에 넣기 (v69에서 61행 밖에 들어가 보이지 않던 것 바로잡음)
+  var pi72 = ss.getSheetByName('정산항목');
+  if (pi72) {
+    var av72 = pi72.getRange(2, 1, 60, 1).getValues(), at72 = -1, last72 = 1, i72;
+    for (i72 = 0; i72 < 60; i72++) { var nm72 = String(av72[i72][0]).trim(); if (nm72 === '송금수수료') at72 = i72 + 2; if (nm72) last72 = i72 + 2; }
+    if (at72 < 0) at72 = last72 + 1;
+    if (at72 >= 2 && at72 <= 61) {
+      pi72.getRange(at72, 1, 1, 8).setValues([['송금수수료', 'C', '자동-송금수수료', 500, 'N', 'N', 'Y', '농협이 아닌 계좌로 보낼 때 건당 · 2026-11 정산분부터 (청구인 달은 빼고 계산)']]);
+      pi72.getRange(at72, 10).setValue('써밋베이');
+      if (last72 >= 2 && last72 !== at72) pi72.getRange(last72, 9).copyTo(pi72.getRange(at72, 9));   // 표시키(자동) 수식
+      codeLog_('정산항목', '', '', '송금수수료 ' + at72 + '행에 넣음');
+    }
+    var lr72 = pi72.getLastRow();   // 예전에 61행 밖에 잘못 들어간 줄이 있으면 지움
+    if (lr72 > 61) { var ex72 = pi72.getRange(62, 1, lr72 - 61, 1).getValues();
+      for (i72 = 0; i72 < ex72.length; i72++) if (String(ex72[i72][0]).trim() === '송금수수료') pi72.getRange(62 + i72, 1, 1, 10).clearContent(); }
+  }
+  props.setProperty('SCHEMA', '72');
+  }
+  if (ver < 73) {   // v73: 정산서 C항목 수식을 지금 쓰는 것(V22_)에 맞춰 다시 씀 — v69~v71에서 옛 수식(V15_)으로 덮어썼던 것 바로잡음
+  var st73 = ss.getSheetByName('객실정산서');
+  if (st73) st73.getRange('C25:C39').setFormula(stCFormula_());
+  props.setProperty('SCHEMA', '73');
   }
 }
 function hotelNames_() {
@@ -2818,7 +2841,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.39fc5f69';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.24cdcf22';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -2879,9 +2902,27 @@ function codeIdx_(files) {   // Apps Script의 Index 사본도 깃허브 화면�
     return v;
   } catch (e) { return ''; }
 }
-function stCFormula_() {   // 객실정산서 C25:C39 (부가세 미공제 항목) — 객실 '비품 부가세 가산(Y)'이면 ×1.1($N$1)
-  var f = V15_.itemC.slice(1);
-  return '=IFERROR(ROUND((' + f + ')*$N$1,0),' + f + ')';
+function stCFormula_() {   // 지금 쓰는 C항목 수식(V22_)에 '자동-송금수수료' 분기를 넣고, 비품 부가세 가산(×$N$1)까지 입힌 수식
+  var f = V22_.itemC, mark = 'INDEX(정산항목!$C$2:$C$61,MATCH("C"&(ROW()-24),정산항목!$I$2:$I$61,0))';
+  var anchor = 'IFERROR(IF(' + mark + '="자동-청소비"';
+  var at = f.indexOf(anchor);
+  if (f.indexOf('자동-송금수수료') < 0 && at >= 0) {
+    var room = 'INDEX(객실!$J$2:$J$301,MATCH(1,INDEX((객실!$B$2:$B$301=$B$1)*(객실!$C$2:$C$301=$D$1&""),0),0))';
+    var bank = 'TRIM(IFERROR(' + room + ',""))';
+    var rate = 'N(INDEX(정산항목!$D$2:$D$61,MATCH("C"&(ROW()-24),정산항목!$I$2:$I$61,0)))';
+    var others = 'IF(ROW()>25,SUM($C$25:INDEX($C$25:$C$39,ROW()-25)),0)+IF(ROW()<39,SUM(INDEX($C$25:$C$39,ROW()-23):$C$39),0)';
+    var fee = 'IF(' + mark + '="자동-송금수수료",IF(AND($H$1>=DATE(2026,11,1),' + bank + '<>"",NOT(ISNUMBER(SEARCH("농협",' + bank + '))),$C$11-$C$24-(' + others + ')>0),ROUND(' + rate + ',0),0),';
+    var open = at + 'IFERROR('.length - 1;   // IFERROR 의 여는 괄호 위치
+    var d = 0, i, cut = -1;
+    for (i = open; i < f.length; i++) {   // IFERROR(X, "") 에서 X 가 끝나는 쉼표 찾기 → 거기에 닫는 괄호 하나 더
+      if (f.charAt(i) === '(') d++;
+      else if (f.charAt(i) === ')') { d--; if (d === 0) break; }
+      else if (f.charAt(i) === ',' && d === 1) { cut = i; break; }
+    }
+    if (cut > 0) f = f.slice(0, at + 'IFERROR('.length) + fee + f.slice(at + 'IFERROR('.length, cut) + ')' + f.slice(cut);
+  }
+  var body = f.slice(1);
+  return '=IFERROR(ROUND((' + body + ')*$N$1,0),' + body + ')';
 }
 function codeLive_() {   // 앱이 들어온 주소에서 '지금 쓰는 배포 ID'를 뽑아 기록 (주소 안에 들어 있음 · 추가 요청 없음)
   try {
