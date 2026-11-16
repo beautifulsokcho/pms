@@ -453,7 +453,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -868,7 +868,7 @@ function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
 function cardHtml(r){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">본인계정</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
@@ -1034,7 +1034,7 @@ function renderRes(){
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
   var tr=function(r){var v=r.v;   // 목록: 호실·입실일·퇴실일·인원·숙박일수·플랫폼·고객명·연락처·본인계정만
       return '<tr data-r="'+r.r+'"'+(v[R.cancel]?' class="cx"':'')+'><td><b>'+esc(v[R.room])+'</b>'+(h?'':' <small>'+esc(v[R.hotel])+'</small>')+'</td><td class="num">'+md(v[R.ci])+'</td><td class="num">'+md(v[R.co])+'</td><td class="n">'+esc(v[R.ppl])+'</td><td class="n">'+esc(v[R.n])+'</td>'+
-        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?'본인계정':'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td></tr>'};
+        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td></tr>'};
   $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th></tr></thead><tbody>'+
     main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="9">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
@@ -1101,8 +1101,8 @@ function resForm(row,inline,pre){
       '<label class="chk"><input type="checkbox" id="'+P+'Excl"'+(v[R.excl]==='Y'?' checked':'')+'> 미정산 (객실 정산서 제외, 청소는 포함)</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpp"'+(v[R.xpp]==='Y'?' checked':'')+'> 추가인원 요금 빼고 정산</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpet"'+(v[R.xpet]==='Y'?' checked':'')+'> 반려견 요금 빼고 정산</label>'+
-      '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> 본인계정 (매출 제외, 청소비는 청구)</label>'+
-      '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'>본인계정 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
+      '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> <span id="'+P+'OwnLab">'+ownLab(v[R.hotel])+'</span> (매출 제외, 청소비는 청구)</label>'+
+      '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'><span id="'+P+'OwnLab2">'+ownLab(v[R.hotel])+'</span> 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
     (row?F('Cancel','취소일 (발생 시)',I('Cancel',v[R.cancel],'type="date"'))+'<div class="f"><label>예약ID</label><input readonly value="'+esc(v[R.id])+'"></div>':'')+
     (row&&!OWNER&&LIVE?'<div class="f full smsbox"><label>문자 보내기</label><div id="'+P+'SmsBox"><span class="note">불러오는 중…</span></div><div id="'+P+'SmsPv"></div></div>':'')+
     '<div class="full err" id="'+P+'Err"></div></form>'+
@@ -1174,7 +1174,7 @@ function resForm(row,inline,pre){
   var ownAuto=function(){if(ownRoom(g('Hotel').value,g('Room').value))g('Own').checked=g('Plat').value==='ABNB'};
   var subShow=function(){var sub=isSubRoom(g('Room').value);g('SubF').style.display=sub?'':'none';   // 대체객실이면 입금을 대신 정산할 호실 고르기
     if(sub){var cur=g('Sub').value||v[R.subFor]||'';g('Sub').innerHTML=opts(roomsOf(g('Hotel').value,true).filter(function(x){return !isSubRoom(x)}),String(cur),'선택')}};
-  g('Room').addEventListener('change',subShow);g('Hotel').addEventListener('change',function(){setTimeout(subShow,0)});setTimeout(subShow,0);   // 본인계정 전용 객실: 에어비앤비만 본인계정
+  g('Room').addEventListener('change',subShow);g('Hotel').addEventListener('change',function(){var lb=ownLab(this.value);['OwnLab','OwnLab2'].forEach(function(k){var e=g(k);if(e)e.textContent=lb});setTimeout(subShow,0)});setTimeout(subShow,0);   // 본인계정 전용 객실: 에어비앤비만 본인계정
   g('Room').addEventListener('change',ownAuto);g('Plat').addEventListener('change',ownAuto);
   roomOpts();preview();ORIGV.Sale=g('Sale').value;Object.keys(AUTO).forEach(function(k){ORIGV[k]=g(k).value;ORIGMAN[k]=MAN[k]});preview();
   if(inline)resForm.rooms=function(){var cur=g('Room').value;v[R.hotel]=g('Hotel').value;v[R.room]=cur;roomOpts()};
@@ -1528,6 +1528,7 @@ function pasteIssues(x){var p=[];
   return p}
 function roomByHost(host){var n=function(x){return String(x||'').replace(/\s+/g,'')},hh=n(host);if(!hh)return null;   // 객실 Y열 '에어비앤비 호스트명'
   var r=rows('객실').find(function(r){var k=n(r.v[24]);return k&&hh.indexOf(k)>=0&&r.v[13]!=='N'});return r?{hotel:r.v[1],room:String(r.v[2])}:null}
+function ownLab(h){return String(h||'').indexOf('마리나베이')>=0?'조합계정':'본인계정'}   // 마리나베이는 '조합계정'으로 표기 (계산은 같음)
 function ownRoom(h,room){return rows('객실').some(function(r){return r.v[1]===h&&String(r.v[2])===String(room)&&String(r.v[22]||'').trim().toUpperCase()==='Y'})}   // 본인계정 전용 객실
 function isOwnAcct(x){return !!x.own||/본\s*인/.test(x.note||'')||((x.plat||'ABNB')==='ABNB'&&ownRoom(x.hotel,x.room))}   // 본인계정 전용 객실은 에어비앤비 예약만
 function toResRow(x){var v=new Array(44).fill('');
@@ -1580,7 +1581,7 @@ function renderPaste(){
         '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
-        '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>본인계정</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
+        '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>'+ownLab(x.hotel)+'</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
         (x.cancel?(dupOf(x)?'<button class="btn warn" type="button" data-p="cxl" style="margin-left:auto">기존 예약 취소'+(function(b){return ' ('+esc(b.v[R.hotel])+' '+esc(b.v[R.room])+' '+md(b.v[R.ci])+')'})(dupOf(x))+'</button>':''):
          x.room&&x.hotel&&x.ci&&dupOf(x)?'<button class="btn" type="button" data-p="upd" style="margin-left:auto">'+(x.roomPick&&String(dupOf(x).v[R.room])!==String(x.room)?'기존 예약을 '+esc(x.room)+'호로 옮겨 반영':'기존 예약에 반영')+'</button>':
          overlaps(x).length?'<button class="btn warn" type="button" data-p="ovl" style="margin-left:auto">겹침 확인</button>':'<button class="btn" type="button" data-p="form" style="margin-left:auto">폼에서 수정</button>')+'</div></div>'}).join('');
@@ -2121,7 +2122,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       if(inC&&lab==='소계'){inC=false;return out+'<tr class="sum"><td>'+esc(lab)+'</td><td class="n">'+esc(c)+'</td></tr>'}
       if(inC&&b&&!OWNER){var cur=Number(String(c).replace(/[^\d.-]/g,''))||0;
         return out+'<tr><td>'+esc(lab)+'</td><td class="n"><input class="cedit" type="number" inputmode="numeric" data-item="'+esc(lab)+'" data-cur="'+cur+'" value="'+cur+'"><span class="cprint">'+esc(c)+'</span></td></tr>'}
-      var ownRow=/매출합계/.test(lab)&&ownSum?'<tr class="ownsum"><td>본인계정 입금액</td><td class="n">'+esc(ownSum)+'</td></tr>':'';
+      var ownRow=/매출합계/.test(lab)&&ownSum?'<tr class="ownsum"><td>'+ownLab(p.hotel)+' 입금액</td><td class="n">'+esc(ownSum)+'</td></tr>':'';
       return out+'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+esc(lab)+'</td><td class="n">'+esc(c)+'</td></tr>'+ownRow}).join('')+'</table>';
     // 일자별 표: 일자·인원·일수 → 플랫폼별 금액 → 추가이불 등·청소비·합계 → 비고 (시트 열: A B C | H~L | D E F | M)
     var hd=bot[0]||[],plats=[7,8,9,10,11].filter(function(i){return hd[i]}),nz=function(c){return c!==''&&c!=null&&c!=='-'&&Number(String(c).replace(/[^\d.-]/g,''))!==0};
@@ -2190,7 +2191,7 @@ function renderIntegrated(kind){
   box.innerHTML='<div class="empty">'+esc(h)+' 객실을 하나씩 계산하는 중입니다… (객실 수에 따라 30초~1분)</div>';
   call('integrated',h,spec).then(function(d){
     if(!d){box.innerHTML=demoNote('써밋베이 2001호 2026년 9월 숫자로 만든 예시');return}
-    var tbl=kind==='tax'?taxTable(d):intTable(d);
+    var tbl=kind==='tax'?taxTable(d):intTable(d,h);
     var title=h+' '+when+' '+(kind==='tax'?'세금신고서':'통합정산서');
     var html='<div class="report landscape" id="sAllPrint"><h3>'+esc(title)+'</h3><p class="note">입실일 기준 · '+esc(kind==='tax'?'세금계산서 발행액 = 객실별 부가세 발행금액('+(d.bill?'B−A':'A−B')+'), 0보다 작으면 0':'객실별 정산서를 합친 표입니다')+(per!=='month'?' · 입실일이 기간 안인 예약, 수동 항목은 일자가 기간 안인 것(일자가 없으면 그 달 전체가 기간에 들 때)':'')+'</p>'+
       '<div class="scroll"><table class="intg"><thead><tr>'+tbl.head.map(function(c){return '<th>'+esc(c)+'</th>'}).join('')+'</tr></thead><tbody>'+
@@ -2211,13 +2212,13 @@ function stickCols(t,n){if(!t)return;var fix=function(){   // 앞 n열 고정: �
     [].forEach.call(t.rows,function(tr){var col=0;[].forEach.call(tr.children,function(cell){if(col<n){cell.classList.add('stk');cell.style.left=lefts[col]+'px';var span=cell.colSpan||1;if(col+span>=n)cell.classList.add('stk2')}col+=cell.colSpan||1})})};
   fix();setTimeout(fix,300)}
 var INT_OWNER_SUM=['이다경'];   // 통합정산서 맨 아래 따로 합계를 보여 줄 소유주
-function intTable(d){
+function intTable(d,hotel){
   var rs=d.rows,any=function(f){return rs.some(function(o){return Math.round(f(o))!==0})},labels=function(k){var L=[];rs.forEach(function(o){o[k].forEach(function(p){if(L.indexOf(p[0])<0)L.push(p[0])})});return L};
   var val=function(o,k,l){var p=o[k].find(function(q){return q[0]===l});return p?p[1]:0};
   var hasSales=any(function(o){return o.sales});
   var cols=[['호실',function(o){return (o.extra?o.hotel+' ':'')+o.room}],['소유주',function(o){return o.owner}],['숙박인원',function(o){return o.ppl}],['숙박일수',function(o){return o.nights}]];
   if(hasSales){labels('plats').forEach(function(l){if(any(function(o){return val(o,'plats',l)}))cols.push([l,function(o){return val(o,'plats',l)}])});cols.push(['매출합계(A)',function(o){return o.sales}])}
-  if(any(function(o){return o.ownAmt||0}))cols.push(['본인계정 입금액',function(o){return o.ownAmt||0}]);
+  if(any(function(o){return o.ownAmt||0}))cols.push([ownLab(hotel)+' 입금액',function(o){return o.ownAmt||0}]);
   cols.push(['청소액',function(o){return o.clean}]);
   labels('B').forEach(function(l){if(any(function(o){return val(o,'B',l)}))cols.push([l,function(o){return val(o,'B',l)}])});
   cols.push(['부가세 공제 합계(B)',function(o){return o.Bsum}]);
