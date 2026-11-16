@@ -478,7 +478,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2696,10 +2696,13 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
   var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':'⚠ 자동등록 경고'};
   var dir=IBX.sort==='asc'?-1:1;
   if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).sort(function(a,b){return (a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1)*dir});
-    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar():'')+(ts.length?'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button></div>':'')+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
+    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar():'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
       return '<button type="button" class="ithr'+(t.unread?' unread':'')+'" data-num="'+esc(t.num)+'"><b>'+who(t)+(t.unread?' · 새 '+t.unread:'')+'</b><br><span class="note">'+esc(l.at)+' · '+esc(l.kind==='받음'?'':l.kind+' ')+esc(String(l.text).slice(0,60))+'</span></button>'}).join('')+'</div>':'<div class="empty">아직 받은 문자가 없습니다.</div>');
     ibxSortBind();
     box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num)}});
+    var rb=$('#ibxRoom');if(rb)rb.onclick=function(){rb.disabled=true;rb.textContent='점검 중…';
+      call('roomCheck').then(function(r){var n=r&&r.n||0;toast(n?'호실이 다른 예약 '+n+'건을 올렸습니다':'오늘~7일 안 입실 중 호실이 다른 예약은 없습니다');inboxOpen()})
+        .catch(function(e){rb.disabled=false;rb.textContent='입실 호실 점검';toast(errText(e))})};
     var cb=$('#ibxClear');if(cb)cb.onclick=function(){if(cb.dataset.ok!=='1'){cb.dataset.ok='1';cb.textContent='정말 모두 지울까요? (되돌릴 수 없음) — 한 번 더 누르기';setTimeout(function(){if(cb.isConnected){cb.dataset.ok='';cb.textContent='문자함 모두 비우기'}},5000);return}
       cb.disabled=true;cb.textContent='지우는 중…';call('smsInboxClear').then(function(r){toast('문자함 '+(r&&r.n||0)+'줄을 지웠습니다');var bd=$('#inboxN');if(bd)bd.hidden=true;IBX.unread=0;inboxOpen()}).catch(function(e){cb.disabled=false;cb.textContent='문자함 모두 비우기';toast(errText(e))})};
     return}

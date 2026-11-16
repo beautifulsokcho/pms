@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -2806,41 +2806,60 @@ function notiWarn_(it, r, at) {
   inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(at || Date.now()), tz_(), 'yyyy-MM-dd HH:mm:ss'),
     '알림', NOTI_WARN_NUM_, lines.join('\n'), r.hotel || '', String(r.room || it.room || ''), it.name || '', '', '자동등록 경고']);
 }
-// ── 입실일 점검: 비고에 적힌 호실과 실제 배정된 호실이 다르면 문자함으로 알림 (손님에게 잘못 안내하는 일을 막음)
-var ROOM_RE_ = /(?:^|[^\d])(\d{3,4})\s*호/g;
-function noteRooms_(s) {   // 비고에서 호실로 보이는 숫자들 (객실ID·예약번호 같은 긴 숫자는 뺌)
-  var t = String(s == null ? '' : s).replace(/\(\s*객실(?:타입)?\s*ID[^)]*\)/g, ' ').replace(/\d{6,}/g, ' ');
-  var a = [], m; ROOM_RE_.lastIndex = 0;
-  while ((m = ROOM_RE_.exec(t))) if (a.indexOf(m[1]) < 0) a.push(m[1]);
+// ── 입실 점검: 비고에 적힌 호실과 실제 배정된 호실이 다르면 문자함으로 알림 (손님에게 잘못 안내하는 일을 막음)
+function noteRooms_(s, set) {   // 비고에서 호실로 보이는 번호 — '○○호'는 그대로, 번호만 있는 것은 그 호텔에 실제 있는 호실일 때만
+  var t = String(s == null ? '' : s)
+    .replace(/\(\s*객실(?:타입)?\s*ID[^)]*\)/g, ' ')
+    .replace(/0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}/g, ' ')                               // 전화번호
+    .replace(/(?:출입문|현관|비밀번호|예약번호|수령|금액)\s*[:：]?\s*[\d,]+/g, ' ')      // 출입문 비번·예약번호·금액
+    .replace(/[\d,]*\d,\d{3}\s*원?/g, ' ').replace(/\d{5,}/g, ' ');
+  var a = [], m, re = /(?:^|[^\d])(\d{3,4})\s*호/g;
+  while ((m = re.exec(t))) if (a.indexOf(m[1]) < 0) a.push(m[1]);
+  if (set) { var re2 = /(?:^|\D)(\d{3,4})(?!\d)/g; while ((m = re2.exec(t))) if (set[m[1]] && a.indexOf(m[1]) < 0) a.push(m[1]); }
   return a;
 }
-function roomTick() {   // 매일 아침 트리거: 오늘 입실하는 예약 중 비고 호실 ≠ 배정 호실인 것
+function roomTick() {   // 매일 아침 트리거: 오늘부터 사흘 뒤까지 입실하는 예약 중 비고 호실 ≠ 배정 호실
   try { ensureSchema_(); } catch (e) { }
-  roomChk_(Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'));
+  var now = new Date(), d = function (n) { return Utilities.formatDate(new Date(+now + n * 864e5), tz_(), 'yyyy-MM-dd'); };
+  roomChk_(d(0), d(3));
 }
-function roomChk_(day) {
+function roomChk_(from, to) {
   var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'); if (!rv || rv.getLastRow() < 2) return 0;
+  to = to || from;
+  var ob = ss.getSheetByName('객실'), sets = {};   // 호텔별 실제 호실 목록 (번호만 적힌 비고를 가려내는 데 씀)
+  if (ob && ob.getLastRow() > 1) ob.getRange(2, 2, ob.getLastRow() - 1, 2).getValues().forEach(function (x) {
+    var h = String(x[0] || '').trim(), r = String(x[1] == null ? '' : x[1]).trim();
+    if (h && r) { (sets[h] = sets[h] || {})[r] = 1; }
+  });
   var ib = inboxSheet_(), lr = ib.getLastRow(), seen = {};
   if (lr > 1) ib.getRange(Math.max(2, lr - 499), 10, Math.min(lr - 1, 500), 1).getValues().forEach(function (x) { if (x[0]) seen[String(x[0])] = 1; });
+  var today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
   var vals = rv.getRange(2, 1, rv.getLastRow() - 1, Math.min(rv.getMaxColumns(), 51)).getValues(), n = 0;
   vals.forEach(function (v) {
-    if (v[23] || fmt_(v[6], false) !== day) return;                 // 취소됐거나 오늘 입실이 아니면 건너뜀
-    var want = String(v[2] == null ? '' : v[2]).trim(); if (!want) return;
-    var got = noteRooms_(v[21]); if (!got.length || got.indexOf(want) >= 0) return;   // 비고에 호실이 없거나 같으면 괜찮음
-    var mark = '호실확인:' + String(v[0] || (v[1] + v[2] + day));
+    var ci = fmt_(v[6], false);
+    if (v[23] || !ci || ci < from || ci > to) return;                 // 취소됐거나 기간 밖이면 건너뜀
+    var hotel = String(v[1] || '').trim(), want = String(v[2] == null ? '' : v[2]).trim(); if (!want) return;
+    var got = noteRooms_(v[21], sets[hotel]); if (!got.length || got.indexOf(want) >= 0) return;
+    var mark = '호실확인:' + String(v[0] || (hotel + want + ci));
     if (seen[mark]) return;
-    var d = function (x) { x = fmt_(x, false); return x ? (+x.slice(5, 7)) + '/' + (+x.slice(8, 10)) : ''; };
+    var md = function (x) { x = fmt_(x, false); return x ? (+x.slice(5, 7)) + '/' + (+x.slice(8, 10)) : ''; };
+    var dd = Math.round((parseDate_(ci) - parseDate_(today)) / 864e5);
     var txt = ['[고객문자안내 주의] 예약호실과 배정호실이 다릅니다',
-      String(v[1] || '') + ' ' + want + '호 (오늘 입실) · ' + d(v[6]) + '~' + d(v[7]) + ' ' + (v[8] || '') + '박 ' + (v[9] || '') + '명',
+      hotel + ' ' + want + '호 · ' + md(v[6]) + '~' + md(v[7]) + ' ' + (v[8] || '') + '박 ' + (v[9] || '') + '명 · ' + (dd <= 0 ? '오늘 입실' : dd === 1 ? '내일 입실' : dd + '일 뒤 입실'),
       '비고에 적힌 호실: ' + got.join('호, ') + '호',
       (String(v[3] || '') || '이름 없음') + (v[4] ? ' ' + v[4] : '') + ' · ' + (v[10] || '') + (v[50] ? ' · 예약번호 ' + v[50] : ''),
       '비고: ' + String(v[21] || '').slice(0, 120),
       '→ 손님에게 안내할 호실을 확인하세요. 호실을 옮겼다면 비고를 고쳐 주세요.'].join('\n');
     ib.appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
-      '알림', NOTI_WARN_NUM_, txt, v[1] || '', want, v[3] || '', '', mark]);
+      '알림', NOTI_WARN_NUM_, txt, hotel, want, v[3] || '', '', mark]);
     n++;
   });
   return n;
+}
+function roomCheck(pin, from, to) {   // 관리자: 지금 바로 점검 (기본 오늘~7일 뒤)
+  checkPin_(pin); adminOnly_();
+  var now = new Date(), d = function (k) { return Utilities.formatDate(new Date(+now + k * 864e5), tz_(), 'yyyy-MM-dd'); };
+  return { n: roomChk_(from || d(0), to || d(7)) };
 }
 function notiLog_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('알림처리');
@@ -3014,7 +3033,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.80a865c5';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.79ec2943';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
