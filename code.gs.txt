@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -1781,11 +1781,102 @@ function smsDue_(t, v, now) {   // 일정 문구의 보낼 시각 (입실일/퇴
   var d = fmt_(t.base === '입실일' ? v[6] : v[7], false); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
   var x = new Date(d + 'T' + (t.time.length === 4 ? '0' + t.time : t.time) + ':00+09:00'); x.setDate(x.getDate() + t.day); return x;
 }
+// ── 당일예약 문자: 등록시각 기준으로 때가 되면 '보낼까요?' 묻고, 관리자가 보류/수정/발송을 고름 ──
+var SMS_OFF_ = { '예약 즉시': 0, '예약즉시': 0, '5분후': 5, '10분후': 10, '20분후': 20, '30분후': 30, '60분후': 60, '2시간후': 120, '3시간후': 180 };
+var SMS_ASK_KIND_ = '당일예약';
+function smsRegStr_(v) {   // 예약 등록시각 (예약 50열) → 'yyyy-MM-dd HH:mm', 없으면 ''
+  var s = String(v[49] == null ? '' : v[49]).trim().replace('T', ' ');
+  var m = s.match(/^(\d{4}-\d{2}-\d{2})[ ](\d{1,2}):(\d{2})/); if (!m) return '';
+  return m[1] + ' ' + (m[2].length === 1 ? '0' + m[2] : m[2]) + ':' + m[3];
+}
+function smsRegAt_(v) { var s = smsRegStr_(v); return s ? new Date(s.slice(0, 10) + 'T' + s.slice(11) + ':00+09:00') : null; }
+function smsDueReg_(t, v) {   // 등록시각 기준 보낼 시각 — 오전 예약은 그날 12시, 오후 예약은 등록시각 + 기준 분
+  var off = SMS_OFF_[t.base]; if (!off) return null;
+  var s = smsRegStr_(v); if (!s) return null;
+  if (+s.slice(11, 13) < 12) return new Date(s.slice(0, 10) + 'T12:00:00+09:00');   // 오전 예약 → 그날 낮 12시
+  return new Date(new Date(s.slice(0, 10) + 'T' + s.slice(11) + ':00+09:00').getTime() + off * 60000);
+}
+function smsSameDayWhy_(v, rows) {   // 당일예약 조건 — 맞으면 '' , 아니면 안 맞는 까닭
+  var ci = fmt_(v[6], false), reg = smsRegStr_(v);
+  if (!reg) return '등록시각 없음';
+  if (!ci || ci !== reg.slice(0, 10)) return '입실일과 등록일이 다름';
+  if (!/자동등록/.test(String(v[21] || ''))) return '자동등록이 아님';
+  if (!String(v[4] || '').replace(/\D/g, '')) return '연락처 없음';
+  var co = fmt_(v[7], false), key = String(v[0] || '');
+  var dup = rows.some(function (x) {
+    if (x === v || x[23] || String(x[0] || '') === key && key) return false;
+    if (String(x[1]) !== String(v[1]) || String(x[2]) !== String(v[2])) return false;
+    var a = fmt_(x[6], false), b = fmt_(x[7], false);
+    return a && b && a < co && b > ci;
+  });
+  return dup ? '같은 호실에 겹치는 예약 있음' : '';
+}
+function smsAskSheet_() {
+  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('문자확인');
+  if (!sh) { sh = ss.insertSheet('문자확인'); sh.getRange(1, 1, 1, 12).setValues([['ID', '올린 시각', '보낼 시각', '예약키', '호텔', '호실', '고객명', '종류', '받는 번호', '문구', '상태', '처리 시각']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('I:I').setNumberFormat('@'); }
+  return sh;
+}
+function smsAskScan_() {   // 조건에 맞고 때가 된 당일예약을 '문자확인' 시트에 올림 (예약·종류마다 한 번)
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) return 0;
+  var list = smsTemplates_().filter(function (t) { return t.kind === SMS_ASK_KIND_ && SMS_OFF_[t.base] > 0; });
+  if (!list.length) return 0;
+  var rv = SpreadsheetApp.getActive().getSheetByName('예약'), lr = rv ? rv.getLastRow() : 0; if (lr < 2) return 0;
+  var rows = rv.getRange(2, 1, lr - 1, Math.min(rv.getMaxColumns(), 51)).getValues();
+  var ask = smsAskSheet_(), al = ask.getLastRow(), had = {};
+  if (al > 1) ask.getRange(2, 4, al - 1, 5).getValues().forEach(function (x) { had[x[0] + '|' + x[4]] = 1; });
+  var sent = smsSentMap_(), now = new Date(), add = [];
+  var lo = Utilities.formatDate(new Date(+now - 3 * 864e5), tz_(), 'yyyy-MM-dd'), hi = Utilities.formatDate(new Date(+now + 864e5), tz_(), 'yyyy-MM-dd');
+  rows.forEach(function (v) {
+    var ci = fmt_(v[6], false); if (!ci || ci < lo || ci > hi || v[23]) return;
+    var key = smsResKey_(v);
+    if (had[key + '|' + SMS_ASK_KIND_] || sent[key + '|' + SMS_ASK_KIND_]) return;
+    if (smsSameDayWhy_(v, rows)) return;
+    var t = smsPick_(SMS_ASK_KIND_, v, list); if (!t || !SMS_OFF_[t.base]) return;
+    var due = smsDueReg_(t, v); if (!due || now < due) return;
+    add.push([Utilities.getUuid().slice(0, 8), Utilities.formatDate(now, tz_(), 'yyyy-MM-dd HH:mm'), Utilities.formatDate(due, tz_(), 'yyyy-MM-dd HH:mm'),
+      key, v[1], String(v[2]), String(v[3] || ''), SMS_ASK_KIND_, String(v[4] || '').replace(/\D/g, ''), smsFill_(t, v), '대기', '']);
+  });
+  if (add.length) ask.getRange(ask.getLastRow() + 1, 1, add.length, 12).setValues(add);
+  return add.length;
+}
+function smsAsk(pin) {   // 관리자 화면: 물어볼 당일예약 문자 (먼저 훑고 '대기'만 돌려줌)
+  checkPin_(pin); adminOnly_();
+  try { smsAskScan_(); } catch (e) { }
+  var sh = smsAskSheet_(), lr = sh.getLastRow(); if (lr < 2) return { items: [] };
+  var v = sh.getRange(2, 1, lr - 1, 12).getValues(), out = [];
+  v.forEach(function (x, i) {
+    if (String(x[10]).trim() !== '대기') return;
+    out.push({ id: String(x[0]), at: String(x[1]), due: String(x[2]), hotel: x[4], room: String(x[5]), name: String(x[6] || ''), kind: String(x[7]), to: String(x[8]), text: String(x[9]) });
+  });
+  return { items: out };
+}
+function smsAskDo(pin, id, action, text) {   // action: 'send'(문구를 고쳐 보낼 수 있음) · 'hold'(보류)
+  checkPin_(pin); adminOnly_();
+  var sh = smsAskSheet_(), lr = sh.getLastRow(); if (lr < 2) throw new Error('보낼 문자가 없습니다.');
+  var v = sh.getRange(2, 1, lr - 1, 12).getValues(), at = -1;
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]) === String(id)) { at = i + 2; break; }
+  if (at < 0) throw new Error('그 문자를 찾지 못했습니다.');
+  var row = v[at - 2], stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
+  if (action === 'hold') { sh.getRange(at, 11, 1, 2).setValues([['보류', stamp]]); return { ok: true, result: '보류' }; }
+  var body = String(text == null || String(text).trim() === '' ? row[9] : text);
+  var lid = Utilities.getUuid().slice(0, 8);
+  smsLogSheet_().appendRow([lid, stamp, row[3], row[4], String(row[5]), String(row[6] || ''), row[7], String(row[8]), '대기', '', '']);
+  try {
+    var sr = smsSendRaw_(row[8], body, { col: 'log:' + lid });
+    if (!(sr && sr.queued)) smsLogSet_(lid, '발송', '');
+    sh.getRange(at, 10, 1, 3).setValues([[body, '발송', stamp]]);
+    return { ok: true, result: sr && sr.queued ? '대기 (폰 앱이 보냄)' : '발송' };
+  } catch (e) {
+    smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100));
+    throw e;
+  }
+}
 function smsTick() {   // 일정 문구 발송: 보낼 시각이 지났고 24시간 안이면 보냄 (1시간 트리거 + 폰 앱 확인 때)
   var c = smsCfg_(); if (!c.on || !smsReady_(c)) return;
   var lock = LockService.getScriptLock(); if (!lock.tryLock(20000)) return;
   try {
     PropertiesService.getScriptProperties().setProperty('SMS_TICK_AT', String(Date.now()));
+    try { smsAskScan_(); } catch (e) { }   // 당일예약 '보낼까요?' 목록도 함께 훑음
     var list = smsTemplates_().filter(function (t) { return t.base === '입실일' || t.base === '퇴실일'; }); if (!list.length) return;
     var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh.getLastRow(); if (lr < 2) return;
     var now = new Date(), sent = smsSentMap_(), lo = Utilities.formatDate(new Date(now - 40 * 864e5), tz_(), 'yyyy-MM-dd'), hi = Utilities.formatDate(new Date(+now + 40 * 864e5), tz_(), 'yyyy-MM-dd');
@@ -3033,7 +3124,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.79ec2943';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.36a341f8';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

@@ -478,7 +478,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2473,7 +2473,7 @@ function choices(n,c){
   var m={'호텔':{8:YN,10:YN,20:['','Y']},'객실':{2:hotels(true),14:YN,27:['','Y'],30:['','Y'],31:['','Y'],32:['','Y'],35:['','Y']},'청소비요율':{1:hotels(true)},'수건규칙':{1:hotels(true)},'달력연결':{1:hotels(true),2:roomsOf(adminHotel()!=='*'?adminHotel():defHotel(),true),5:YN,8:['Y','N']},'청소담당자':{11:YN,14:YN,16:hotels(true),19:YN},
     '매니저':{5:['','Y','N']},'청소실적':{2:cleaners(),3:hotels(true),6:['기본','추가','입실준비']},'수당입력':{2:[P1,P2],3:cleaners(),9:['지급완료','미지급']},
     '정산항목':{2:['B','C'],3:['자동-청소비','자동-대행수수료','자동-인원단가','자동-물수량','자동-단가*인원수*숙박일수','자동-단가*숙박일수','수동'],5:YN,6:YN,7:YN,10:['전체'].concat(hotels(true))},
-    '문자':{2:['전체'].concat(hotels(true)),5:['예약 즉시','입실일','퇴실일','수동'],9:YN},
+    '문자':{2:['전체'].concat(hotels(true)),5:['예약 즉시','5분후','10분후','20분후','30분후','60분후','2시간후','3시간후','입실일','퇴실일','수동'],9:YN},
     '정산입력':{2:hotels(true),5:rows('정산항목').map(function(r){return r.v[0]}).filter(function(x,i,a){return x&&a.indexOf(x)===i})}};
   return m[n]&&m[n][c];
 }
@@ -2545,7 +2545,7 @@ function renderAdmin(){
   var keepSms=n==='문자'&&$('#aExtra').dataset.for==='문자'&&$('#smsForm');   // 문자 설정은 다시 그리지 않음 (폰에서 주소창이 숨겨질 때마다 다시 불러오던 문제)
   if(!keepSms){$('#aExtra').dataset.for=n;$('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';}
   if(n==='달력연결')calInit();
-  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
+  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 5분후~3시간후(등록시각 기준 — 오전 예약은 그날 12시에) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 종류를 「당일예약」으로 하고 기준을 분·시간으로 두면 바로 보내지 않고 「보낼까요?」를 먼저 묻습니다 (입실일=등록일 · 자동등록 · 겹치는 예약 없음 · 연락처 있음일 때만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
 }
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
@@ -2563,6 +2563,8 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
+      '<h4 class="cwh" style="margin-top:14px">당일예약 문자</h4><p class="note">종류 「당일예약」 문구를 기준(5분후~3시간후)으로 두면, 입실일=등록일·자동등록·겹치는 예약 없음·연락처 있음인 예약에 한해 때가 됐을 때 「보낼까요?」를 묻습니다. 오전 예약은 그날 12시에 묻습니다.</p>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="askNow">지금 확인</button></div>'+
       '<h4 class="cwh" style="margin-top:14px">바로 보내기</h4><div class="form"><div class="f"><label for="smsTo">받는 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000 (끝에 # → 두 번째 번호로)"></div>'+
         '<div class="f full"><label for="smsTx">내용</label><textarea id="smsTx" rows="3" placeholder="비우면 시험 문구를 보냅니다"></textarea></div></div>'+
         '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="smsTestBtn">보내기</button></div><div id="smsSendMsg"></div>'+
@@ -2574,6 +2576,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
+    if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
     $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim(),out=$('#smsSendMsg');if(!to){toast('받을 번호를 넣으세요');return}
       b.disabled=true;b.textContent='넣는 중…';out.innerHTML='';
       (tx?call('smsNow',to,tx):call('smsTest',to)).then(function(r){if(tx)$('#smsTx').value='';
@@ -2677,11 +2680,37 @@ function calInit(){
 
 // ───────── 문자함: 발송 폰에 온 손님 문자·전화 보기 · 답장 (관리자) ─────────
 var IBX={unread:-1,warn:0,t:null,sort:store('ibxSort')||'desc',data:null};   // 문자함 보는 순서 (최신순/오래된순)
+// ── 당일예약 문자: 때가 되면 '보낼까요?' 묻고 보류·수정·발송 ──
+var ASK={on:false,quiet:0};
+function askTick(force){
+  if(ROLE||!store('pin')||ASK.on||DEMO)return;
+  if(!force&&(Date.now()<ASK.quiet||$('#modalRoot').innerHTML))return;   // 다른 창이 열려 있으면 다음에
+  call('smsAsk').then(function(r){var list=(r&&r.items)||[];
+    if(!list.length){if(force)toast('보낼 당일예약 문자가 없습니다');return}
+    if($('#modalRoot').innerHTML)return;askShow(list[0],list.length)}).catch(function(e){if(force)toast(errText(e))});
+}
+function askShow(it,n){
+  ASK.on=true;
+  modal('<h3>당일예약 문자를 보낼까요?</h3>'+
+    '<p class="note">'+esc(it.hotel)+' '+esc(it.room)+'호 · '+esc(it.name||'(이름 없음)')+' · '+esc(it.to)+'<br>보낼 때 '+esc(it.due)+(n>1?' · 기다리는 문자 '+n+'건':'')+'</p>'+
+    '<div class="f full"><label for="askTx">보낼 문구 — 여기서 고쳐 바로 보낼 수 있습니다</label><textarea id="askTx" rows="8">'+esc(it.text)+'</textarea></div>'+
+    '<p class="note err" id="askMsg"></p>'+
+    '<div class="actions"><button class="btn" type="button" id="askLater">나중에</button><button class="btn warn" type="button" id="askHold">보류 (보내지 않음)</button><button class="btn pri" type="button" id="askSend">발송</button></div>',true);
+  var done=function(){ASK.on=false;closeModal()};
+  $('#askLater').onclick=function(){ASK.quiet=Date.now()+10*60000;done()};   // 10분 뒤에 다시 물음
+  var go=function(act){var b=$('#askSend'),h=$('#askHold');b.disabled=h.disabled=true;$('#askMsg').textContent='';
+    call('smsAskDo',it.id,act,act==='send'?$('#askTx').value:'').then(function(r){
+      toast(act==='hold'?'보류했습니다 (보내지 않음)':'문자를 '+((r&&r.result)||'발송')+'했습니다');done();setTimeout(function(){askTick()},600)})
+      .catch(function(e){b.disabled=h.disabled=false;$('#askMsg').textContent=errText(e)})};
+  $('#askSend').onclick=function(){go('send')};
+  $('#askHold').onclick=function(){var h=this;if(h.dataset.ok!=='1'){h.dataset.ok='1';h.textContent='이 문자는 보내지 않습니다 (한 번 더)';return}go('hold')};
+}
 function inboxInit(){var b=$('#inboxBtn');b.hidden=false;b.onclick=function(){if(window.Notification&&Notification.permission==='default')try{Notification.requestPermission()}catch(e){}inboxOpen()};
   var tick=function(){if(ROLE||!store('pin'))return;call('smsInbox',{count:true}).then(function(r){var n=r&&r.unread||0,w=r&&r.warn||0,bd=$('#inboxN');bd.hidden=!n;bd.textContent=n;bd.classList.toggle('warnbd',!!w);
       if(IBX.unread>=0&&n>IBX.unread)inboxNotify(n-IBX.unread,w>IBX.warn?w-IBX.warn:0);IBX.unread=n;IBX.warn=w}).catch(function(){})};
-  tick();clearInterval(IBX.t);IBX.t=setInterval(tick,60000);   // 1분마다 새 문의 확인 (이 화면이 열려 있는 동안)
-  if(!IBX.vis){IBX.vis=1;document.addEventListener('visibilitychange',function(){if(!document.hidden&&IBX.tick)IBX.tick()})}IBX.tick=tick}
+  var tick2=function(){tick();askTick()};
+  tick2();clearInterval(IBX.t);IBX.t=setInterval(tick2,60000);   // 1분마다 새 문의·당일예약 문자 확인 (이 화면이 열려 있는 동안)
+  if(!IBX.vis){IBX.vis=1;document.addEventListener('visibilitychange',function(){if(!document.hidden&&IBX.tick)IBX.tick()})}IBX.tick=tick2}
 function inboxNotify(k,w){var msg=w?'자동등록 실패 '+w+'건 — 문자함에서 확인하세요':'새 문의 '+k+'건이 왔습니다';toast((w?'⚠ ':'✉ ')+msg);
   try{if(window.Notification&&Notification.permission==='granted'){if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(function(rg){rg.showNotification('객실관리 문자함',{body:msg,tag:'inbox'})}).catch(function(){new Notification('객실관리 문자함',{body:msg})});else new Notification('객실관리 문자함',{body:msg})}}catch(e){}}
 function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty">불러오는 중…</div></div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
