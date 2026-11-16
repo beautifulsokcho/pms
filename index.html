@@ -453,7 +453,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2111,6 +2111,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
     var owner=a[cut-1]?a[cut-1][0]:'',acct=!/\(/.test(String(owner||''))?'':String(owner||'').replace(/^\s*\d+\s*호\s*\(\s*/,'').replace(/\)\s*$/,'').trim();   // 시트 45행 '2001호(은행 예금주-계좌명 계좌번호)' → 정산 요약 아래 '입금 계좌'
     var bot=a.slice(cut+1).filter(function(r){return r.some(function(c){return c!==''})});
     var subR=bot.find(function(r){return /소계/.test(r[0])})||[],ownSum=subR[13]&&Number(String(subR[13]).replace(/[^\d.-]/g,''))?subR[13]:'';
+    if(/마리나베이/.test(String(p.hotel||'')))ownSum='';   // 마리나베이는 조합 계정으로 받으므로 정산서에 따로 보여 주지 않음
     var ownFee=!rows('객실').some(function(r){return r.v[1]===p.hotel&&String(r.v[2])===String(p.room)&&String(r.v[26]||'').trim().toUpperCase()==='Y'});   // 객실 AA열 Y = 본인계정 대행수수료 제외
     var inC=false;   // 비품/소모품 등(부가세 미공제, C) 칸은 금액을 직접 고칠 수 있음
     var t1='<table>'+top.slice(1).map(function(r){var a0=String(r[0]).replace(/\n/g,' '),b=r[1],c=r[2];
@@ -2127,7 +2128,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
     // 일자별 표: 일자·인원·일수 → 플랫폼별 금액 → 추가이불 등·청소비·합계 → 비고 (시트 열: A B C | H~L | D E F | M)
     var hd=bot[0]||[],plats=[7,8,9,10,11].filter(function(i){return hd[i]}),nz=function(c){return c!==''&&c!=null&&c!=='-'&&Number(String(c).replace(/[^\d.-]/g,''))!==0};
     plats=plats.filter(function(i){return bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[i])})});   // 금액이 없는 플랫폼 칸은 빼서 표 폭을 줄임
-    var ownOn=!!hd[13]&&bot.slice(1).some(function(r){return nz(r[13])}),idx=[0,1,2].concat(plats,bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[3])})?[3]:[],[4,5,12],ownOn?[13]:[]);   // 본인계정 입금액은 비고 뒤 (있을 때만)
+    var ownOn=!/마리나베이/.test(String(p.hotel||''))&&!!hd[13]&&bot.slice(1).some(function(r){return nz(r[13])}),idx=[0,1,2].concat(plats,bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[3])})?[3]:[],[4,5,12],ownOn?[13]:[]);   // 본인계정 입금액은 비고 뒤 (있을 때만)
     var t2='<table class="daily"><tr>'+idx.map(function(i){return '<th>'+esc(String(hd[i]).replace(/\n/g,' '))+'</th>'}).join('')+'</tr>'+
       bot.slice(1).map(function(r){
         if(/발행/.test(r[0])){var sl=esc(r[7])+' '+esc(r[9]),h='<tr class="sum"><td colspan="3">'+esc(r[0])+(plats.length?'':' <span class="note">'+sl+'</span>')+'</td>'+(plats.length?'<td class="n" colspan="'+plats.length+'">'+sl+'</td>':'');
