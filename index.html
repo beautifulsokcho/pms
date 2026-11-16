@@ -92,6 +92,8 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
 .rbar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rbar .b1 b{font-weight:700}
 @media (max-width:600px){.cd{min-height:84px;padding:3px}.rbar{font-size:10px;padding:2px 4px}.rbar .b2{font-size:9.5px}.calstats{font-size:12px}}.sechead{grid-column:1/-1;margin:14px 0 2px;font-weight:700;color:var(--warn)}.sechead span{font-weight:400;font-size:12px;color:var(--muted,#888);margin-left:6px}.unset{color:var(--warn)}.restable tr.secrow td{background:var(--warn-soft);color:var(--warn);font-weight:700}.atag{font-weight:400;color:var(--warn);font-size:12px}.linkbtn{background:none;border:0;padding:0 2px;color:var(--accent);text-decoration:underline;font-size:12px;cursor:pointer}.f.auto input.man{border-color:var(--warn)}.f.auto label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mpick{display:flex;gap:4px;align-items:stretch;min-width:0}.mpick .btn{padding:0 10px;min-width:38px;flex:0 0 auto}.mpick select{flex:1 1 auto;min-width:0;width:auto}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:12px}
+.barline{margin-bottom:8px}.barline+.barline{margin-bottom:12px}
+@media (min-width:900px){.barline{flex-wrap:nowrap}.barline .f{min-width:0}.barline select,.barline input{min-width:0;width:100%}.barline .mpick .btn{flex:0 0 auto;padding-left:8px;padding-right:8px}.barline .mpick{width:100%}.barline .mpick>*:nth-child(2){flex:1 1 auto;min-width:0}}
 .f{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1 1 130px}
 .f.s{flex:0 1 100px}.rpick{display:flex;gap:4px;align-items:stretch}.rpick>*{margin:0}.rpick input{flex:1 1 70px;min-width:0}.rpick select{flex:0 0 92px;min-width:0}.f.w{flex:2 1 200px}
 .f label{font-size:11.5px;color:var(--muted);letter-spacing:.02em}
@@ -343,7 +345,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f s"><label for="recRange">범위</label><select id="recRange"><option value="day">고른 날짜</option><option value="all">전체 (최근 200건)</option></select></div>
-      <div class="f s"><label for="recCx">취소</label><select id="recCx"><option value="in">취소 포함</option><option value="">취소 뺀 예약</option><option value="only">취소만</option></select></div>
+      <div class="f s"><label for="recCx">취소</label><select id="recCx"><option value="in">취소 포함</option><option value="">취소 제외</option><option value="only">취소만</option></select></div>
       <div class="f s"><label for="recView">보기</label><select id="recView"><option value="card">카드형</option><option value="table">목록형</option></select></div>
     </div>
     <div class="list" id="recentList"></div>
@@ -357,19 +359,21 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <p>호실·날짜·고객으로 찾고, 카드나 목록의 줄을 누르면 바로 수정합니다.</p>
     </div>
     <div id="resStatus" class="rstatus"></div>
-    <div class="bar">
+    <div class="bar barline">
       <div class="f"><label for="qHotel">호텔</label><select id="qHotel"></select></div>
-      <div class="f" style="flex:0 1 210px;min-width:190px"><label for="qRoom">호실</label><div class="rpick"><input id="qRoom" inputmode="numeric" placeholder="예: 2001"><select id="qRoomSel" aria-label="호실 선택"></select></div></div>
-      <div class="f"><label for="qName">고객명·연락처·예약번호</label><input id="qName" placeholder="이름 · 전화번호 · 예약번호"></div>
-      <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
+      <div class="f" style="flex:1 1 190px;min-width:170px"><label for="qRoom">호실</label><div class="rpick"><input id="qRoom" inputmode="numeric" placeholder="예: 2001"><select id="qRoomSel" aria-label="호실 선택"></select></div></div>
+      <div class="f" style="flex:2 1 200px"><label for="qName">고객명·연락처·예약번호</label><input id="qName" placeholder="이름 · 전화번호 · 예약번호"></div>
       <div class="f mo"><label for="qMonth">검색 월</label><div class="mpick"><button class="btn" type="button" id="qPrev" aria-label="이전 달">‹</button><select id="qMonth"></select><button class="btn" type="button" id="qNext" aria-label="다음 달">›</button></div></div>
-      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="reg">등록일</option></select></div>
-      <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
-      <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
       <div class="f s"><label for="qPlat">플랫폼</label><select id="qPlat"></select></div>
       <div class="f s"><label for="qSettle">정산</label><select id="qSettle"><option value="">전체</option><option value="on">정산 대상</option><option value="un">미정산</option></select></div>
-      <div class="f s"><label for="qCx">취소</label><select id="qCx"><option value="">취소 뺀 예약</option><option value="in">취소 포함</option><option value="only">취소만</option></select></div>
-      <div class="f s"><label for="qView">보기 (호실을 고르면 달력)</label><select id="qView"><option value="card">카드</option><option value="table">목록</option></select></div>
+      <div class="f s"><label for="qCx">취소</label><select id="qCx"><option value="">취소 제외</option><option value="in">취소 포함</option><option value="only">취소만</option></select></div>
+    </div>
+    <div class="bar barline">
+      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="reg">등록일</option></select></div>
+      <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
+      <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
+      <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
+      <div class="f s"><label for="qView">보기</label><select id="qView"><option value="card">카드</option><option value="table">목록</option></select></div>
       <div class="f" style="flex:0 1 150px;min-width:140px"><label for="qSort">정렬</label><select id="qSort"><option value="desc">입실일 내림차순</option><option value="asc">입실일 오름차순</option><option value="regd">등록 최신순</option><option value="rega">등록 오래된순</option><option value="room">호실 순서</option><option value="roomd">호실 역순</option></select></div>
     </div>
     <div class="count" id="resCount"></div>
@@ -474,7 +478,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
