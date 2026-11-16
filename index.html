@@ -369,7 +369,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f s"><label for="qCx">취소</label><select id="qCx"><option value="">취소 제외</option><option value="in">취소 포함</option><option value="only">취소만</option></select></div>
     </div>
     <div class="bar barline">
-      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="reg">등록일</option></select></div>
+      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="co">퇴실일</option><option value="reg">등록일</option></select></div>
       <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
       <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
       <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
@@ -478,7 +478,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1079,7 +1079,7 @@ function renderRes(){
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
   var h=$('#qHotel').value,rm=$('#qRoom').value.trim(),q=$('#qName').value.trim(),f=$('#qFrom').value,t=$('#qTo').value,pl=$('#qPlat').value,cx=$('#qCx').value,st=$('#qSettle').value;
-  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):String(v[R.ci])};   // 기간 기준: 입실일 또는 등록일(자동등록 포함)
+  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):bs==='co'?String(v[R.co]):String(v[R.ci])};   // 기간 기준: 입실일 · 퇴실일 · 등록일(자동등록 포함)
   var list=rows('예약').filter(function(r){var v=r.v;
     if(h&&v[R.hotel]!==h)return false;
     if(rm&&String(v[R.room]).indexOf(rm)<0)return false;
@@ -1111,7 +1111,7 @@ function renderRes(){
     main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="11">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
 ['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCx','qView','qSort','qBase'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
-function qBaseLbl(){var reg=$('#qBase').value==='reg',n=reg?'등록일':'입실일';
+function qBaseLbl(){var b=$('#qBase').value,n=b==='reg'?'등록일':b==='co'?'퇴실일':'입실일';
   $('#qFromL').textContent=n+' 시작';$('#qToL').textContent=n+' 끝';$('#qDayL').textContent='날짜 ('+n+')'}
 // 예약검색 호텔은 고른 것을 기억(다음에도 그 호텔), 호실은 입력칸 + 목록에서 고르기
 function fillQRooms(){var h=$('#qHotel').value,hs=h?[h]:hotels(true),cur=$('#qRoom').value.trim(),o='<option value="">목록</option>';
@@ -2165,7 +2165,8 @@ var demoNote=function(what){return '<div class="empty">예시 데이터에서는
 function fillSettle(){
   $('#sHotel').innerHTML=opts(hotels(true),$('#sHotel').value||defHotel());
   var fill=function(){$('#sRoom').innerHTML=opts(roomsOf($('#sHotel').value,true).filter(function(x){return !isSubRoom(x)}),$('#sRoom').value)};fill();   // 대체객실은 정산 제외
-  if(OWNER){$('#sHotel').disabled=OWN.hotels.length<2;$('#sRoom').disabled=OWN.rooms.length<2;$('#sKind').value='room';sPerShow()}
+  if(OWNER){$('#sHotel').disabled=OWN.hotels.length<2;$('#sRoom').disabled=OWN.rooms.length<2;$('#sKind').value='room'}
+  sPerShow();
   $('#sRPrev').disabled=$('#sRNext').disabled=$('#sRoom').disabled;
   $('#sHotel').onchange=function(){setHotel(this.value);fill();sRoomGo()};
 }
@@ -2175,8 +2176,8 @@ $('#sRoom').onchange=function(){if($('#sKind').value==='room'&&this.value&&$('#s
 ['sRPrev','sRNext'].forEach(function(id,i){$('#'+id).onclick=function(){var sel=$('#sRoom');if(sel.disabled)return;
   var os=[].filter.call(sel.options,function(o){return o.value&&!o.disabled}),k=os.findIndex(function(o){return o.value===sel.value});if(!os.length)return;
   k=k<0?0:(k+(i?1:-1)+os.length)%os.length;sel.value=os[k].value;if($('#sKind').value==='room'&&$('#sMonth').value)$('#sGo').click()}});
-function sPerShow(){var room=$('#sKind').value==='room',per=room?'month':$('#sPer').value;
-  $('#sRoomF').style.display=room?'':'none';$('#sPerF').style.display=room?'none':'';
+function sPerShow(){var room=$('#sKind').value==='room',per=$('#sPer').value;
+  $('#sRoomF').style.display=room?'':'none';$('#sPerF').style.display='';
   $('#sMonthF').style.display=per==='month'?'':'none';$('#sDayF').style.display=per==='day'?'':'none';
   $('#sFromF').style.display=$('#sToF').style.display=per==='range'?'':'none';
   var m=$('#sMonth').value;if(per==='day'&&!$('#sDay').value)$('#sDay').value=ymd(new Date());
@@ -2184,7 +2185,7 @@ function sPerShow(){var room=$('#sKind').value==='room',per=room?'month':$('#sPe
 ['sMPrev','sMNext'].forEach(function(id,i){$('#'+id).onclick=function(){var m=$('#sMonth').value||ymd(new Date()).slice(0,7),y=+m.slice(0,4),mo=+m.slice(5,7)+(i?1:-1);   // 정산월 ‹ › 이동, 정산서를 보고 있었으면 바로 다시 보기
   if(mo<1){mo=12;y--}if(mo>12){mo=1;y++}$('#sMonth').value=y+'-'+String(mo).padStart(2,'0');if($('#sOut').innerHTML.trim()||$('#sAll').innerHTML.trim())$('#sGo').click()}});
 $('#sKind').onchange=function(){sPerShow();$('#sOut').innerHTML='';$('#sManual').innerHTML='';$('#sAll').innerHTML=''};
-$('#sPer').onchange=function(){sPerShow();$('#sAll').innerHTML=''};
+$('#sPer').onchange=function(){sPerShow();$('#sOut').innerHTML='';$('#sManual').innerHTML='';$('#sAll').innerHTML=''};
 function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 결과 a → 달력·요약·일자별 3쪽)
     var cut=a.findIndex(function(r){return String(r[0]).indexOf('입실일 기준')>=0});
     var top=a.slice(0,cut-1).filter(function(r){return r.slice(0,3).some(function(c){return c!==''})});
@@ -2217,7 +2218,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
           return '<tr'+(cls?' class="'+cls+'"':'')+'>'+x.map(function(c,j){return '<td'+(/비고/.test(String(hd[idx[j]]))?' class="memo"':isNum(c)?' class="n"':'')+'>'+esc(c)+'</td>'}).join('')+'</tr>'}).join('')+'</table>';   // 비고는 줄바꿈해서 다 보이게
     // 1쪽 달력(가로) · 2쪽 정산 요약(지급합계까지) · 3쪽 일자별 정산내역(세금계산서 발행액까지)
     var calList=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===p.hotel&&String(v[R.room])===String(p.room)&&!v[R.cancel]&&v[R.excl]!=='Y'&&v[R.ci]&&v[R.co]});   // 미정산 예약은 정산서 달력에서 감춤
-    var ttl=esc(top[0][0]);
+    var ttl=esc(top[0][0])+(p.from?' · '+(p.from===p.to?p.from.replace(/-/g,'.'):p.from.replace(/-/g,'.')+' ~ '+p.to.replace(/-/g,'.'))+' 기간':'');
     var sAct=(LIVE||DEMO?'<div class="actions no-print stop">'+(LIVE?'<button class="btn" type="button" onclick="window.__print(\'sPrint\')">인쇄</button>':'')+'<button class="btn" type="button" id="sSnap">그림으로 저장</button></div>':'');   // 인쇄·그림 저장 버튼은 위에
     return '<div class="report pages" id="'+(pid||'sPrint')+'"><div class="shead2"><h3 class="pgt0">'+ttl+'</h3>'+sAct+'</div>'+
       '<div class="pg pg1"><h3 class="pgt">'+ttl+' · 객실 달력</h3>'+(OWNER?calHtml(p.hotel,p.room,p.month,calList):'<div class="scrcal">'+calHtml(p.hotel,p.room,p.month,calList)+'</div><div class="prtcal">'+(function(){CAL_OWNER=true;try{return calHtml(p.hotel,p.room,p.month,calList)}finally{CAL_OWNER=false}})()+'</div>')+'</div>'+
@@ -2229,7 +2230,13 @@ $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수
 $('#sGo').onclick=function(){
   if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
   $('#sAll').innerHTML='';
-  var p={hotel:$('#sHotel').value,room:$('#sRoom').value,month:$('#sMonth').value};
+  var per=$('#sPer').value,p={hotel:$('#sHotel').value,room:$('#sRoom').value,month:$('#sMonth').value};
+  if(per==='day'){var dd=$('#sDay').value;if(!dd){toast('날짜를 고르세요');return}p.from=p.to=dd;p.month=dd.slice(0,7)}
+  else if(per==='range'){var ff=$('#sFrom').value,tt=$('#sTo').value;
+    if(!ff||!tt){toast('시작일과 종료일을 고르세요');return}
+    if(tt<ff){toast('종료일이 시작일보다 빠릅니다');return}
+    if(ff.slice(0,7)!==tt.slice(0,7)){toast('객실별 정산서는 한 달 안의 기간만 됩니다 (달을 넘기려면 통합정산서를 쓰세요)');return}
+    p.from=ff;p.to=tt;p.month=ff.slice(0,7)}
   if(!p.room||!p.month){toast('호실과 정산월을 고르세요');return}
   $('#sOut').innerHTML='<div class="empty">계산 중…</div>';
   renderManual(p);
@@ -2238,7 +2245,7 @@ $('#sGo').onclick=function(){
     $('#sOut').innerHTML=settleHtml(p,a);
     $('#sOut').querySelectorAll('.rbar[data-r]').forEach(function(b){b.addEventListener('click',openCard)});
     fitTables();
-    if($('#sSnap'))$('#sSnap').onclick=function(){snapReport('sPrint',p.hotel+'_'+p.room+'호_'+p.month)};
+    if($('#sSnap'))$('#sSnap').onclick=function(){snapReport('sPrint',p.hotel+'_'+p.room+'호_'+(p.from?p.from+'~'+p.to:p.month))};
     $('#sOut').querySelectorAll('.cedit').forEach(function(inp){inp.addEventListener('change',function(){cEdit(p,this)});inp.addEventListener('keydown',function(e){if(e.key==='Enter')this.blur()})});
   }).catch(function(e){$('#sOut').innerHTML='<div class="empty err">불러오지 못했습니다: '+esc(e&&e.message||e)+'</div>'});
 };

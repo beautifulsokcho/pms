@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 75) return;
+  if (ver >= 76) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1271,6 +1271,13 @@ function ensureSchema_() {
     }
   }
   props.setProperty('SCHEMA', '75');
+  }
+  if (ver < 76) {   // v76: 입실일 호실 점검 트리거 — 매일 아침 7시, 비고 호실 ≠ 배정 호실이면 문자함으로 알림
+  try {
+    if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'roomTick'; }))
+      ScriptApp.newTrigger('roomTick').timeBased().atHour(7).everyDays(1).create();
+  } catch (e) { }
+  props.setProperty('SCHEMA', '76');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -2389,9 +2396,22 @@ function report(pin, kind, params) {
 }
 function reportRun_(kind, params) {
   var def = REPORTS[kind];
+  var per = kind === '객실정산서' && params && params.from && params.to;   // 기간별 객실정산서 (통합정산서와 같은 방식)
   var lock = LockService.getScriptLock(); lock.waitLock(60000);
+  var sh = SpreadsheetApp.getActive().getSheetByName(def.sheet), fH = '', fI = '';
   try {
-    var sh = SpreadsheetApp.getActive().getSheetByName(def.sheet);
+    if (per) {
+      fH = sh.getRange('H1').getFormula(); fI = sh.getRange('I1').getFormula();
+      sh.getRange('B1').setValue(String(params.hotel));
+      sh.getRange('D1').setNumberFormat('@').setValue(String(params.room));
+      sh.getRange('F1').setNumberFormat('@').setValue(String(params.from).slice(0, 7));
+      sh.getRange('H1').setValue(parseDate_(params.from)); sh.getRange('I1').setValue(parseDate_(params.to));
+      sh.getRange('G1').setValue('기간');   // 수동 항목(정산입력) 월 조건을 끄고, 아래에서 일자로 더함
+      SpreadsheetApp.flush();
+      var g = sh.getRange(def.range).getDisplayValues();
+      var man = manualByRoom_(String(params.from), String(params.to))[params.hotel + '|' + params.room] || [];
+      return settleAddManual_(g, man, String(params.hotel));
+    }
     Object.keys(def.set).forEach(function (k) {
       if (params[k] === undefined) return;
       var c = sh.getRange(def.set[k]);
@@ -2400,7 +2420,40 @@ function reportRun_(kind, params) {
     });
     SpreadsheetApp.flush();
     return sh.getRange(def.range).getDisplayValues();
-  } finally { lock.releaseLock(); }
+  } finally {
+    if (per) { sh.getRange('G1').setValue(''); if (fH) sh.getRange('H1').setFormula(fH); if (fI) sh.getRange('I1').setFormula(fI); SpreadsheetApp.flush(); }
+    lock.releaseLock();
+  }
+}
+function hotelBill_(hotel) {   // 청구형 호텔(부가세·지급 부호가 반대)인지
+  var ht = SpreadsheetApp.getActive().getSheetByName('호텔'); if (!ht || ht.getLastRow() < 2) return false;
+  var hv = ht.getRange(2, 1, ht.getLastRow() - 1, Math.min(ht.getMaxColumns(), 20)).getValues().find(function (x) { return x[1] === hotel; });
+  return !!(hv && String(hv[19] || '').trim().toUpperCase() === 'Y');
+}
+// 기간별 객실정산서: 일자가 기간 안인 수동 항목(정산입력)을 표에 더하고 소계·합계·부가세·지급액을 그만큼 옮김
+function settleAddManual_(g, list, hotel) {
+  if (!list || !list.length) return g;
+  var N = function (x) { return Number(String(x).replace(/[^\d.-]/g, '')) || 0; };
+  var F = function (n) { n = Math.round(n); return (n < 0 ? '-' : '') + Math.abs(n).toLocaleString('en-US'); };
+  var R = function (row) { return g[row - 3] || []; };
+  var dB = 0, dC = 0;
+  list.forEach(function (m) {
+    var kind = m[0], name = String(m[1]), amt = Number(m[2]) || 0;
+    var s = kind === 'B' ? 14 : 25, e = kind === 'B' ? 23 : 39, free = -1, done = false, r;
+    for (r = s; r <= e && !done; r++) {
+      var row = R(r), nm = String(row[1] || '').replace(/\s*\([\d.]+%\)\s*$/, '').trim();
+      if (nm === name) { row[2] = F(N(row[2]) + amt); done = true; }
+      else if (free < 0 && !nm) free = r;
+    }
+    if (!done) { if (free < 0) return; R(free)[1] = name; R(free)[2] = F(amt); }
+    if (kind === 'B') dB += amt; else dC += amt;
+  });
+  if (!dB && !dC) return g;
+  var sgn = hotelBill_(hotel) ? 1 : -1, add = function (row, d) { var x = R(row); if (x.length > 2) x[2] = F(N(x[2]) + d); };
+  add(24, dB); add(40, dC); add(41, dB + dC);
+  add(42, sgn * dB);            // 부가세 발행금액: 일반 = 매출 − B소계 / 청구 = B소계 − 매출
+  add(43, sgn * (dB + dC));     // 지급(청구)합계
+  return g;
 }
 
 // ── 에어비앤비 달력(iCal) 가져오기 ─────────────────────────────
@@ -2753,6 +2806,42 @@ function notiWarn_(it, r, at) {
   inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(at || Date.now()), tz_(), 'yyyy-MM-dd HH:mm:ss'),
     '알림', NOTI_WARN_NUM_, lines.join('\n'), r.hotel || '', String(r.room || it.room || ''), it.name || '', '', '자동등록 경고']);
 }
+// ── 입실일 점검: 비고에 적힌 호실과 실제 배정된 호실이 다르면 문자함으로 알림 (손님에게 잘못 안내하는 일을 막음)
+var ROOM_RE_ = /(?:^|[^\d])(\d{3,4})\s*호/g;
+function noteRooms_(s) {   // 비고에서 호실로 보이는 숫자들 (객실ID·예약번호 같은 긴 숫자는 뺌)
+  var t = String(s == null ? '' : s).replace(/\(\s*객실(?:타입)?\s*ID[^)]*\)/g, ' ').replace(/\d{6,}/g, ' ');
+  var a = [], m; ROOM_RE_.lastIndex = 0;
+  while ((m = ROOM_RE_.exec(t))) if (a.indexOf(m[1]) < 0) a.push(m[1]);
+  return a;
+}
+function roomTick() {   // 매일 아침 트리거: 오늘 입실하는 예약 중 비고 호실 ≠ 배정 호실인 것
+  try { ensureSchema_(); } catch (e) { }
+  roomChk_(Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'));
+}
+function roomChk_(day) {
+  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'); if (!rv || rv.getLastRow() < 2) return 0;
+  var ib = inboxSheet_(), lr = ib.getLastRow(), seen = {};
+  if (lr > 1) ib.getRange(Math.max(2, lr - 499), 10, Math.min(lr - 1, 500), 1).getValues().forEach(function (x) { if (x[0]) seen[String(x[0])] = 1; });
+  var vals = rv.getRange(2, 1, rv.getLastRow() - 1, Math.min(rv.getMaxColumns(), 51)).getValues(), n = 0;
+  vals.forEach(function (v) {
+    if (v[23] || fmt_(v[6], false) !== day) return;                 // 취소됐거나 오늘 입실이 아니면 건너뜀
+    var want = String(v[2] == null ? '' : v[2]).trim(); if (!want) return;
+    var got = noteRooms_(v[21]); if (!got.length || got.indexOf(want) >= 0) return;   // 비고에 호실이 없거나 같으면 괜찮음
+    var mark = '호실확인:' + String(v[0] || (v[1] + v[2] + day));
+    if (seen[mark]) return;
+    var d = function (x) { x = fmt_(x, false); return x ? (+x.slice(5, 7)) + '/' + (+x.slice(8, 10)) : ''; };
+    var txt = ['[고객문자안내 주의] 예약호실과 배정호실이 다릅니다',
+      String(v[1] || '') + ' ' + want + '호 (오늘 입실) · ' + d(v[6]) + '~' + d(v[7]) + ' ' + (v[8] || '') + '박 ' + (v[9] || '') + '명',
+      '비고에 적힌 호실: ' + got.join('호, ') + '호',
+      (String(v[3] || '') || '이름 없음') + (v[4] ? ' ' + v[4] : '') + ' · ' + (v[10] || '') + (v[50] ? ' · 예약번호 ' + v[50] : ''),
+      '비고: ' + String(v[21] || '').slice(0, 120),
+      '→ 손님에게 안내할 호실을 확인하세요. 호실을 옮겼다면 비고를 고쳐 주세요.'].join('\n');
+    ib.appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+      '알림', NOTI_WARN_NUM_, txt, v[1] || '', want, v[3] || '', '', mark]);
+    n++;
+  });
+  return n;
+}
 function notiLog_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('알림처리');
   if (!sh) { sh = ss.insertSheet('알림처리'); sh.getRange(1, 1, 1, 10).setValues([['알림키', '처리 시각', '알림 시각', '종류', '결과', '호텔', '호실', '고객', '예약번호', '알림 글']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:A').setNumberFormat('@'); }
@@ -2925,7 +3014,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.2ca97811';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.80a865c5';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
