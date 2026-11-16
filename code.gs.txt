@@ -11,7 +11,7 @@ var SHEETS = {
   '객실':     { cols: 35, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
-  '예약':     { cols: 49, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49], dates: [6,7,8,24,49], texts: [3,43] },
+  '예약':     { cols: 50, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50], dates: [6,7,8,24,49], texts: [3,43,50] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
   '수건규칙': { cols: 9,  key: 1, edit: [1,2,3,4,5,6,7,8,9] },
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 73) return;
+  if (ver >= 74) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1242,6 +1242,15 @@ function ensureSchema_() {
   var st73 = ss.getSheetByName('객실정산서');
   if (st73) st73.getRange('C25:C39').setFormula(stCFormula_());
   props.setProperty('SCHEMA', '73');
+  }
+  if (ver < 74) {   // v74: 예약 AX열(50) '등록시각' — 새 예약(손입력·알림·메일 자동등록)이 들어온 시각을 남겨 등록일·등록순으로 찾아볼 수 있게
+  var rv74 = ss.getSheetByName('예약');
+  if (rv74) {
+    if (rv74.getMaxColumns() < 50) rv74.insertColumnsAfter(rv74.getMaxColumns(), 50 - rv74.getMaxColumns());
+    if (String(rv74.getRange(1, 50).getValue() || '') === '') rv74.getRange(1, 50).setValue('등록시각');
+    if (rv74.getLastRow() > 1) rv74.getRange(2, 50, rv74.getLastRow() - 1, 1).setNumberFormat('@');
+  }
+  props.setProperty('SCHEMA', '74');
   }
 }
 function hotelNames_() {
@@ -2238,6 +2247,7 @@ function saveRowsRun_(name, items) {
   var lock = LockService.getScriptLock(); lock.waitLock(60000);   // 통합정산서 계산 등 다른 작업이 끝날 때까지 최대 1분 기다림
   try {
     var sh = SpreadsheetApp.getActive().getSheetByName(name);
+    if (sh.getMaxColumns() < def.cols) sh.insertColumnsAfter(sh.getMaxColumns(), def.cols - sh.getMaxColumns());   // 열이 모자라면 먼저 늘림 (마이그레이션 전에 자동등록이 들어오는 경우)
     var last = Math.max(sh.getLastRow(), 2);
     var keyVals = sh.getRange(1, def.key, last, 1).getValues(), allVals = sh.getRange(1, 1, last, def.cols).getValues();
     // 새 행은 '완전히 빈 행'에만 씀 — 입실일만 빈 행(예약ID·예약코드 등이 남은 행)을 덮어쓰지 않게
@@ -2264,6 +2274,10 @@ function saveRowsRun_(name, items) {
         }
         cell.setValue(val === null || val === undefined ? '' : val);
       });
+      // 새 예약(손입력·붙여넣기·알림·메일 자동등록)은 들어온 시각을 50열에 남김 — 등록일·등록순으로 찾아볼 때 씀
+      if (name === '예약' && !it.r && it.v[50] === undefined && sh.getMaxColumns() >= 50 && !sh.getRange(r, 50).getValue()) {
+        var rc = sh.getRange(r, 50); rc.setNumberFormat('@'); rc.setValue(Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'));
+      }
     });
     SpreadsheetApp.flush();
     if (name === '달력연결') sortCal_(sh);
@@ -2841,7 +2855,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-16.24cdcf22';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-16.ba0ffbba';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

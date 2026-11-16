@@ -97,6 +97,19 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
 .chk input{width:auto}
 .count{font-size:13px;color:var(--muted);margin:4px 2px 8px}
 .list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.list.two{grid-template-columns:repeat(2,minmax(0,1fr))}   /* 카드형 2칸 (폰에서도 가로 2개) */
+.list.two .card{padding:9px 10px;font-size:13px;gap:3px}
+.list.two .card .l1{gap:3px}.list.two .card .chip{padding:1px 5px;font-size:11px}
+.list.two .card .meta{display:grid;gap:2px}.list.two .card .meta span{white-space:normal;word-break:keep-all;overflow-wrap:break-word}
+.card .regat{color:var(--muted);font-size:12px}
+.list.lines{display:block}
+.rline{display:grid;gap:2px;width:100%;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-top:none;padding:8px 10px;font-size:13.5px}
+.rline:first-child{border-top:1px solid var(--line);border-radius:var(--r) var(--r) 0 0}
+.rline:last-child{border-radius:0 0 var(--r) var(--r)}
+.rline .a{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.rline .a b{font-size:15px}.rline .b{color:var(--muted);display:flex;flex-wrap:wrap;gap:8px}
+.rline.cx{opacity:.6}.rline.cx .a b{text-decoration:line-through}
+.recbar{margin:0 0 8px}.recbar #recDate{min-width:140px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;cursor:pointer;display:grid;gap:4px;text-align:left;width:100%}
 .card:hover{border-color:var(--accent)}
 .card .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -316,6 +329,11 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     </div>
     <div class="newbox" id="newBox"></div>
     <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
+    <div class="bar recbar" id="recBar">
+      <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
+      <div class="f s"><label for="recRange">범위</label><select id="recRange"><option value="day">고른 날짜</option><option value="all">전체 (최근 200건)</option></select></div>
+      <div class="f s"><label for="recView">보기</label><select id="recView"><option value="card">카드형</option><option value="table">목록형</option></select></div>
+    </div>
     <div class="list" id="recentList"></div>
   </section>
 
@@ -331,15 +349,16 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f"><label for="qHotel">호텔</label><select id="qHotel"></select></div>
       <div class="f" style="flex:0 1 210px;min-width:190px"><label for="qRoom">호실</label><div class="rpick"><input id="qRoom" inputmode="numeric" placeholder="예: 2001"><select id="qRoomSel" aria-label="호실 선택"></select></div></div>
       <div class="f"><label for="qName">고객명·연락처</label><input id="qName" placeholder="이름 또는 번호"></div>
-      <div class="f mo"><label for="qToday">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
+      <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="qMonth">검색 월</label><div class="mpick"><button class="btn" type="button" id="qPrev" aria-label="이전 달">‹</button><select id="qMonth"></select><button class="btn" type="button" id="qNext" aria-label="다음 달">›</button></div></div>
-      <div class="f"><label for="qFrom">입실일 시작</label><input id="qFrom" type="date"></div>
-      <div class="f"><label for="qTo">입실일 끝</label><input id="qTo" type="date"></div>
+      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="reg">등록일</option></select></div>
+      <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
+      <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
       <div class="f s"><label for="qPlat">플랫폼</label><select id="qPlat"></select></div>
       <div class="f s"><label for="qSettle">정산</label><select id="qSettle"><option value="">전체</option><option value="on">정산 대상</option><option value="un">미정산</option></select></div>
       <label class="chk"><input type="checkbox" id="qCancel"> 취소 포함</label>
       <div class="f s"><label for="qView">보기 (호실을 고르면 달력)</label><select id="qView"><option value="card">카드</option><option value="table">목록</option></select></div>
-      <div class="f" style="flex:0 1 150px;min-width:140px"><label for="qSort">정렬</label><select id="qSort"><option value="desc">입실일 내림차순</option><option value="asc">입실일 오름차순</option><option value="room">호실 순서</option><option value="roomd">호실 역순</option></select></div>
+      <div class="f" style="flex:0 1 150px;min-width:140px"><label for="qSort">정렬</label><select id="qSort"><option value="desc">입실일 내림차순</option><option value="asc">입실일 오름차순</option><option value="regd">등록 최신순</option><option value="rega">등록 오래된순</option><option value="room">호실 순서</option><option value="roomd">호실 역순</option></select></div>
     </div>
     <div class="count" id="resCount"></div>
     <div id="resBroken"></div>
@@ -443,7 +462,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -708,8 +727,12 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
+// 등록시각(예약 50열) — 예전 예약에는 없으므로 예약일로 대신함
+function regAt(v){var s=String(v[R.regAt]==null?'':v[R.regAt]).trim();if(s)return s.replace('T',' ');var b=dOnly(v[R.booked]);return b?b+' 00:00:00':''}
+function regDay(v){return regAt(v).slice(0,10)}
+function regLab(v){var s=regAt(v);if(!s)return '';var t=s.slice(11,16);return md(s.slice(0,10))+(t&&t!=='00:00'?' '+t:'')}
 
 function hotelRule(h){var r=rows('호텔').find(function(x){return x.v[1]===h});return r?{base:Number(r.v[12])||0,fee:Number(r.v[13])||0,pet:Number(r.v[14])||0}:{base:0,fee:0,pet:0}}
 function hotels(all){return rows('호텔').filter(function(r){return all||r.v[9]!=='N'}).map(function(r){return r.v[1]})}
@@ -857,13 +880,14 @@ function setMonth(ym,quiet){var sel=$('#qMonth');
 function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');   // 날짜를 직접 바꾸면 맞는 달 또는 '직접 지정'으로 표시
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
-function cardHtml(r){var v=r.v;
+function cardHtml(r,reg){var v=r.v;
   return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
       return '판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')})()+' · 청소 '+(won(v[R.cfin])||'-')+'</span></div>'+
-    (v[R.memo]?'<div class="memo">'+esc(v[R.memo])+'</div>':'')+'</button>'}
+    (v[R.memo]?'<div class="memo">'+esc(v[R.memo])+'</div>':'')+
+    (reg&&regLab(v)?'<div class="regat num">등록 '+regLab(v)+(/자동등록/.test(String(v[R.note]||''))?' 🔔':'')+'</div>':'')+'</button>'}
 function roomId(h,room){var s=String(room==null?'':room).trim();if(!s)return '';
   var hr=rows('호텔').find(function(r){return r.v[1]===h}),p=(hr&&hr.v[11])||'R';
   return p+(s.length<4?'0000'.slice(s.length):'')+s}
@@ -888,18 +912,45 @@ function renderRecent(){
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length;
   ab.hidden=!regs.length;ab.textContent='🔔 알림 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'');ab.classList.toggle('miss',!!nm);
   if(REC_MODE==='auto'&&!regs.length)REC_MODE='recent';
-  al.hidden=REC_MODE!=='auto';
+  al.hidden=REC_MODE!=='auto';$('#recBar').hidden=REC_MODE==='auto';
   if(REC_MODE==='auto'){
     $('#recentH').textContent='알림·메일 자동등록 ('+regs.length+'건)';
+    $('#recentList').className='list';
     $('#recentList').innerHTML=regs.length?regs.map(function(r){var m=autoMiss(r.v),c=cardHtml(r);
       return m.length?c.replace('<div class="dates','<div class="l1">'+m.map(function(x){return '<span class="chip miss">'+x+'</span>'}).join('')+'</div><div class="dates'):c}).join(''):'<div class="empty">자동등록된 예약이 없습니다.</div>';
     return}
-  var h=defHotel(),list=rows('예약').filter(function(r){return r.v[R.hotel]===h}).sort(function(a,b){return b.r-a.r}).slice(0,8);
-  $('#recentH').textContent=h+' 최근 입력';
-  $('#recentList').innerHTML=list.length?list.map(cardHtml).join(''):'<div class="empty">'+esc(h)+'에 입력한 예약이 아직 없습니다.</div>';
+  var h=defHotel(),all=rows('예약').filter(function(r){return r.v[R.hotel]===h});
+  var day=recDay(all),rng=$('#recRange').value,list=all.slice();
+  if(rng!=='all'&&day)list=list.filter(function(r){return regDay(r.v)===day});
+  list.sort(function(a,b){var x=regAt(a.v),y=regAt(b.v);return x<y?1:x>y?-1:b.r-a.r});   // 등록시각 최신순
+  if(rng==='all')list=list.slice(0,200);
+  $('#recentH').textContent=h+(rng==='all'?' 최근 입력':' 등록 '+(day?md(day):''))+' ('+list.length+'건)';
+  recDraw(list,rng==='all'?esc(h)+'에 입력한 예약이 아직 없습니다.':md(day)+'에 등록한 예약이 없습니다.');
 }
+function recDraw(list,emptyMsg){
+  var el=$('#recentList');
+  if(!list.length){el.className='list';el.innerHTML='<div class="empty">'+emptyMsg+'</div>';return}
+  if($('#recView').value==='table'){el.className='list lines';el.innerHTML=list.map(lineHtml).join('');return}
+  el.className='list two';el.innerHTML=list.map(function(r){return cardHtml(r,1)}).join('');
+}
+function lineHtml(r){var v=r.v;   // 목록형: 예약 1건을 두 줄로 — 아래로 계속 이어 보여 줌
+  return '<button type="button" class="rline'+(v[R.cancel]?' cx':'')+'" data-r="'+r.r+'">'+
+    '<div class="a"><b>'+esc(roomLab(v))+'</b><span class="num">'+md(v[R.ci])+' → '+md(v[R.co])+'</span><span>'+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+
+      (v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':'')+'</div>'+
+    '<div class="b"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+'</span>'+
+      (regLab(v)?'<span class="num">등록 '+regLab(v)+'</span>':'')+(/자동등록/.test(String(v[R.note]||''))?'<span>🔔 자동</span>':'')+'</div></button>'}
+// 등록일 고르기: 비어 있으면 오늘(없으면 가장 최근 등록일)로 맞춤
+function recDay(all){var d=$('#recDate').value;
+  if(!d){var t=ymd(new Date()),has=all.some(function(r){return regDay(r.v)===t});
+    if(!has){var days=all.map(function(r){return regDay(r.v)}).filter(Boolean).sort();t=days.length?days[days.length-1]:t}
+    d=t;$('#recDate').value=d}
+  return d}
 $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
 $('#recAll').onclick=function(){REC_MODE='recent';renderRecent()};
+['recDate','recRange','recView'].forEach(function(id){var v=id==='recDate'?null:store(id);if(v)$('#'+id).value=v;
+  $('#'+id).addEventListener('change',function(){if(id!=='recDate')store(id,this.value);REC_MODE='recent';renderRecent()})});
+['recPrev','recNext'].forEach(function(id,i){$('#'+id).addEventListener('click',function(){
+  $('#recDate').value=addDays($('#recDate').value||ymd(new Date()),i?1:-1);$('#recRange').value='day';store('recRange','day');REC_MODE='recent';renderRecent()})});
 // ───────── 호실 달력 보기: 예약된 밤·공실을 한눈에, 판매율·공실율 ─────────
 function calMonth(){var cur=$('#qMonth').value;return /^\d{4}-\d{2}$/.test(cur)?cur:(($('#qFrom').value||ymd(new Date())).slice(0,7))}
 function renderCal(){
@@ -1010,12 +1061,13 @@ function renderRes(){
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
   var h=$('#qHotel').value,rm=$('#qRoom').value.trim(),q=$('#qName').value.trim(),f=$('#qFrom').value,t=$('#qTo').value,pl=$('#qPlat').value,cx=$('#qCancel').checked,st=$('#qSettle').value;
+  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):String(v[R.ci])};   // 기간 기준: 입실일 또는 등록일(자동등록 포함)
   var list=rows('예약').filter(function(r){var v=r.v;
     if(h&&v[R.hotel]!==h)return false;
     if(rm&&String(v[R.room]).indexOf(rm)<0)return false;
     if(q&&(String(v[R.name])+String(v[R.tel])).indexOf(q)<0)return false;
-    if(f&&String(v[R.ci])<f)return false;          // 기간은 입실일 기준 (정산서와 같은 기준)
-    if(t&&String(v[R.ci])>t)return false;
+    if(f&&bd(v)<f)return false;          // 기간은 고른 기준(입실일/등록일)
+    if(t&&bd(v)>t)return false;
     if(st==='on'&&v[R.excl]==='Y')return false;
     if(st==='un'&&v[R.excl]!=='Y')return false;
     if(pl&&(v[R.plat]||'ABNB')!==pl)return false;
@@ -1024,6 +1076,7 @@ function renderRes(){
     return true;
   }).sort(function(a,b){var so=$('#qSort').value,ci=String(a.v[R.ci]).localeCompare(String(b.v[R.ci])),ho=String(a.v[R.hotel]).localeCompare(String(b.v[R.hotel])),rm=String(a.v[R.room]).localeCompare(String(b.v[R.room]),'ko',{numeric:true});
     if(so==='room'||so==='roomd')return ho||(so==='room'?rm:-rm)||ci;   // 호실 순서: 호텔 → 호실 → 입실일
+    if(so==='regd'||so==='rega'){var rg=regAt(a.v).localeCompare(regAt(b.v))||(a.r-b.r);return so==='rega'?rg:-rg}   // 등록시각 순 (같으면 저장된 차례)
     var d=ci||ho||rm;return so==='asc'?d:-d});
   // 미정산(정산 제외) 예약은 따로 모아 아래에 표시 — 입금 합계에서도 빠짐
   var main=list.filter(function(r){return r.v[R.excl]!=='Y'}),un=list.filter(function(r){return r.v[R.excl]==='Y'});
@@ -1035,11 +1088,13 @@ function renderRes(){
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
   var tr=function(r){var v=r.v;   // 목록: 호실·입실일·퇴실일·인원·숙박일수·플랫폼·고객명·연락처·본인계정만
       return '<tr data-r="'+r.r+'"'+(v[R.cancel]?' class="cx"':'')+'><td><b>'+esc(v[R.room])+'</b>'+(h?'':' <small>'+esc(v[R.hotel])+'</small>')+'</td><td class="num">'+md(v[R.ci])+'</td><td class="num">'+md(v[R.co])+'</td><td class="n">'+esc(v[R.ppl])+'</td><td class="n">'+esc(v[R.n])+'</td>'+
-        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td></tr>'};
-  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th></tr></thead><tbody>'+
-    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="9">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
+        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td><td class="num">'+regLab(v)+'</td></tr>'};
+  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th><th>등록</th></tr></thead><tbody>'+
+    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="10">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
-['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCancel','qView','qSort'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
+['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCancel','qView','qSort','qBase'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
+function qBaseLbl(){var reg=$('#qBase').value==='reg',n=reg?'등록일':'입실일';
+  $('#qFromL').textContent=n+' 시작';$('#qToL').textContent=n+' 끝';$('#qDayL').textContent='날짜 ('+n+')'}
 // 예약검색 호텔은 고른 것을 기억(다음에도 그 호텔), 호실은 입력칸 + 목록에서 고르기
 function fillQRooms(){var h=$('#qHotel').value,hs=h?[h]:hotels(true),cur=$('#qRoom').value.trim(),o='<option value="">목록</option>';
   if(cur&&hs.some(function(hh){return roomsOf(hh,true).map(String).indexOf(cur)>=0}))o+='<option value="'+esc(cur)+'" selected>'+esc(cur)+' (선택)</option>';   // 고른 호실을 맨 위에
@@ -1061,7 +1116,8 @@ $('#qToday').addEventListener('click',function(){setDay(ymd(new Date()))});
 setTimeout(qDayLbl,0);
 $('#qMonth').addEventListener('change',function(){var v=this.value;if(v==='custom'){$('#qFrom').focus();return}setMonth(v)});
 ['qPrev','qNext'].forEach(function(id,i){$('#'+id).addEventListener('click',function(){var cur=$('#qMonth').value,base=/^\d{4}-\d{2}$/.test(cur)?cur:(($('#qFrom').value||ymd(new Date())).slice(0,7));setMonth(shiftYm(base,i?1:-1))})});
-['qView','qSort'].forEach(function(id){var v=store(id);if(v)$('#'+id).value=v;$('#'+id).addEventListener('change',function(){store(id,this.value)})});
+['qView','qSort','qBase'].forEach(function(id){var v=store(id);if(v)$('#'+id).value=v;$('#'+id).addEventListener('change',function(){store(id,this.value)})});
+$('#qBase').addEventListener('change',qBaseLbl);setTimeout(qBaseLbl,0);
 $('#qSort').addEventListener('change',renderStatus);   // 객실현황도 호실 정렬 반영
 $('#resList').addEventListener('click',openCard);
 $('#recentList').addEventListener('click',openCard);
@@ -2688,6 +2744,25 @@ function verCheck(force){
     toast('새 화면 '+m[1]+'이 나왔습니다 — 위 [새 화면 받기]를 누르세요')}).catch(function(){})}
 document.addEventListener('visibilitychange',function(){if(!document.hidden)verCheck()});
 setInterval(function(){verCheck()},15*60000);
+// ── 예약검색 화면이 열려 있는 동안 1분마다 예약을 다시 읽어 바뀐 것이 있으면 화면을 갱신 (알림 자동등록도 바로 보임)
+var RPOLL={t:null,busy:false,sig:''};
+function resSig(){return rows('예약').map(function(r){return r.r+':'+r.v[R.ci]+r.v[R.co]+r.v[R.room]+r.v[R.name]+r.v[R.cancel]+r.v[R.fin]+r.v[R.regAt]}).join('|')}
+function resPoll(){
+  if(RPOLL.busy||document.hidden||DEMO||!LIVE)return;
+  if(store('tab')!=='res'&&store('tab')!=='new')return;                      // 예약검색·새 예약 화면일 때만
+  if($('#modalRoot').innerHTML)return;                                        // 수정 창이 열려 있으면 건너뜀
+  var ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;   // 입력 중이면 건너뜀
+  if($('#pasteIn')&&$('#pasteIn').value.trim())return;
+  RPOLL.busy=true;var was=RPOLL.sig||resSig(),n0=rows('예약').length;
+  load(['예약']).then(function(){
+    if(resSig()===was){RPOLL.sig=was;return}
+    RPOLL.sig=resSig();
+    var add=rows('예약').length-n0;
+    if(store('tab')==='res')renderRes();else renderRecent();
+    toast(add>0?'새 예약 '+add+'건이 들어와 목록을 새로 읽었습니다':'예약이 바뀌어 목록을 새로 읽었습니다');
+  }).catch(function(){}).then(function(){RPOLL.busy=false})}
+RPOLL.t=setInterval(resPoll,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(resPoll,300)});
 function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='manager'||ROLE==='owner'||store('role')==='cleaner'||store('role')==='manager'||store('role')==='owner'){n.hidden=true;return}   // 서버 코드(Code.gs) 버전·자동 업데이트 — 관리자만
   call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');if(i.last)$('#srvMsg').textContent='최근 '+i.last}).catch(function(){n.hidden=true});
   $('#srvUpd').onclick=function(){var b=this;b.disabled=true;$('#srvMsg').textContent='깃허브에서 확인 중…';
