@@ -360,7 +360,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="bar">
       <div class="f"><label for="qHotel">호텔</label><select id="qHotel"></select></div>
       <div class="f" style="flex:0 1 210px;min-width:190px"><label for="qRoom">호실</label><div class="rpick"><input id="qRoom" inputmode="numeric" placeholder="예: 2001"><select id="qRoomSel" aria-label="호실 선택"></select></div></div>
-      <div class="f"><label for="qName">고객명·연락처</label><input id="qName" placeholder="이름 또는 번호"></div>
+      <div class="f"><label for="qName">고객명·연락처·예약번호</label><input id="qName" placeholder="이름 · 전화번호 · 예약번호"></div>
       <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="qMonth">검색 월</label><div class="mpick"><button class="btn" type="button" id="qPrev" aria-label="이전 달">‹</button><select id="qMonth"></select><button class="btn" type="button" id="qNext" aria-label="다음 달">›</button></div></div>
       <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="reg">등록일</option></select></div>
@@ -474,7 +474,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -739,7 +739,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,no:50,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 // 등록시각(예약 50열) — 예전 예약에는 없으므로 예약일로 대신함
 function regAt(v){var s=String(v[R.regAt]==null?'':v[R.regAt]).trim();if(s)return s.replace('T',' ');var b=dOnly(v[R.booked]);return b?b+' 00:00:00':''}
@@ -915,7 +915,7 @@ function autoMiss(v){var m=[];   // 자동등록 예약에서 비어 있거나 �
   if(!String(v[R.name]||'').trim())m.push('이름 없음');else if(/\*/.test(String(v[R.name])))m.push('이름 가려짐');
   if(!String(v[R.tel]||'').trim())m.push('연락처 없음');
   if(v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');
-  if(!resNos(String(v[R.note]||'')).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
+  if(!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
 function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록(알림·카톡·메일) 예약
   return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&/자동등록/.test(String(v[R.note]||''))&&String(v[R.co])>=lim})
@@ -982,7 +982,7 @@ function renderCal(){
   if($('#calNow'))$('#calNow').onclick=function(e){e.stopPropagation();setMonth(now)};
 }
 function newFromCal(h,room,date){   // 객실별 달력의 빈 날짜 클릭 → 그 호실·날짜로 새 예약 열기
-  var v=new Array(46).fill('');
+  var v=new Array(51).fill('');
   v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=h;v[R.room]=room;v[R.ci]=date;v[R.co]=addDays(date,1);v[R.ppl]=2;
   resForm(null,false,v);   // 예약 수정처럼 이 화면에서 창으로 (저장하면 달력이 바로 갱신됨)
 }
@@ -1079,7 +1079,7 @@ function renderRes(){
   var list=rows('예약').filter(function(r){var v=r.v;
     if(h&&v[R.hotel]!==h)return false;
     if(rm&&String(v[R.room]).indexOf(rm)<0)return false;
-    if(q&&(String(v[R.name])+String(v[R.tel])).indexOf(q)<0)return false;
+    if(q&&(String(v[R.name])+String(v[R.tel])+resNosV(v).join(' ')+String(v[R.code]||'')).toUpperCase().indexOf(q.toUpperCase())<0)return false;   // 이름·번호 외에 예약번호·에어비앤비 코드로도 찾음
     if(f&&bd(v)<f)return false;          // 기간은 고른 기준(입실일/등록일)
     if(t&&bd(v)>t)return false;
     if(st==='on'&&v[R.excl]==='Y')return false;
@@ -1102,9 +1102,9 @@ function renderRes(){
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
   var tr=function(r){var v=r.v;   // 목록: 호실·입실일·퇴실일·인원·숙박일수·플랫폼·고객명·연락처·본인계정만
       return '<tr data-r="'+r.r+'"'+(v[R.cancel]?' class="cx"':'')+'><td><b>'+esc(v[R.room])+'</b>'+(h?'':' <small>'+esc(v[R.hotel])+'</small>')+'</td><td class="num">'+md(v[R.ci])+'</td><td class="num">'+md(v[R.co])+'</td><td class="n">'+esc(v[R.ppl])+'</td><td class="n">'+esc(v[R.n])+'</td>'+
-        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td><td class="num">'+regLab(v)+'</td></tr>'};
-  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th><th>등록</th></tr></thead><tbody>'+
-    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="10">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
+        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td><td class="num">'+esc(resNoV(v)||v[R.code]||'')+'</td><td class="num">'+regLab(v)+'</td></tr>'};
+  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th><th>예약번호</th><th>등록</th></tr></thead><tbody>'+
+    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="11">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
 ['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCx','qView','qSort','qBase'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
 function qBaseLbl(){var reg=$('#qBase').value==='reg',n=reg?'등록일':'입실일';
@@ -1140,7 +1140,7 @@ $('#newRes').onclick=function(){show('new')};
 function newId(){var d=new Date();return 'B'+String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+Math.random().toString(36).slice(2,5).toUpperCase()}
 function resForm(row,inline,pre){
   var P=inline?'n':'f',g=function(x){return document.getElementById(P+x)};
-  var v=row?row.v.slice():(pre?pre.slice():new Array(46).fill(''));
+  var v=row?row.v.slice():(pre?pre.slice():new Array(51).fill(''));
   if(!row&&!pre){v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=defHotel();v[R.ppl]=2}
   var F=function(id,label,input,cls){return '<div class="f'+(cls?' '+cls:'')+'"><label for="'+P+id+'">'+label+'</label>'+input+'</div>'};
   var I=function(id,val,attr){return '<input id="'+P+id+'" '+(attr||'')+' value="'+esc(val)+'">'};
@@ -1160,6 +1160,7 @@ function resForm(row,inline,pre){
     F('Name','고객명',I('Name',v[R.name]))+
     F('Tel','연락처',I('Tel',v[R.tel],'inputmode="tel"'))+
     F('Booked','예약일',I('Booked',v[R.booked],'type="date"'))+
+    F('No','예약번호 (놀·놀호텔·떠나요)',I('No',resNoV(v),'inputmode="numeric" placeholder="플랫폼 예약번호"'))+
     '<div class="full calc" id="'+P+'Calc"></div>'+
     F('Memo','메모 (조기입실·늦은퇴실)',I('Memo',v[R.memo]),'full')+
     F('Note','비고',I('Note',v[R.note]),'full')+
@@ -1205,7 +1206,7 @@ function resForm(row,inline,pre){
     x[R.hotel]=g('Hotel').value;x[R.room]=g('Room').value;x[R.name]=txt('Name');x[R.tel]=txt('Tel');
     x[R.booked]=g('Booked').value;x[R.plat]=g('Plat').value;x[R.ci]=g('In').value;x[R.co]=g('Out').value;
     x[R.ppl]=num('Ppl');x[R.sale]=num('Sale');Object.keys(AUTO).forEach(function(k){x[AUTO[k][0]]=MAN[k]?num(k):''});
-    x[R.memo]=txt('Memo');x[R.note]=txt('Note');if(row)x[R.cancel]=g('Cancel').value;
+    x[R.memo]=txt('Memo');x[R.note]=noStrip(txt('Note'));x[R.no]=txt('No').replace(/\s+/g,'');if(row)x[R.cancel]=g('Cancel').value;
     x[R.pets]=num('Pets');x[R.excl]=g('Excl').checked?'Y':'';x[R.xpp]=g('Xpp').checked?'Y':'';x[R.xpet]=g('Xpet').checked?'Y':'';x[R.own]=g('Own').checked?'Y':'';x[R.ownAmt]=g('Own').checked?num('OwnAmt'):'';x[R.subFor]=isSubRoom(x[R.room])?g('Sub').value:'';x[R.cleanY]=g('CleanY').checked?'Y':'';x[R.noClean]=g('NoClean').checked?'Y':'';x[R.dLock]=g('DLock').checked?'Y':'';x[R.memo]=memoNoClean(x[R.memo],x[R.noClean]==='Y');return calcRes(x)}
   function autoOf(){var y=collect().slice();Object.keys(AUTO).forEach(function(k){y[AUTO[k][0]]=''});return calcRes(y)}
   // 판매금액 ↔ 입금금액 연동: 판매금액을 바꾸면 입금 = 판매×(1−수수료), 입금을 바꾸면 판매 = 입금÷(1−수수료)
@@ -1267,7 +1268,7 @@ function resForm(row,inline,pre){
     if(err){g('Err').textContent=err;return}
     if(!x[R.id])x[R.id]=newId();
     if(row&&x[R.code]&&x[R.dLock]!=='Y'&&(String(row.v[R.ci])!==String(x[R.ci])||String(row.v[R.co])!==String(x[R.co]))){x[R.dLock]='Y';var dl=g('DLock');if(dl)dl.checked=true;toast('날짜를 직접 고쳤으므로 「달력 날짜 고정」을 켰습니다')}   // 달력이 되돌리지 않게
-    var vals={};[1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48].forEach(function(c){vals[c]=x[c-1]});
+    var vals={};[1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48,51].forEach(function(c){vals[c]=x[c-1]});
     var btn=this;btn.disabled=true;
     var ov=x[R.cancel]?[]:overlaps({hotel:x[R.hotel],room:x[R.room],ci:x[R.ci],co:x[R.co]},row?row.r:null);
     var go=ov.length?conflictAsk({hotel:x[R.hotel],room:x[R.room],ci:x[R.ci],co:x[R.co],name:x[R.name]},ov):Promise.resolve(true);
@@ -1572,20 +1573,23 @@ function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d||LNO.rsrc!==S['객실'])
 function roomLab(v){var n=lnoOf(v[R.note])||roomLno(v[R.hotel],String(v[R.room]));return String(v[R.room])+(n?'('+n+')':'')}
 function resNo(s){var m=String(s||'').match(/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/);return m?m[1]:''}
 function resNos(s){var a=[],re=/(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/g,m;while((m=re.exec(String(s||''))))a.push(m[1]);return a}
+function noStrip(s){return String(s==null?'':s).replace(/(?:놀호텔|놀|떠나요)\s*예약번호\s*\d{6,}/g,'').split('/').map(function(x){return x.replace(/\s{2,}/g,' ').trim()}).filter(function(x){return x&&x!=='·'}).join(' / ')}
+function resNoV(v){return String(v[R.no]==null?'':v[R.no]).trim()||resNo(v[R.note])}        // 예약번호: 51열 먼저, 옛 예약은 비고 글
+function resNosV(v){var a=resNos(v[R.note]),n=String(v[R.no]==null?'':v[R.no]).trim();if(n&&a.indexOf(n)<0)a.unshift(n);return a}
 function dupOf(x){   // 같은 예약: 예약코드 → 예약번호가 같으면 우선, 아니면 같은 호텔·호실·입실일 (단, 예약번호가 서로 다르면 다른 예약)
   if(x.code){var bc=rows('예약').find(function(r){return String(r.v[R.code]||'').toUpperCase()===x.code&&!r.v[R.cancel]});if(bc)return bc}
   var no=resNo(x.note);
-  if(no){var bn=rows('예약').filter(function(r){return !r.v[R.cancel]&&resNos(r.v[R.note]).indexOf(no)>=0});
+  if(no){var bn=rows('예약').filter(function(r){return !r.v[R.cancel]&&resNosV(r.v).indexOf(no)>=0});
     var b1=bn.find(function(r){return String(r.v[R.room])===String(x.room)&&r.v[R.hotel]===x.hotel})||bn[0];if(b1)return b1}
   var k=rows('예약').find(function(r){return r.v[R.hotel]===x.hotel&&String(r.v[R.room])===String(x.room)&&r.v[R.ci]===x.ci&&!r.v[R.cancel]});
-  if(k&&no&&resNos(k.v[R.note]).length&&resNos(k.v[R.note]).indexOf(no)<0)return undefined;   // 같은 호실·날짜라도 예약번호가 다르면 다른 예약 → 겹침 확인
+  if(k&&no&&resNosV(k.v).length&&resNosV(k.v).indexOf(no)<0)return undefined;   // 같은 호실·날짜라도 예약번호가 다르면 다른 예약 → 겹침 확인
   return k}
 function cxOf(x){   // 같은 예약번호·예약코드의 '취소된' 예약 (살아 있는 예약이 없을 때) → 붙여넣으면 그 예약을 되살림
   if(dupOf(x))return null;var no=resNo(x.note);
-  return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNos(r.v[R.note]).indexOf(no)>=0))})||null}
+  return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNosV(r.v).indexOf(no)>=0))})||null}
 function cxDone(x){   // 취소 문구인데 살아 있는 예약은 없고, 같은 예약(예약번호·예약코드, 또는 같은 호실·입실일·고객)이 이미 취소돼 있음
   if(!x.cancel||dupOf(x))return null;var no=resNo(x.note),nm=String(x.name||'').replace(/\s/g,'');
-  return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNos(r.v[R.note]).indexOf(no)>=0)||
+  return rows('예약').find(function(r){return r.v[R.cancel]&&((x.code&&String(r.v[R.code]||'').toUpperCase()===x.code)||(no&&resNosV(r.v).indexOf(no)>=0)||
     (x.ci&&r.v[R.ci]===x.ci&&nm&&String(r.v[R.name]).replace(/\s/g,'')===nm&&(!x.room||String(r.v[R.room])===String(x.room))))})||null}
 function pasteIssues(x){var p=[];
   if(x.cancel){var cd=cxDone(x);p.push(dupOf(x)?'취소된 예약':cd?'이미 취소되었습니다 ('+(cd.v[R.cancel]instanceof Date?ymd(cd.v[R.cancel]):String(cd.v[R.cancel]).slice(0,10))+')':'취소된 예약 · 해당 예약 없음');return p}   // 예약번호·예약코드가 같으면 호실을 몰라도 찾음
@@ -1602,9 +1606,9 @@ function roomByHost(host){var n=function(x){return String(x||'').replace(/\s+/g,
 function ownLab(h){return String(h||'').indexOf('마리나베이')>=0?'조합계정':'본인계정'}   // 마리나베이는 '조합계정'으로 표기 (계산은 같음)
 function ownRoom(h,room){return rows('객실').some(function(r){return r.v[1]===h&&String(r.v[2])===String(room)&&String(r.v[22]||'').trim().toUpperCase()==='Y'})}   // 본인계정 전용 객실
 function isOwnAcct(x){return !!x.own||/본\s*인/.test(x.note||'')||((x.plat||'ABNB')==='ABNB'&&ownRoom(x.hotel,x.room))}   // 본인계정 전용 객실은 에어비앤비 예약만
-function toResRow(x){var v=new Array(44).fill('');
+function toResRow(x){var v=new Array(51).fill('');
   v[R.hotel]=x.hotel||defHotel();v[R.room]=x.room||'';v[R.name]=x.name||'';v[R.tel]=x.tel||'';v[R.booked]=x.booked||'';
-  v[R.ci]=x.ci||'';v[R.co]=x.co||'';v[R.ppl]=x.ppl||2;v[R.plat]=x.plat||'ABNB';v[R.note]=x.note||'';if(x.code)v[R.code]=x.code;if(x.sale!==undefined)v[R.sale]=x.sale;if(x.pets)v[R.pets]=x.pets;
+  v[R.ci]=x.ci||'';v[R.co]=x.co||'';v[R.ppl]=x.ppl||2;v[R.plat]=x.plat||'ABNB';v[R.no]=resNo(x.note)||'';v[R.note]=noStrip(x.note);if(x.code)v[R.code]=x.code;if(x.sale!==undefined)v[R.sale]=x.sale;if(x.pets)v[R.pets]=x.pets;
   if(x.depM!==undefined)v[R.depM]=x.depM;   // 정산금액이 따로 있으면 입금금액(수동)
   if(x.payout!==undefined){var pr=rows('플랫폼').find(function(q){return q.v[0]===(x.plat||'ABNB')}),rt=pr?Number(pr.v[1])||0:0;
     v[R.depM]=x.payout;v[R.sale]=Math.round(x.payout/(1-rt));}   // 수령액 → 입금금액, 판매금액은 수수료를 거꾸로 계산
@@ -1628,6 +1632,7 @@ function updItem(y){var d0=dupOf(y),vals={};
     if(isOwnAcct(y)){vals[37]='Y';vals[12]=0;vals[15]=0;if(y.payout!==undefined)vals[42]=y.payout}
     if(y.name)vals[4]=y.name; if(y.tel&&(!/\*/.test(y.tel)||!d0.v[R.tel]))vals[5]=y.tel;   // 가려진 번호(010-****-5114)는 기존 번호를 덮어쓰지 않음
     if(y.booked)vals[6]=y.booked; if(y.plat)vals[11]=y.plat; if(y.co)vals[8]=y.co; if(y.ci&&d0.v[R.ci]!==y.ci)vals[7]=y.ci; if(!y.pplGuess&&y.ppl)vals[10]=y.ppl;
+    var yno=resNo(y.note);if(yno&&!resNoV(d0.v))vals[51]=yno;   // 예약번호가 비어 있으면 채움 (51열)
     var yn=toResRow(y)[R.note];if(yn&&(String(d0.v[R.note]||'').indexOf(yn)<0||(y.lno&&lnoOf(d0.v[R.note])!==String(y.lno).toUpperCase())))vals[22]=(d0.v[R.note]?d0.v[R.note]+' / ':'')+(y.lno&&String(d0.v[R.note]||'').indexOf(yn)>=0?'· '+y.lno:yn);   // 숙소 번호(· 07)가 없으면 꼭 붙임
   return {r:d0.r,v:vals}}
 function updIdx(){var a=[];PASTE.forEach(function(x,i){if(!x.cancel&&x.room&&x.hotel&&x.ci&&dupOf(x))a.push(i)});return a}
