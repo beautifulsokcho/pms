@@ -146,6 +146,7 @@ tr.dirty td{background:var(--hold-soft)}
 .report.manual{margin-top:16px}.intg{font-size:12px}
 #cList.many{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#cList{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 #recentList{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#recentList{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#resList .cd.vac:not(.adj){cursor:pointer}#resList .cd.vac:not(.adj):hover{outline:2px solid var(--accent);outline-offset:-2px}#resList .cd.vac:not(.adj):hover .vl::after{content:' + 새 예약';color:var(--accent);font-weight:600}
 .rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 2px 8px}.rechead .recent-h{margin:0}.rechead .btn{padding:5px 10px;font-size:13px}#recAuto.miss{background:var(--warn);color:#fff;border-color:var(--warn)}.chip.miss{background:#fde8e8;color:#b42318;border:1px solid #f3b4b4}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
@@ -453,7 +454,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -926,6 +927,19 @@ function renderCal(){
     hs.map(function(hh){return calHtml(hh,rm,ym,all.filter(function(r){return r.v[R.hotel]===hh}))}).join('');
   if($('#calNow'))$('#calNow').onclick=function(e){e.stopPropagation();setMonth(now)};
 }
+function newFromCal(h,room,date){   // 객실별 달력의 빈 날짜 클릭 → 그 호실·날짜로 새 예약 열기
+  var v=new Array(46).fill('');
+  v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=h;v[R.room]=room;v[R.ci]=date;v[R.co]=addDays(date,1);v[R.ppl]=2;
+  store('hotel',h);show('new');resForm(null,true,v);
+  var b=$('#newBox');if(b)b.scrollIntoView({behavior:'smooth',block:'start'});
+  toast(h+' '+room+'호 · '+md(date)+' 입실로 새 예약을 엽니다 (1박 · 2명으로 채워 둠)');
+}
+$('#resList').addEventListener('click',function(e){   // 공실 칸(지난달·다음달 칸 제외)만
+  var cd=e.target.closest('.cd.vac:not(.adj)');if(!cd||!cd.dataset.d)return;
+  var box=cd.closest('.calbox');if(!box||!box.dataset.room)return;
+  if(ROLE==='owner'||OWNER)return;
+  newFromCal(box.dataset.hotel,box.dataset.room,cd.dataset.d);
+});
 // 추가인원·반려견 요금 빼고 정산(예약 AF·AG=Y): 정산 판매(AH)·정산 입금(AI). 소유주는 정산 금액만, 관리자·매니저는 원래 금액과 정산 금액 함께
 function adjOf(v){var a=v[R.xpp]==='Y'||v[R.xpet]==='Y';if(!a||v[R.cancel]||v[R.excl]==='Y'||v[R.own]==='Y')return null;
   var ss=v[R.sSale]===''||v[R.sSale]==null?Number(v[R.sale])||0:Number(v[R.sSale]),sd=Number(v[R.sDep])||0;
@@ -952,7 +966,7 @@ function calHtml(hotel,room,ym,list){
     for(var c=0;c<7;c++){var dn=w*7+c-dow0+1;
       var adj=dn<1||dn>days,dd=adj?addDays(first,dn-1):ds(dn);if(!ws)ws=dd;we=dd;var occ=night[dd];   // 첫째·마지막 주의 전월·다음월 날짜도 표시
       var lab=adj?(+dd.slice(8,10)===1||(dn<1&&c===0)?(+dd.slice(5,7))+'/':'')+(+dd.slice(8,10)):dn;
-      cells+='<div class="cd'+(adj?' adj':'')+(occ?' occ':' vac')+(dd===today?' today':'')+(c===0?' sun':c===6?' sat':'')+'"><span class="dn">'+lab+'</span>'+(occ?'':'<span class="vl">공실</span>')+'</div>'}
+      cells+='<div class="cd'+(adj?' adj':'')+(occ?' occ':' vac')+(dd===today?' today':'')+(c===0?' sun':c===6?' sat':'')+'" data-d="'+dd+'"><span class="dn">'+lab+'</span>'+(occ?'':'<span class="vl">공실</span>')+'</div>'}
     // 이 주에 걸친 예약 막대 (밤 기준: 입실일~퇴실 전날)
     var segs=[];list.forEach(function(r){var v=r.v,s=v[R.ci]>ws?v[R.ci]:ws,lastN=addDays(v[R.co],-1),e=lastN<we?lastN:we;
       if(s>e)return;var sc=new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)).getDay(),n=Math.round((pd(e)-pd(s))/864e5)+1;
@@ -967,7 +981,7 @@ function calHtml(hotel,room,ym,list){
         '<span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+'</span><span class="b2">입금 '+(won(shownFin(v))||'-')+'</span>')+'</button>'}).join('');
     wk+='<div class="cweek"><div class="cdays">'+cells+'</div><div class="cbars">'+bars+'</div></div>';
   }
-  return '<div class="calbox w'+weeks+'">'+head+wk+'</div></div>';
+  return '<div class="calbox w'+weeks+'" data-hotel="'+esc(hotel)+'" data-room="'+esc(room)+'">'+head+wk+'</div></div>';
 }
 function openCard(e){var c=e.target.closest('[data-r]');if(c)resForm(rows('예약').find(function(r){return r.r===+c.dataset.r}),false)}
 function renderBroken(){var b=(S['예약']&&S['예약'].broken)||[],el=$('#resBroken');if(!el)return;
