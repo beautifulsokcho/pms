@@ -467,7 +467,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2709,15 +2709,34 @@ function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty
 function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,w=r.warn||0,bd=$('#inboxN');if(bd){bd.hidden=!n;bd.textContent=n;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w}).catch(function(){})}
 function ibxSortBar(){return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select></div>'}
 function ibxSortBind(sel){var s2=$('#ibxSort');if(!s2)return;s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)}}
+function nolShow(r){
+  var md2=function(x){return x?(+x.slice(5,7))+'/'+(+x.slice(8,10)):''};
+  var over=(r&&r.over)||[],miss=(r&&r.miss)||[];
+  var h='<h3>놀 달력 대조</h3><p class="note">놀 예약달력과 우리 장부를 맞춰 본 결과입니다. 호텔: '+esc(((r&&r.hotels)||[]).join(', ')||'(놀 달력 번호가 등록된 호텔 없음)')+'</p>';
+  h+='<h4 class="cwh">취소 의심 '+over.length+'건 <small class="note">놀에서는 빈 방인데 우리 장부에는 놀 예약이 있음</small></h4>';
+  h+=over.length?'<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>기간</th><th>고객</th><th>예약번호</th></tr></thead><tbody>'+
+      over.map(function(x){return '<tr><td><b>'+esc(x.room)+'</b></td><td class="num">'+md2(x.ci)+'~'+md2(x.co)+'</td><td>'+esc(x.guest||'(이름 없음)')+'</td><td class="num">'+esc(x.no||'')+'</td></tr>'}).join('')+'</tbody></table></div>'
+    :'<div class="empty">없습니다. 놀 예약이 모두 달력과 맞습니다.</div>';
+  h+='<h4 class="cwh" style="margin-top:14px">장부에 없는 날 '+miss.length+'건 <small class="note">놀 달력은 \'완\'인데 우리 장부에는 그 방이 비어 있음 (앞으로 3주)</small></h4>';
+  h+='<p class="note">놀에 팔지 않고 막아 둔 방도 \'완\'으로 보이기 때문에, 여기 있는 것이 모두 놓친 예약은 아닙니다. 2주 넘게 연달아 막힌 방은 뺐습니다.</p>';
+  h+=miss.length?'<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>상품</th><th>기간</th><th class="n">박</th></tr></thead><tbody>'+
+      miss.map(function(x){return '<tr><td><b>'+esc(x.room||'-')+'</b></td><td>'+esc(x.name)+'</td><td class="num">'+md2(x.from)+'~'+md2(x.to)+'</td><td class="n">'+x.nights+'</td></tr>'}).join('')+'</tbody></table></div>'
+    :'<div class="empty">없습니다.</div>';
+  h+='<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>';
+  modal(h);
+}
 function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],th={};
   rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(r.kind!=='보냄'&&!r.read)t.unread++});
   var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':'⚠ 자동등록 경고'};
   var dir=IBX.sort==='asc'?-1:1;
   if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).sort(function(a,b){return (a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1)*dir});
-    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar():'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
+    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar():'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button><button class="btn" type="button" id="ibxNol" title="놀 예약달력과 우리 장부를 맞춰 봅니다">놀 달력 대조</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
       return '<button type="button" class="ithr'+(t.unread?' unread':'')+'" data-num="'+esc(t.num)+'"><b>'+who(t)+(t.unread?' · 새 '+t.unread:'')+'</b><br><span class="note">'+esc(l.at)+' · '+esc(l.kind==='받음'?'':l.kind+' ')+esc(String(l.text).slice(0,60))+'</span></button>'}).join('')+'</div>':'<div class="empty">아직 받은 문자가 없습니다.</div>');
     ibxSortBind();
     box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num)}});
+    var nb2=$('#ibxNol');if(nb2)nb2.onclick=function(){nb2.disabled=true;nb2.textContent='대조 중…';
+      call('nolCheck').then(function(r){nolShow(r)}).catch(function(e){toast(errText(e))})
+        .then(function(){nb2.disabled=false;nb2.textContent='놀 달력 대조'})};
     var rb=$('#ibxRoom');if(rb)rb.onclick=function(){rb.disabled=true;rb.textContent='점검 중…';
       call('roomCheck').then(function(r){var n=r&&r.n||0;toast(n?'호실이 다른 예약 '+n+'건을 올렸습니다':'오늘~7일 안 입실 중 호실이 다른 예약은 없습니다');inboxOpen()})
         .catch(function(e){rb.disabled=false;rb.textContent='입실 호실 점검';toast(errText(e))})};
