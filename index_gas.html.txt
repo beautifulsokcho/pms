@@ -137,6 +137,7 @@ tr.dirty td{background:var(--hold-soft)}
 .report.manual{margin-top:16px}.intg{font-size:12px}
 #cList.many{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#cList{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 #recentList{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#recentList{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#resList .cd.vac:not(.adj){cursor:pointer}#resList .cd.vac:not(.adj):hover{outline:2px solid var(--accent);outline-offset:-2px}#resList .cd.vac:not(.adj):hover .vl::after{content:' + 새 예약';color:var(--accent);font-weight:600}
 .rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 2px 8px}.rechead .recent-h{margin:0}.rechead .btn{padding:5px 10px;font-size:13px}#recAuto.miss{background:var(--warn);color:#fff;border-color:var(--warn)}.chip.miss{background:#fde8e8;color:#b42318;border:1px solid #f3b4b4}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
@@ -442,7 +443,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-16c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-16h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -857,7 +858,7 @@ function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
 function cardHtml(r){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">본인계정</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
@@ -915,6 +916,17 @@ function renderCal(){
     hs.map(function(hh){return calHtml(hh,rm,ym,all.filter(function(r){return r.v[R.hotel]===hh}))}).join('');
   if($('#calNow'))$('#calNow').onclick=function(e){e.stopPropagation();setMonth(now)};
 }
+function newFromCal(h,room,date){   // 객실별 달력의 빈 날짜 클릭 → 그 호실·날짜로 새 예약 열기
+  var v=new Array(46).fill('');
+  v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=h;v[R.room]=room;v[R.ci]=date;v[R.co]=addDays(date,1);v[R.ppl]=2;
+  resForm(null,false,v);   // 예약 수정처럼 이 화면에서 창으로 (저장하면 달력이 바로 갱신됨)
+}
+$('#resList').addEventListener('click',function(e){   // 공실 칸(지난달·다음달 칸 제외)만
+  var cd=e.target.closest('.cd.vac:not(.adj)');if(!cd||!cd.dataset.d)return;
+  var box=cd.closest('.calbox');if(!box||!box.dataset.room)return;
+  if(ROLE==='owner'||OWNER)return;
+  newFromCal(box.dataset.hotel,box.dataset.room,cd.dataset.d);
+});
 // 추가인원·반려견 요금 빼고 정산(예약 AF·AG=Y): 정산 판매(AH)·정산 입금(AI). 소유주는 정산 금액만, 관리자·매니저는 원래 금액과 정산 금액 함께
 function adjOf(v){var a=v[R.xpp]==='Y'||v[R.xpet]==='Y';if(!a||v[R.cancel]||v[R.excl]==='Y'||v[R.own]==='Y')return null;
   var ss=v[R.sSale]===''||v[R.sSale]==null?Number(v[R.sale])||0:Number(v[R.sSale]),sd=Number(v[R.sDep])||0;
@@ -941,7 +953,7 @@ function calHtml(hotel,room,ym,list){
     for(var c=0;c<7;c++){var dn=w*7+c-dow0+1;
       var adj=dn<1||dn>days,dd=adj?addDays(first,dn-1):ds(dn);if(!ws)ws=dd;we=dd;var occ=night[dd];   // 첫째·마지막 주의 전월·다음월 날짜도 표시
       var lab=adj?(+dd.slice(8,10)===1||(dn<1&&c===0)?(+dd.slice(5,7))+'/':'')+(+dd.slice(8,10)):dn;
-      cells+='<div class="cd'+(adj?' adj':'')+(occ?' occ':' vac')+(dd===today?' today':'')+(c===0?' sun':c===6?' sat':'')+'"><span class="dn">'+lab+'</span>'+(occ?'':'<span class="vl">공실</span>')+'</div>'}
+      cells+='<div class="cd'+(adj?' adj':'')+(occ?' occ':' vac')+(dd===today?' today':'')+(c===0?' sun':c===6?' sat':'')+'" data-d="'+dd+'"><span class="dn">'+lab+'</span>'+(occ?'':'<span class="vl">공실</span>')+'</div>'}
     // 이 주에 걸친 예약 막대 (밤 기준: 입실일~퇴실 전날)
     var segs=[];list.forEach(function(r){var v=r.v,s=v[R.ci]>ws?v[R.ci]:ws,lastN=addDays(v[R.co],-1),e=lastN<we?lastN:we;
       if(s>e)return;var sc=new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)).getDay(),n=Math.round((pd(e)-pd(s))/864e5)+1;
@@ -956,7 +968,7 @@ function calHtml(hotel,room,ym,list){
         '<span class="b2">'+esc(v[R.plat]||'ABNB')+' · 판매 '+(won(shownSale(v))||'-')+'</span><span class="b2">입금 '+(won(shownFin(v))||'-')+'</span>')+'</button>'}).join('');
     wk+='<div class="cweek"><div class="cdays">'+cells+'</div><div class="cbars">'+bars+'</div></div>';
   }
-  return '<div class="calbox w'+weeks+'">'+head+wk+'</div></div>';
+  return '<div class="calbox w'+weeks+'" data-hotel="'+esc(hotel)+'" data-room="'+esc(room)+'">'+head+wk+'</div></div>';
 }
 function openCard(e){var c=e.target.closest('[data-r]');if(c)resForm(rows('예약').find(function(r){return r.r===+c.dataset.r}),false)}
 function renderBroken(){var b=(S['예약']&&S['예약'].broken)||[],el=$('#resBroken');if(!el)return;
@@ -1023,7 +1035,7 @@ function renderRes(){
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
   var tr=function(r){var v=r.v;   // 목록: 호실·입실일·퇴실일·인원·숙박일수·플랫폼·고객명·연락처·본인계정만
       return '<tr data-r="'+r.r+'"'+(v[R.cancel]?' class="cx"':'')+'><td><b>'+esc(v[R.room])+'</b>'+(h?'':' <small>'+esc(v[R.hotel])+'</small>')+'</td><td class="num">'+md(v[R.ci])+'</td><td class="num">'+md(v[R.co])+'</td><td class="n">'+esc(v[R.ppl])+'</td><td class="n">'+esc(v[R.n])+'</td>'+
-        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?'본인계정':'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td></tr>'};
+        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td></tr>'};
   $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th></tr></thead><tbody>'+
     main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="9">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
@@ -1090,15 +1102,15 @@ function resForm(row,inline,pre){
       '<label class="chk"><input type="checkbox" id="'+P+'Excl"'+(v[R.excl]==='Y'?' checked':'')+'> 미정산 (객실 정산서 제외, 청소는 포함)</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpp"'+(v[R.xpp]==='Y'?' checked':'')+'> 추가인원 요금 빼고 정산</label>'+
       '<label class="chk"><input type="checkbox" id="'+P+'Xpet"'+(v[R.xpet]==='Y'?' checked':'')+'> 반려견 요금 빼고 정산</label>'+
-      '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> 본인계정 (매출 제외, 청소비는 청구)</label>'+
-      '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'>본인계정 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
+      '<label class="chk"><input type="checkbox" id="'+P+'Own"'+(v[R.own]==='Y'?' checked':'')+'> <span id="'+P+'OwnLab">'+ownLab(v[R.hotel])+'</span> (매출 제외, 청소비는 청구)</label>'+
+      '<label class="chk" id="'+P+'OwnAmtF"'+(v[R.own]==='Y'?'':' hidden')+'><span id="'+P+'OwnLab2">'+ownLab(v[R.hotel])+'</span> 입금액 <input id="'+P+'OwnAmt" type="number" min="0" inputmode="numeric" style="width:130px" value="'+esc(v[R.ownAmt]==null?'':v[R.ownAmt])+'"></label></div></div>'+
     (row?F('Cancel','취소일 (발생 시)',I('Cancel',v[R.cancel],'type="date"'))+'<div class="f"><label>예약ID</label><input readonly value="'+esc(v[R.id])+'"></div>':'')+
     (row&&!OWNER&&LIVE?'<div class="f full smsbox"><label>문자 보내기</label><div id="'+P+'SmsBox"><span class="note">불러오는 중…</span></div><div id="'+P+'SmsPv"></div></div>':'')+
     '<div class="full err" id="'+P+'Err"></div></form>'+
     '<div class="actions">'+(row?(v[R.cancel]?'<button class="btn pri" type="button" id="'+P+'Cxl" style="margin-right:auto">취소 되돌리기 (이 호실·날짜로)</button>':'<button class="btn warn" type="button" id="'+P+'Cxl" style="margin-right:auto">예약 취소</button>'):'')+
     (inline?'<button class="btn" type="button" id="'+P+'Reset">입력 지우기</button>':'<button class="btn" type="button" id="'+P+'Close">닫기</button>')+
     '<button class="btn pri" type="button" id="'+P+'Save">저장</button></div>';
-  if(inline)$('#newBox').innerHTML=html; else modal('<h3>예약 수정</h3>'+html);
+  if(inline)$('#newBox').innerHTML=html; else modal('<h3>'+(row?'예약 수정':'새 예약')+'</h3>'+html);
   if(row&&!OWNER&&LIVE)(function(){var sb=g('SmsBox'),pv=g('SmsPv');   // 이 예약에 쓸 수 있는 문자 종류 → 문구 보기 → 바로 보내기 · 보낸 기록
     var load2=function(){call('smsSend',row.r,'').then(function(d){var ks=d.kinds||[];
       sb.innerHTML=(ks.length?'<div class="rpick"><select id="'+P+'SmsKind">'+opts(ks,ks[0])+'</select><button type="button" class="btn" id="'+P+'SmsPrev">문구 보기</button></div>':'<span class="note">이 예약(호텔·플랫폼)에 맞는 문자 문구가 없습니다. 관리 → 문자에서 만드세요.</span>')+
@@ -1163,7 +1175,7 @@ function resForm(row,inline,pre){
   var ownAuto=function(){if(ownRoom(g('Hotel').value,g('Room').value))g('Own').checked=g('Plat').value==='ABNB'};
   var subShow=function(){var sub=isSubRoom(g('Room').value);g('SubF').style.display=sub?'':'none';   // 대체객실이면 입금을 대신 정산할 호실 고르기
     if(sub){var cur=g('Sub').value||v[R.subFor]||'';g('Sub').innerHTML=opts(roomsOf(g('Hotel').value,true).filter(function(x){return !isSubRoom(x)}),String(cur),'선택')}};
-  g('Room').addEventListener('change',subShow);g('Hotel').addEventListener('change',function(){setTimeout(subShow,0)});setTimeout(subShow,0);   // 본인계정 전용 객실: 에어비앤비만 본인계정
+  g('Room').addEventListener('change',subShow);g('Hotel').addEventListener('change',function(){var lb=ownLab(this.value);['OwnLab','OwnLab2'].forEach(function(k){var e=g(k);if(e)e.textContent=lb});setTimeout(subShow,0)});setTimeout(subShow,0);   // 본인계정 전용 객실: 에어비앤비만 본인계정
   g('Room').addEventListener('change',ownAuto);g('Plat').addEventListener('change',ownAuto);
   roomOpts();preview();ORIGV.Sale=g('Sale').value;Object.keys(AUTO).forEach(function(k){ORIGV[k]=g(k).value;ORIGMAN[k]=MAN[k]});preview();
   if(inline)resForm.rooms=function(){var cur=g('Room').value;v[R.hotel]=g('Hotel').value;v[R.room]=cur;roomOpts()};
@@ -1195,7 +1207,7 @@ function resForm(row,inline,pre){
     call('saveRows','예약',[{r:row?row.r:null,v:vals}].concat(cancelItems(ov)).concat(pvs)).then(function(d){
       S['예약']=d;renderRes();
       if(inline){store('hotel',x[R.hotel]);resForm(null,true);renderRecent();savedToast(x[R.hotel]+' '+x[R.room]+'호 예약을 저장했습니다'+(pvs.length?' · 앞 예약 청소안함':''),d,{hotel:x[R.hotel],room:x[R.room],ci:x[R.ci]});g('Room').focus()}
-      else{closeModal();renderRecent();toast('예약을 수정했습니다')}
+      else{closeModal();renderRecent();toast(row?'예약을 수정했습니다':x[R.hotel]+' '+x[R.room]+'호 예약을 저장했습니다')}
     }).catch(function(e){g('Err').textContent='저장하지 못했습니다: '+(e&&e.message||e);btn.disabled=false});
     });
   };
@@ -1517,6 +1529,7 @@ function pasteIssues(x){var p=[];
   return p}
 function roomByHost(host){var n=function(x){return String(x||'').replace(/\s+/g,'')},hh=n(host);if(!hh)return null;   // 객실 Y열 '에어비앤비 호스트명'
   var r=rows('객실').find(function(r){var k=n(r.v[24]);return k&&hh.indexOf(k)>=0&&r.v[13]!=='N'});return r?{hotel:r.v[1],room:String(r.v[2])}:null}
+function ownLab(h){return String(h||'').indexOf('마리나베이')>=0?'조합계정':'본인계정'}   // 마리나베이는 '조합계정'으로 표기 (계산은 같음)
 function ownRoom(h,room){return rows('객실').some(function(r){return r.v[1]===h&&String(r.v[2])===String(room)&&String(r.v[22]||'').trim().toUpperCase()==='Y'})}   // 본인계정 전용 객실
 function isOwnAcct(x){return !!x.own||/본\s*인/.test(x.note||'')||((x.plat||'ABNB')==='ABNB'&&ownRoom(x.hotel,x.room))}   // 본인계정 전용 객실은 에어비앤비 예약만
 function toResRow(x){var v=new Array(44).fill('');
@@ -1569,7 +1582,7 @@ function renderPaste(){
         '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
-        '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>본인계정</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
+        '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>'+ownLab(x.hotel)+'</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
         (x.cancel?(dupOf(x)?'<button class="btn warn" type="button" data-p="cxl" style="margin-left:auto">기존 예약 취소'+(function(b){return ' ('+esc(b.v[R.hotel])+' '+esc(b.v[R.room])+' '+md(b.v[R.ci])+')'})(dupOf(x))+'</button>':''):
          x.room&&x.hotel&&x.ci&&dupOf(x)?'<button class="btn" type="button" data-p="upd" style="margin-left:auto">'+(x.roomPick&&String(dupOf(x).v[R.room])!==String(x.room)?'기존 예약을 '+esc(x.room)+'호로 옮겨 반영':'기존 예약에 반영')+'</button>':
          overlaps(x).length?'<button class="btn warn" type="button" data-p="ovl" style="margin-left:auto">겹침 확인</button>':'<button class="btn" type="button" data-p="form" style="margin-left:auto">폼에서 수정</button>')+'</div></div>'}).join('');
@@ -2099,6 +2112,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
     var owner=a[cut-1]?a[cut-1][0]:'',acct=!/\(/.test(String(owner||''))?'':String(owner||'').replace(/^\s*\d+\s*호\s*\(\s*/,'').replace(/\)\s*$/,'').trim();   // 시트 45행 '2001호(은행 예금주-계좌명 계좌번호)' → 정산 요약 아래 '입금 계좌'
     var bot=a.slice(cut+1).filter(function(r){return r.some(function(c){return c!==''})});
     var subR=bot.find(function(r){return /소계/.test(r[0])})||[],ownSum=subR[13]&&Number(String(subR[13]).replace(/[^\d.-]/g,''))?subR[13]:'';
+    if(/마리나베이/.test(String(p.hotel||'')))ownSum='';   // 마리나베이는 조합 계정으로 받으므로 정산서에 따로 보여 주지 않음
     var ownFee=!rows('객실').some(function(r){return r.v[1]===p.hotel&&String(r.v[2])===String(p.room)&&String(r.v[26]||'').trim().toUpperCase()==='Y'});   // 객실 AA열 Y = 본인계정 대행수수료 제외
     var inC=false;   // 비품/소모품 등(부가세 미공제, C) 칸은 금액을 직접 고칠 수 있음
     var t1='<table>'+top.slice(1).map(function(r){var a0=String(r[0]).replace(/\n/g,' '),b=r[1],c=r[2];
@@ -2110,12 +2124,12 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       if(inC&&lab==='소계'){inC=false;return out+'<tr class="sum"><td>'+esc(lab)+'</td><td class="n">'+esc(c)+'</td></tr>'}
       if(inC&&b&&!OWNER){var cur=Number(String(c).replace(/[^\d.-]/g,''))||0;
         return out+'<tr><td>'+esc(lab)+'</td><td class="n"><input class="cedit" type="number" inputmode="numeric" data-item="'+esc(lab)+'" data-cur="'+cur+'" value="'+cur+'"><span class="cprint">'+esc(c)+'</span></td></tr>'}
-      var ownRow=/매출합계/.test(lab)&&ownSum?'<tr class="ownsum"><td>본인계정 입금액</td><td class="n">'+esc(ownSum)+'</td></tr>':'';
+      var ownRow=/매출합계/.test(lab)&&ownSum?'<tr class="ownsum"><td>'+ownLab(p.hotel)+' 입금액</td><td class="n">'+esc(ownSum)+'</td></tr>':'';
       return out+'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+esc(lab)+'</td><td class="n">'+esc(c)+'</td></tr>'+ownRow}).join('')+'</table>';
     // 일자별 표: 일자·인원·일수 → 플랫폼별 금액 → 추가이불 등·청소비·합계 → 비고 (시트 열: A B C | H~L | D E F | M)
     var hd=bot[0]||[],plats=[7,8,9,10,11].filter(function(i){return hd[i]}),nz=function(c){return c!==''&&c!=null&&c!=='-'&&Number(String(c).replace(/[^\d.-]/g,''))!==0};
     plats=plats.filter(function(i){return bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[i])})});   // 금액이 없는 플랫폼 칸은 빼서 표 폭을 줄임
-    var ownOn=!!hd[13]&&bot.slice(1).some(function(r){return nz(r[13])}),idx=[0,1,2].concat(plats,bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[3])})?[3]:[],[4,5,12],ownOn?[13]:[]);   // 본인계정 입금액은 비고 뒤 (있을 때만)
+    var ownOn=!/마리나베이/.test(String(p.hotel||''))&&!!hd[13]&&bot.slice(1).some(function(r){return nz(r[13])}),idx=[0,1,2].concat(plats,bot.slice(1).some(function(r){return !/발행/.test(r[0])&&nz(r[3])})?[3]:[],[4,5,12],ownOn?[13]:[]);   // 본인계정 입금액은 비고 뒤 (있을 때만)
     var t2='<table class="daily"><tr>'+idx.map(function(i){return '<th>'+esc(String(hd[i]).replace(/\n/g,' '))+'</th>'}).join('')+'</tr>'+
       bot.slice(1).map(function(r){
         if(/발행/.test(r[0])){var sl=esc(r[7])+' '+esc(r[9]),h='<tr class="sum"><td colspan="3">'+esc(r[0])+(plats.length?'':' <span class="note">'+sl+'</span>')+'</td>'+(plats.length?'<td class="n" colspan="'+plats.length+'">'+sl+'</td>':'');
@@ -2179,7 +2193,7 @@ function renderIntegrated(kind){
   box.innerHTML='<div class="empty">'+esc(h)+' 객실을 하나씩 계산하는 중입니다… (객실 수에 따라 30초~1분)</div>';
   call('integrated',h,spec).then(function(d){
     if(!d){box.innerHTML=demoNote('써밋베이 2001호 2026년 9월 숫자로 만든 예시');return}
-    var tbl=kind==='tax'?taxTable(d):intTable(d);
+    var tbl=kind==='tax'?taxTable(d):intTable(d,h);
     var title=h+' '+when+' '+(kind==='tax'?'세금신고서':'통합정산서');
     var html='<div class="report landscape" id="sAllPrint"><h3>'+esc(title)+'</h3><p class="note">입실일 기준 · '+esc(kind==='tax'?'세금계산서 발행액 = 객실별 부가세 발행금액('+(d.bill?'B−A':'A−B')+'), 0보다 작으면 0':'객실별 정산서를 합친 표입니다')+(per!=='month'?' · 입실일이 기간 안인 예약, 수동 항목은 일자가 기간 안인 것(일자가 없으면 그 달 전체가 기간에 들 때)':'')+'</p>'+
       '<div class="scroll"><table class="intg"><thead><tr>'+tbl.head.map(function(c){return '<th>'+esc(c)+'</th>'}).join('')+'</tr></thead><tbody>'+
@@ -2200,13 +2214,13 @@ function stickCols(t,n){if(!t)return;var fix=function(){   // 앞 n열 고정: �
     [].forEach.call(t.rows,function(tr){var col=0;[].forEach.call(tr.children,function(cell){if(col<n){cell.classList.add('stk');cell.style.left=lefts[col]+'px';var span=cell.colSpan||1;if(col+span>=n)cell.classList.add('stk2')}col+=cell.colSpan||1})})};
   fix();setTimeout(fix,300)}
 var INT_OWNER_SUM=['이다경'];   // 통합정산서 맨 아래 따로 합계를 보여 줄 소유주
-function intTable(d){
+function intTable(d,hotel){
   var rs=d.rows,any=function(f){return rs.some(function(o){return Math.round(f(o))!==0})},labels=function(k){var L=[];rs.forEach(function(o){o[k].forEach(function(p){if(L.indexOf(p[0])<0)L.push(p[0])})});return L};
   var val=function(o,k,l){var p=o[k].find(function(q){return q[0]===l});return p?p[1]:0};
   var hasSales=any(function(o){return o.sales});
   var cols=[['호실',function(o){return (o.extra?o.hotel+' ':'')+o.room}],['소유주',function(o){return o.owner}],['숙박인원',function(o){return o.ppl}],['숙박일수',function(o){return o.nights}]];
   if(hasSales){labels('plats').forEach(function(l){if(any(function(o){return val(o,'plats',l)}))cols.push([l,function(o){return val(o,'plats',l)}])});cols.push(['매출합계(A)',function(o){return o.sales}])}
-  if(any(function(o){return o.ownAmt||0}))cols.push(['본인계정 입금액',function(o){return o.ownAmt||0}]);
+  if(any(function(o){return o.ownAmt||0}))cols.push([ownLab(hotel)+' 입금액',function(o){return o.ownAmt||0}]);
   cols.push(['청소액',function(o){return o.clean}]);
   labels('B').forEach(function(l){if(any(function(o){return val(o,'B',l)}))cols.push([l,function(o){return val(o,'B',l)}])});
   cols.push(['부가세 공제 합계(B)',function(o){return o.Bsum}]);
@@ -2678,9 +2692,13 @@ function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='mana
   call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');if(i.last)$('#srvMsg').textContent='최근 '+i.last}).catch(function(){n.hidden=true});
   $('#srvUpd').onclick=function(){var b=this;b.disabled=true;$('#srvMsg').textContent='깃허브에서 확인 중…';
     call('codeUpdate').then(function(r){b.disabled=false;$('#srvMsg').textContent=r.msg||'';toast(r.msg||'확인했습니다');
-      return call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐');   // 지금 돌고 있는 코드로 확인
-        if(r.ver&&i.ver!==r.ver){$('#srvMsg').textContent='';modal('<h3>배포에 반영되지 않았습니다</h3><p>새 코드(<b>'+esc(r.ver)+'</b>)는 저장됐지만, 앱이 쓰는 배포는 아직 <b>'+esc(i.ver)+'</b>입니다.</p><p>Apps Script에서 <b>배포 → 배포 관리 → 연필 → 버전 「새 버전」 → 배포</b>를 한 번만 해 주세요. 그 뒤부터는 자동으로 됩니다.</p><div class="mrow"><button class="btn pri" id="mvNo2" type="button">알겠습니다</button></div>');$('#mvNo2').onclick=closeModal}
-        else $('#srvMsg').textContent='지금 돌고 있는 코드 '+i.ver})})
+      var chk=function(n){return call('codeInfo').then(function(i){   // 새 배포가 실제로 돌기까지 1분쯤 걸려 몇 번 나눠 확인
+        $('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐');
+        if(!r.ver||i.ver===r.ver){$('#srvMsg').textContent='지금 돌고 있는 코드 '+i.ver;return}
+        if(n>0){$('#srvMsg').textContent='배포가 반영되기를 기다리는 중… ('+n+')';return new Promise(function(ok){setTimeout(ok,12000)}).then(function(){return chk(n-1)})}
+        $('#srvMsg').textContent='';
+        modal('<h3>배포 반영이 늦어집니다</h3><p>새 코드(<b>'+esc(r.ver)+'</b>)는 저장됐는데, 1분이 지나도 앱이 쓰는 배포는 <b>'+esc(i.ver)+'</b>입니다.</p><p>조금 더 기다렸다가 새로고침해 보시고, 그래도 그대로면 Apps Script에서 <b>배포 → 배포 관리 → 연필 → 버전 「새 버전」 → 배포</b>를 한 번 해 주세요.</p><div class="mrow"><button class="btn pri" id="mvNo2" type="button">알겠습니다</button></div>');$('#mvNo2').onclick=closeModal})};
+      return chk(4)})
       .catch(function(e){b.disabled=false;$('#srvMsg').textContent='';toast(errText(e))})}}
 function boot(){
   roleTitle();window.__booted=true;setTimeout(srvInit,1500);try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
