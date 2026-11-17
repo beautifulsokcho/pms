@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 79) return;
+  if (ver >= 80) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1311,6 +1311,19 @@ function ensureSchema_() {
     st79.getRange('C43').setFormula('=IF(' + bill79 + ',C24+C40-C11,C11-C24-C40)');
   }
   props.setProperty('SCHEMA', '79');
+  }
+  if (ver < 80) {   // v80: 청구형이 아닌 호텔(써밋베이)에서 청구합계로 나오는 객실은 개별 정산서에 '부가세 발행금액' 줄을 아예 안 보이게 (804호처럼 비품 부가세 가산 객실은 그대로)
+  var st80 = ss.getSheetByName('객실정산서');
+  if (st80) {
+    var hb80 = 'IFERROR(INDEX(호텔!$T$2:$T$30,MATCH($B$1,호텔!$B$2:$B$30,0))="Y",FALSE)';   // 청구형 호텔 (마리나베이)
+    var neg80 = 'N(C11)-N(C24)-N(C40)<0';                                                   // 지급액이 마이너스 → 청구합계로 표시
+    var bill80 = 'OR(' + hb80 + ',' + neg80 + ')';
+    var vx80 = 'N($N$1)>1';                                                                 // 비품 부가세 가산 객실 (804호)
+    var hide80 = 'AND(NOT(' + hb80 + '),' + neg80 + ',NOT(' + vx80 + '))';
+    st80.getRange('A42').setFormula('=IF(' + hide80 + ',"",IF(' + bill80 + ',IF(' + vx80 + ',"부가세 발행금액(청구합계÷1.1)",IF(N(C24)>=N(C11),"부가세 발행금액(B-A)","부가세 발행금액(A-B)")),"부가세 발행금액(A-B)"))');
+    st80.getRange('C42').setFormula('=IF(' + hide80 + ',"",IF(' + bill80 + ',IF(' + vx80 + ',ROUND(N(C43)/1.1,0),ABS(N(C24)-N(C11))),C11-C24))');
+  }
+  props.setProperty('SCHEMA', '80');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -3561,7 +3574,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.3b84b4a1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.1e99d614';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
