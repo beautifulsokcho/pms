@@ -481,7 +481,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17n';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1538,9 +1538,12 @@ function parseKakaoNol(t){
     var sm=bt.match(/([\d,]{4,})\s*원/);if(sm)r.sale=Number(sm[1].replace(/,/g,''))||undefined;
     var way=(b.find(function(x){return /자가\s*방문|도보\s*방문|픽업/.test(x)})||'').trim();
     var rl=b.find(function(x){return /\d{3,4}\s*호/.test(x)})||'',rn=(rl.match(/(\d{3,4})\s*호/)||[])[1];
+    var pl=rl||b.find(function(x){return /스튜디오|디럭스|룸|코지/.test(x)})||'';   // 상품명 줄
     if(rn){var f=findRoom(rn,bt);r.hotel=f.hotel;r.room=f.room;r.unknownRoom=!!f.unknown}
-    else{var rh=b.find(function(x){return /스튜디오|디럭스|룸|코지/.test(x)});if(rh)r.roomHint=rh}
-    var info=rl.replace(/\(.*$/,'').trim();
+    else if(pl){var ms=pl.split('(')[0].match(/\d{3,4}/g)||[],f2=null;   // '코지 1810(…)'처럼 번호 뒤에 '호'가 없는 상품명 — 실제로 있는 호실일 때만
+      for(var mi=ms.length-1;mi>=0&&!f2;mi--){var g=findRoom(ms[mi],bt);if(g.room&&!g.unknown)f2=g}
+      if(f2){r.hotel=f2.hotel;r.room=f2.room}else r.roomHint=pl}
+    var info=pl.replace(/\(.*$/,'').trim();
     r.note=[info,no?'놀 예약번호 '+no:'',way].filter(Boolean).join(' / ');
     return r;
   }).filter(function(r){return r.ci&&(r.name||r.note)});
