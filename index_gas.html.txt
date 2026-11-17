@@ -469,7 +469,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2557,6 +2557,14 @@ function renderAdmin(){
   if(n==='달력연결')calInit();
   if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 5분후~3시간후(등록시각 기준 — 오전 예약은 그날 12시에) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 종류를 「당일예약」으로 하고 기준을 분·시간으로 두면 바로 보내지 않고 「보낼까요?」를 먼저 묻습니다 (입실일=등록일 · 자동등록 · 겹치는 예약 없음 · 연락처 있음일 때만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
 }
+// 자동 발송이 꺼져 있을 때 맨 위에 빨간 띠 (관리자·매니저만) — 눌러서 바로 문자 설정으로
+function smsOffBar(){if($('#smsOffBar'))return;
+  var d=document.createElement('div');d.id='smsOffBar';d.setAttribute('role','button');d.tabIndex=0;
+  d.textContent='⚠ 문자 자동 발송이 꺼져 있습니다 — 예약 문자가 나가지 않습니다. 눌러서 켜기';
+  d.style.cssText='position:sticky;top:0;z-index:60;background:#b91c1c;color:#fff;padding:9px 12px;font-weight:700;font-size:14px;text-align:center;cursor:pointer';
+  d.onclick=function(){show('admin');$('#aSheet').value='문자';adminOpen();window.scrollTo(0,0)};
+  document.body.insertBefore(d,document.body.firstChild)}
+function smsOffBarHide(){var d=$('#smsOffBar');if(d)d.remove()}
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
   box.innerHTML='<div class="report" style="margin-top:12px"><h3>문자 설정</h3><div id="smsForm"><p class="note">불러오는 중…</p></div></div>';
@@ -2565,7 +2573,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
     var setup='roomsms://setup?u='+encodeURIComponent(url)+'&t='+encodeURIComponent(st.gwToken||'');
     var stat=!ok?'<span class="err">아직 연결 전 — [저장]을 누른 뒤 [폰 앱에 연결]</span>':
       '폰 앱 마지막 확인 <b>'+esc(st.gwSeen||'없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 멈춤</span>':'')+(gs.battery!=null&&gs.battery>=0?' · 배터리 '+esc(gs.battery)+'%':'')+' · 대기 '+(st.gwWait||0)+'건';
-    $('#smsForm').innerHTML='<p>'+stat+'</p>'+
+    $('#smsForm').innerHTML=(st.on?'':'<p class="err"><b>⚠ 자동 발송이 꺼져 있습니다</b> — 아래 「자동 발송」을 체크하고 [저장]을 누르세요. 그동안 예약 문자가 나가지 않았습니다.</p>')+'<p>'+stat+'</p>'+
       '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
       '<div id="phBox"></div>'+
       '<div class="form"><div class="f full"><label for="smsBlk">문자함에 저장 안 하는 번호 <span class="note">(쉼표로 구분 · 지우면 다시 받음)</span></label><input id="smsBlk" inputmode="tel" value="'+esc((st.blocks||[]).join(', '))+'" placeholder="없음"></div></div>'+
@@ -2591,9 +2599,9 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
-        .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
+        .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
-    if($('#chatSms')){$('#chatSms').checked=(c&&c.chatSms)==='Y';
+    if($('#chatSms')){$('#chatSms').checked=(st&&st.chatSms)==='Y';
       $('#chatSms').onchange=function(){var on=this.checked;call('smsConfig',{chatSms:on?'Y':''}).then(function(){toast(on?'대화 알림 문자를 보냅니다':'대화 알림 문자를 끄었습니다')}).catch(function(e){toast(errText(e))})}}
     if($('#insPrev'))$('#insPrev').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
       call('installSms',$('#insWho').value,$('#insTx').value,false).then(function(r){insDraw(r)})
@@ -3009,7 +3017,7 @@ function boot(){
     if(LIVE&&!ROLE)inboxInit();
     try{chatInit()}catch(e){}
     if(LIVE&&!DEMO)try{var md0=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
-      call('hello',{app:md0?'앱':'브라우저',dev:/Android|iPhone|iPad/i.test(navigator.userAgent)?'폰':'PC'}).catch(function(){})}catch(e){}
+      call('hello',{app:md0?'앱':'브라우저',dev:/Android|iPhone|iPad/i.test(navigator.userAgent)?'폰':'PC'}).then(function(r){if(r&&r.smsOff)smsOffBar()}).catch(function(){})}catch(e){}
     setTimeout(function(){verCheck(true)},4000);
     try{mailInit()}catch(e){}   // 관리자: 문자함 (손님 문의 문자·부재중 전화)
     try{viewInit()}catch(e){}

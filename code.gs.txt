@@ -3013,7 +3013,10 @@ function hello(cred, info) {   // 앱이 열릴 때 한 번 — 누가 언제 �
     }
   } catch (e) { return { ok: false }; }
   seen_(key, kind, name, hotel, room, info);
-  return { ok: true };
+  var out = { ok: true };
+  // 관리자·매니저에게만: 자동 발송이 꺼져 있으면 앱 맨 위에 경고를 띄움 (모르는 사이에 문자가 안 나가는 일 방지)
+  try { if (kind === '관리자' || kind === '매니저') out.smsOff = PropertiesService.getScriptProperties().getProperty('SMS_ON') !== 'Y'; } catch (e) { }
+  return out;
 }
 // ── 앱 설치 안내 문자 (소유주·청소담당자 일괄) ──
 var APP_LINK_ = 'https://beautifulsokcho.github.io/pms/';
@@ -3507,7 +3510,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.2229049d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.5076668a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
