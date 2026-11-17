@@ -11,7 +11,7 @@ var SHEETS = {
   '객실':     { cols: 36, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
-  '예약':     { cols: 51, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51], dates: [6,7,8,24,49], texts: [3,43,50,51] },
+  '예약':     { cols: 52, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52], dates: [6,7,8,24,49], texts: [3,43,50,51,52] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
   '수건규칙': { cols: 9,  key: 1, edit: [1,2,3,4,5,6,7,8,9] },
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 80) return;
+  if (ver >= 81) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1324,6 +1324,15 @@ function ensureSchema_() {
     st80.getRange('C42').setFormula('=IF(' + hide80 + ',"",IF(' + bill80 + ',IF(' + vx80 + ',ROUND(N(C43)/1.1,0),ABS(N(C24)-N(C11))),C11-C24))');
   }
   props.setProperty('SCHEMA', '80');
+  }
+  if (ver < 81) {   // v81: 예약 52열 '방막기 확인' — 자동등록된 예약은 '확인필요'로 넣고, 예약 수정 화면에서 [확인]을 누르면 지워짐
+  var rv81 = ss.getSheetByName('예약');
+  if (rv81) {
+    if (rv81.getMaxColumns() < 52) rv81.insertColumnsAfter(rv81.getMaxColumns(), 52 - rv81.getMaxColumns());
+    if (String(rv81.getRange(1, 52).getValue() || '') === '') rv81.getRange(1, 52).setValue('방막기 확인\n(자동등록 시 확인필요)');
+    rv81.getRange('AZ2:AZ').setNumberFormat('@');
+  }
+  props.setProperty('SCHEMA', '81');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -2892,7 +2901,7 @@ function mailAbnb_(subj, txt, when, ctx) {
   }
   if (!loc) return { kind: 'ABNB 확정', result: '확인 필요', name: name, item: item, note: '리스팅을 객실에 연결 못 함 (달력연결에 iCal 주소 필요)' };
   if (mailOverlap_(ctx, loc.hotel, loc.room, dates[0], dates[1])) return { kind: 'ABNB 확정', result: '확인 필요', hotel: loc.hotel, room: loc.room, name: name, item: item, note: '겹치는 예약 있음' };
-  var nv = { 1: mailNewId_(), 2: loc.hotel, 3: loc.room, 4: name, 6: Utilities.formatDate(when, tz_(), 'yyyy-MM-dd'), 7: dates[0], 8: dates[1], 10: ppl, 11: 'ABNB', 22: (title ? title + ' / ' : '') + '메일 자동등록', 28: code };
+  var nv = { 1: mailNewId_(), 2: loc.hotel, 3: loc.room, 4: name, 6: Utilities.formatDate(when, tz_(), 'yyyy-MM-dd'), 7: dates[0], 8: dates[1], 10: ppl, 11: 'ABNB', 22: (title ? title + ' / ' : '') + '메일 자동등록', 28: code, 52: '확인필요' };   // 다른 플랫폼 방막기 확인
   money(loc.hotel, loc.room, nv);
   saveRowsRun_('예약', [{ r: null, v: nv }]);
   return { kind: 'ABNB 확정', result: '등록함', hotel: loc.hotel, room: loc.room, name: name, note: code, changed: true };
@@ -3061,6 +3070,23 @@ function seen_(key, kind, name, hotel, room, info) {
       if (name && !cur.v[2]) g.sh.getRange(cur.r, 3).setValue(name);
     } else g.sh.appendRow([key, kind, name || '', hotel || '', String(room || ''), now, now, app, dev, 1, '']);
   } catch (e) { }
+}
+// ── 방막기 확인: 자동등록된 예약은 다른 플랫폼에서 그 날짜를 막아 뒀는지 사람이 눈으로 보고 [확인]을 눌러야 경고가 사라짐
+function blockOk(cred, r) {
+  var row = Number(r), sh = SpreadsheetApp.getActive().getSheetByName('예약');
+  if (!(row > 1) || !sh) throw new Error('예약을 찾지 못했습니다.');
+  if (cred && cred.cln) throw new Error('권한이 없습니다.');
+  checkPin_(cred);
+  var v = sh.getRange(row, 1, 1, 52).getValues()[0];
+  if (!v[6]) throw new Error('예약을 찾지 못했습니다.');
+  if (CTX_.role === 'owner') {
+    var mine = (CTX_.rooms || []).some(function (x) { return String(x.h) === String(v[1]) && String(x.r) === String(v[2]); });
+    if (!mine) throw new Error('내 호실 예약이 아닙니다.');
+  } else if (CTX_.role === 'manager') hotelOk_(v[1]);
+  else if (CTX_.role) throw new Error('권한이 없습니다.');
+  var c = sh.getRange(row, 52); c.setNumberFormat('@');
+  c.setValue('확인 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + (CTX_.name ? ' ' + CTX_.name : ''));
+  return { ok: true, row: row, val: c.getValue() };
 }
 function hello(cred, info) {   // 앱이 열릴 때 한 번 — 누가 언제 들어왔는지, 앱으로 쓰는지
   var key, kind, name = '', hotel = '', room = '';
@@ -3568,7 +3594,7 @@ function notiReg_(ctx, it, at) {
   }
   var pn = pp.plat === '놀호텔' ? '놀호텔' : pp.plat === '떠나요' ? '떠나요' : '놀';
   var note = [it.plat === '떠나요' ? String(it.roomName || '').trim() : String(it.roomName || '').replace(/\(.*$/, '').trim(), it.way, '알림 자동등록'].filter(String).join(' / ');
-  var nv = { 2: pp.hotel, 3: it.room, 4: it.name || '', 6: Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd'), 7: it.ci, 8: it.co, 10: it.ppl || 2, 11: pp.plat || '놀', 22: note, 51: no || '' };
+  var nv = { 2: pp.hotel, 3: it.room, 4: it.name || '', 6: Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd'), 7: it.ci, 8: it.co, 10: it.ppl || 2, 11: pp.plat || '놀', 22: note, 51: no || '', 52: '확인필요' };   // 다른 플랫폼 방막기 확인
   if (it.tel) nv[5] = it.tel;
   if (it.sale) nv[12] = it.sale;
   if (cx) { nv[1] = cx.v[0]; nv[24] = ''; nv[22] = note + ' / 취소 되돌림 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'); saveRowsRun_('예약', [{ r: cx.r, v: nv }]); return { result: '취소 되돌림', hotel: pp.hotel, room: it.room, changed: true }; }
@@ -3582,7 +3608,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.c5a2d582';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.156014ac';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

@@ -53,6 +53,13 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
   nav.mob-tabs button span{font-size:clamp(14px,4.2vw,17px);line-height:1.1;font-family:var(--f-display);font-weight:700}
   main{padding-bottom:calc(var(--tabh) + 24px + env(safe-area-inset-bottom,0px))}
 }
+.recbar .mo{flex:0 0 auto}
+.recbar #recDate{font-size:13px;padding:5px 6px;max-width:134px}
+.recbar .mpick .btn{padding:5px 9px}
+.blkwarn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:var(--r);background:var(--warn-soft)}
+.blkwarn b{flex:1 1 100%;color:var(--warn);font-size:15px}
+.blkwarn span{flex:1 1 220px;font-size:13.5px;color:var(--ink)}
+.blkwarn .btn{background:var(--warn);border-color:var(--warn);color:#fff;font-weight:600}
 .panel-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px;margin-bottom:12px}
 .panel-head h2{font-size:21px}
 .panel-head p{margin:0;color:var(--muted);font-size:13px;flex-basis:100%}
@@ -338,6 +345,8 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f s"><label for="recRange">범위</label><select id="recRange"><option value="day">고른 날짜</option><option value="all">전체 (최근 200건)</option></select></div>
       <div class="f s"><label for="recCx">취소</label><select id="recCx"><option value="in">취소 포함</option><option value="">취소 제외</option><option value="only">취소만</option></select></div>
       <div class="f s"><label for="recView">보기</label><select id="recView"><option value="card">카드형</option><option value="table">목록형</option></select></div>
+      <div class="f s"><label for="recSort">정렬순서</label><select id="recSort"><option value="regd">등록일시 최신순</option><option value="rega">등록일시 오래된순</option><option value="room">호실순</option><option value="roomd">호실 역순</option></select></div>
+      <div class="f s"><label for="recPlat">플랫폼</label><select id="recPlat"></select></div>
     </div>
     <div class="list" id="recentList"></div>
   </section>
@@ -470,7 +479,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -737,7 +746,7 @@ function setupScreen(msg){
 function load(names){return call('getData',names).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});})}
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,no:50,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,no:50,block:51,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 // 등록시각(예약 50열) — 예전 예약에는 없으므로 예약일로 대신함
 function regAt(v){var s=String(v[R.regAt]==null?'':v[R.regAt]).trim();if(s)return s.replace('T',' ');var b=dOnly(v[R.booked]);return b?b+' 00:00:00':''}
@@ -962,7 +971,15 @@ function renderRecent(){
   if(cx==='only')list=list.filter(function(r){return !!r.v[R.cancel]});           // 취소만
   else if(!cx)list=list.filter(function(r){return !r.v[R.cancel]});               // 취소 뺀 예약 ('in'이면 모두)
   if(rng!=='all'&&day)list=list.filter(function(r){return regDay(r.v)===day});
-  list.sort(function(a,b){var x=regAt(a.v),y=regAt(b.v);return x<y?1:x>y?-1:b.r-a.r});   // 등록시각 최신순
+  var pl=$('#recPlat')?$('#recPlat').value:'';
+  if(pl)list=list.filter(function(r){return String(r.v[R.plat]||'')===pl});
+  var so=$('#recSort')?$('#recSort').value:'regd';
+  var byReg=function(a,b){var x=regAt(a.v),y=regAt(b.v);return x<y?-1:x>y?1:a.r-b.r};
+  var byRoom=function(a,b){var x=Number(a.v[R.room]),y=Number(b.v[R.room]);if(!isFinite(x))x=1e9;if(!isFinite(y))y=1e9;return x-y||byReg(b,a)};
+  if(so==='rega')list.sort(byReg);
+  else if(so==='room')list.sort(byRoom);
+  else if(so==='roomd')list.sort(function(a,b){return byRoom(b,a)});
+  else list.sort(function(a,b){return byReg(b,a)});   // 등록일시 최신순 (기본)
   if(rng==='all')list=list.slice(0,200);
   $('#recentH').textContent=h+(cx==='only'?' 취소 예약':'')+(rng==='all'?' · 최근 입력':' · 등록 '+(day?md(day):''))+' ('+list.length+'건)';
   recDraw(list,(cx==='only'?'취소된 예약이 없습니다.':rng==='all'?esc(h)+'에 입력한 예약이 아직 없습니다.':md(day)+'에 등록한 예약이 없습니다.'));
@@ -987,7 +1004,8 @@ function recDay(all){var d=$('#recDate').value;
   return d}
 $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
 $('#recAll').onclick=function(){REC_MODE='recent';renderRecent()};
-['recDate','recRange','recView','recCx'].forEach(function(id){var keep=id==='recRange'||id==='recView',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소 고름은 기억하지 않음 (열 때마다 기본값)
+$('#recPlat').innerHTML=opts(platforms(),'','전체');
+['recDate','recRange','recView','recCx','recSort','recPlat'].forEach(function(id){var keep=id==='recRange'||id==='recView'||id==='recSort',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소·플랫폼 고름은 기억하지 않음 (열 때마다 기본값)
   $('#'+id).addEventListener('change',function(){if(keep)store(id,this.value);REC_MODE='recent';renderRecent()})});
 ['recPrev','recNext'].forEach(function(id,i){$('#'+id).addEventListener('click',function(){
   $('#recDate').value=addDays($('#recDate').value||ymd(new Date()),i?1:-1);$('#recRange').value='day';store('recRange','day');REC_MODE='recent';renderRecent()})});
@@ -1166,7 +1184,7 @@ $('#newRes').onclick=function(){show('new')};
 function newId(){var d=new Date();return 'B'+String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+Math.random().toString(36).slice(2,5).toUpperCase()}
 function resForm(row,inline,pre){
   var P=inline?'n':'f',g=function(x){return document.getElementById(P+x)};
-  var v=row?row.v.slice():(pre?pre.slice():new Array(51).fill(''));
+  var v=row?row.v.slice():(pre?pre.slice():new Array(52).fill(''));
   if(!row&&!pre){v[R.booked]=ymd(new Date());v[R.plat]='ABNB';v[R.hotel]=defHotel();v[R.ppl]=2}
   var F=function(id,label,input,cls){return '<div class="f'+(cls?' '+cls:'')+'"><label for="'+P+id+'">'+label+'</label>'+input+'</div>'};
   var I=function(id,val,attr){return '<input id="'+P+id+'" '+(attr||'')+' value="'+esc(val)+'">'};
@@ -1207,7 +1225,14 @@ function resForm(row,inline,pre){
     '<div class="actions">'+(row?(v[R.cancel]?'<button class="btn pri" type="button" id="'+P+'Cxl" style="margin-right:auto">취소 되돌리기 (이 호실·날짜로)</button>':'<button class="btn warn" type="button" id="'+P+'Cxl" style="margin-right:auto">예약 취소</button>'):'')+
     (inline?'<button class="btn" type="button" id="'+P+'Reset">입력 지우기</button>':'<button class="btn" type="button" id="'+P+'Close">닫기</button>')+
     '<button class="btn pri" type="button" id="'+P+'Save">저장</button></div>';
+  // 자동등록된 예약: 다른 플랫폼에서 그 날짜를 막아 뒀는지 확인해야 이중 예약이 안 생김
+  var needBlk=!!(row&&String(v[R.block]||'').indexOf('확인필요')>=0&&!v[R.cancel]);
+  if(needBlk)html='<div class="blkwarn" id="'+P+'Blk"><b>⚠ 방막기 확인 필요</b><span>'+esc(String(v[R.plat]||''))+'에서 자동등록된 예약입니다. 다른 플랫폼에서 '+esc(md(v[R.ci]))+' ~ '+esc(md(v[R.co]))+' 방막기를 했는지 확인하세요.</span><button class="btn" type="button" id="'+P+'BlkOk">확인했습니다</button></div>'+html;
   if(inline)$('#newBox').innerHTML=html; else modal('<h3>'+(row?'예약 수정':'새 예약')+'</h3>'+html);
+  if(needBlk&&g('BlkOk'))g('BlkOk').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='확인 중…';
+    call('blockOk',row.r).then(function(x){var rr=rows('예약').find(function(z){return z.r===row.r});if(rr)rr.v[R.block]=(x&&x.val)||'확인';
+      var bx=g('Blk');if(bx)bx.remove();toast('방막기 확인으로 표시했습니다');try{renderRecent();renderRes()}catch(e){}})
+      .catch(function(e){b2.disabled=false;b2.textContent='확인했습니다';toast(errText(e))})};
   if(row&&!OWNER&&LIVE)(function(){var sb=g('SmsBox'),pv=g('SmsPv');   // 이 예약에 쓸 수 있는 문자 종류 → 문구 보기 → 바로 보내기 · 보낸 기록
     var load2=function(){call('smsSend',row.r,'').then(function(d){var ks=d.kinds||[];
       sb.innerHTML=(ks.length?'<div class="rpick"><select id="'+P+'SmsKind">'+opts(ks,ks[0])+'</select><button type="button" class="btn" id="'+P+'SmsPrev">문구 보기</button></div>':'<span class="note">이 예약(호텔·플랫폼)에 맞는 문자 문구가 없습니다. 관리 → 문자에서 만드세요.</span>')+
@@ -1527,9 +1552,12 @@ function parseKakaoNol(t){
     var sm=bt.match(/([\d,]{4,})\s*원/);if(sm)r.sale=Number(sm[1].replace(/,/g,''))||undefined;
     var way=(b.find(function(x){return /자가\s*방문|도보\s*방문|픽업/.test(x)})||'').trim();
     var rl=b.find(function(x){return /\d{3,4}\s*호/.test(x)})||'',rn=(rl.match(/(\d{3,4})\s*호/)||[])[1];
+    var pl=rl||b.find(function(x){return /스튜디오|디럭스|룸|코지/.test(x)})||'';   // 상품명 줄
     if(rn){var f=findRoom(rn,bt);r.hotel=f.hotel;r.room=f.room;r.unknownRoom=!!f.unknown}
-    else{var rh=b.find(function(x){return /스튜디오|디럭스|룸|코지/.test(x)});if(rh)r.roomHint=rh}
-    var info=rl.replace(/\(.*$/,'').trim();
+    else if(pl){var ms=pl.split('(')[0].match(/\d{3,4}/g)||[],f2=null;   // '코지 1810(…)'처럼 번호 뒤에 '호'가 없는 상품명 — 실제로 있는 호실일 때만
+      for(var mi=ms.length-1;mi>=0&&!f2;mi--){var g=findRoom(ms[mi],bt);if(g.room&&!g.unknown)f2=g}
+      if(f2){r.hotel=f2.hotel;r.room=f2.room}else r.roomHint=pl}
+    var info=pl.replace(/\(.*$/,'').trim();
     r.note=[info,no?'놀 예약번호 '+no:'',way].filter(Boolean).join(' / ');
     return r;
   }).filter(function(r){return r.ci&&(r.name||r.note)});
