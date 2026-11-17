@@ -3020,7 +3020,7 @@ var APP_LINK_ = 'https://beautifulsokcho.github.io/pms/';
 function installText_() {
   return PropertiesService.getScriptProperties().getProperty('INSTALL_SMS') ||
     ['[{호텔}] {이름}님, 객실관리 앱 안내드립니다.',
-      '아래 주소를 열고 「홈 화면에 추가」를 하시면 앱처럼 쓰실 수 있습니다.',
+      '아래 주소를 누르면 설치 방법이 나옵니다. (카카오톡에서 열었다면 「브라우저로 열기」를 먼저 눌러 주세요)',
       '{주소}',
       '{안내}',
       '문의는 앱 안 대화방으로 주세요.'].join('\n');
@@ -3048,7 +3048,8 @@ function installList_(kind) {
   var uniq = {}; return out.filter(function (o) { if (uniq[o.to + '|' + o.key]) return false; uniq[o.to + '|' + o.key] = 1; return true; });
 }
 function installFill_(t, o) {
-  var url = (PropertiesService.getScriptProperties().getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + '?role=' + o.role;
+  // 설치 안내 페이지로 보냄 — 카카오톡 안에서 열어도 '브라우저로 열기'를 띄워 설치할 수 있게
+  var url = (PropertiesService.getScriptProperties().getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + 'install.html?role=' + o.role + '&openExternalBrowser=1';
   return String(t).replace(/\{([^{}]+)\}/g, function (m, k) {
     k = k.trim();
     return k === '이름' ? o.name : k === '호텔' ? (o.hotel || '객실관리') : k === '호실' ? o.room : k === '주소' ? url : k === '안내' ? o.guide : m;
@@ -3113,7 +3114,7 @@ function chatSms_(room) {
   var g = seenMap_(), cur = g.m[room], now = new Date();
   if (cur && cur.v[10]) { var t0 = gwTime_(String(cur.v[10])); if (t0 && now - t0 < 60 * 60000) return; }   // 1시간에 한 번만
   var who = chatTo_(room); if (!who) return;
-  var url = (pr.getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + '?role=' + (String(room).indexOf('청소|') === 0 ? 'cleaner' : 'owner');
+  var url = (pr.getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + '?role=' + (String(room).indexOf('청소|') === 0 ? 'cleaner' : 'owner') + '&openExternalBrowser=1';
   var txt = pr.getProperty('CHAT_SMS_TEXT') || '[객실관리] {이름}님, 관리자 메시지가 도착했습니다.\n앱에서 확인해 주세요.\n{주소}';
   txt = txt.replace(/\{이름\}/g, who.name).replace(/\{주소\}/g, url);
   try { smsSendRaw_(who.to, txt, { col: 'fwd' }); } catch (e) { return; }
@@ -3506,7 +3507,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.974a280a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.2229049d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
