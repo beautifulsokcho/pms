@@ -392,6 +392,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f"><label for="cHotel">호텔</label><select id="cHotel"></select></div>
       <div class="f s"><label for="cSort">호수 정렬</label><select id="cSort"><option value="asc">오름차순</option><option value="desc">내림차순</option></select></div>
       <div class="f"><label for="cAll">담당자 일괄 지정</label><select id="cAll"></select></div>
+      <button class="btn" id="cVac" type="button" aria-pressed="false" title="켜면 그날 공실인 객실도 아래에 나와 점검할 담당자를 배정할 수 있습니다">공실점검</button>
       <button class="btn pri" id="cSave" type="button">저장</button>
     </div>
     <div class="actions no-print" id="cActs"><button class="btn" type="button" id="cPrintBtn">인쇄</button><button class="btn" type="button" id="cSnapBtn">그림으로 저장</button></div>
@@ -478,7 +479,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1789,7 +1790,7 @@ function cleanTasks(){
     if(v[R.ci]===d){(map[k]=map[k]||{}).inn=v}});
   var done=rows('청소실적').filter(function(r){return r.v[0]===d});
   Object.keys(map).forEach(function(k){if(map[k].out&&map[k].out[R.noClean]==='Y')delete map[k]});   // 연속예약(청소안함): 그날 퇴실 청소·입실 준비 모두 없음
-  return Object.keys(map).map(function(k){var t=map[k],p=k.split('|'),info=roomInfo(p[0],p[1])||[];
+  var list=Object.keys(map).map(function(k){var t=map[k],p=k.split('|'),info=roomInfo(p[0],p[1])||[];
     t.hotel=p[0];t.room=p[1];t.key=k;t.moved=!!(t.out&&t.out[R.cmove]);
     t.type=t.out&&t.inn?'turn':t.out?'out':'in';
     if(!t.inn){var lim=addDays(d,5);t.next5=rows('예약').map(function(r){return r.v}).filter(function(v){return !v[R.cancel]&&!isSubst(v)&&v[R.hotel]===p[0]&&String(v[R.room])===p[1]&&v[R.ci]>d&&v[R.ci]<=lim}).sort(function(a,b){return String(a[R.ci]).localeCompare(String(b[R.ci]))})[0]||null}   // 퇴실만 있는 객실: 5일 안 다음 입실 손님 기준
@@ -1801,13 +1802,27 @@ function cleanTasks(){
     var bedOf=function(rec){if(!rec)return t.out&&Number(t.out[R.ppl])>=extraTh(p[0],p[1])?'교체필요':(t.out&&hasBlanket(p[0],p[1])?'일반이불':'');return rec.v[5]==='추가'?'교체필요':/일반이불/.test(rec.v[11]||'')?'일반이불':''};
     var ck=d+'|'+k,st=CS[ck]||(CS[ck]={cleaner:t.rec?t.rec.v[1]:'',ppl:t.out?t.out[R.ppl]:(nx?nx[R.ppl]:''),on:true,bed:bedOf(t.rec)});st.bed0===undefined&&(st.bed0=st.bed);   // 실적 저장 전에는 미배정
     if(st.own===undefined&&t.out)st.own0=st.own=t.out[R.ownCl]==='Y';t.st=st;if(t.type==='in')t.short=prepShort(t,d);return t;
-  }).sort(function(a,b){var o={turn:0,out:0,in:1},dir=$('#cSort').value==='desc'?-1:1;return o[a.type]-o[b.type]||dir*a.room.localeCompare(b.room,'ko',{numeric:true})});
+  });
+  if(VAC){   // 공실점검: 그날 비어 있는 객실도 넣어 점검 담당자를 배정할 수 있게
+    var hsV=h?[h]:hotels(),seenV={};
+    list.forEach(function(t){seenV[t.key]=1});
+    hsV.forEach(function(hh){boardRows(hh,d,list).forEach(function(b2){
+      if(b2.st!=='공실'||b2.owner)return;
+      var k=hh+'|'+b2.room;if(seenV[k])return;seenV[k]=1;
+      var hd=roomDefault(hh,b2.room),ck=d+'|'+k;
+      var st2=CS[ck]||(CS[ck]={cleaner:'',ppl:1,on:true,bed:''});
+      var rec=rows('청소실적').find(function(r){return r.v[0]===d&&r.v[2]===hh&&String(r.v[3])===String(b2.room)});
+      if(rec&&!st2.cleaner)st2.cleaner=rec.v[1]||'';
+      list.push({hotel:hh,room:String(b2.room),key:k,type:'vac',towel:hd.towel,water:hd.water,def:true,st:st2,rec:rec||null,vac:true});
+    })});
+  }
+  return list.sort(function(a,b){var o={turn:0,out:0,in:1,vac:2},dir=$('#cSort').value==='desc'?-1:1;return o[a.type]-o[b.type]||dir*a.room.localeCompare(b.room,'ko',{numeric:true})});
 }
 // 호실 이름이 '대체객실'인 객실: 청소배정·객실정산에서 빼고, 객실현황에는 예약이 있는 날만 보임
 function isSelf(h,rm){return rows('객실').some(function(r){return r.v[1]===h&&String(r.v[2])===String(rm)&&String(r.v[29]||'').trim().toUpperCase()==='Y'})}   // 공실이면 자가 (객실 AD열)
 function isSubRoom(rm){return /^\s*대체객실/.test(String(rm==null?'':rm))}
 function isSubst(v){return isSubRoom(v[R.room])}
-var TYPE={turn:['당일 퇴실→입실','x'],out:['퇴실',''],in:['입실 준비','hold']};
+var TYPE={turn:['당일 퇴실→입실','x'],out:['퇴실',''],in:['입실 준비','hold'],vac:['공실 점검','ok']};
 // 입실 준비만 있는 객실: 지난 퇴실 청소 때 준비한 수건·물과 비교해 모자라면 그만큼 추가
 //  그 청소는 '그때 이미 잡혀 있던(예약일 ≤ 청소일) 5일 안 첫 입실 손님' 기준으로 준비 → 없으면 호텔 기본.
 //  뒤늦게 그 사이에 들어온 예약(예약일 > 청소일)이면 준비량이 다를 수 있어 비교함
@@ -1823,6 +1838,8 @@ function prepShort(t,d){var n=t.inn;if(!n||t.def)return '';
     if(base){pt=twOf(t.hotel,base);pw=waOf(t.hotel,base)}}
   var a=Math.max(0,(Number(t.towel)||0)-pt),b=Math.max(0,(Number(t.water)||0)-pw);
   return [a?'수건 '+a+'장':'',b?'물 '+b+'개':''].filter(Boolean).join(' ')+(a||b?' 추가':'')}
+var VAC=store('cVac')==='Y';
+function vacBtn(){var b=$('#cVac');if(!b)return;b.classList.toggle('pri',VAC);b.setAttribute('aria-pressed',VAC?'true':'false');b.textContent=VAC?'공실점검 켜짐':'공실점검'}
 function cSortDefault(h){var v=store('cSort|'+(h||'*'));return v||(h==='마리나베이'?'asc':'desc')}
 function cWhoLine(ts){   // 저장된 배정 기준 담당자별 청소(퇴실 있는 객실) 수
   var g={},own=0,dirty=false;ts.forEach(function(t){if(ownerCleans(t)){if(t.out)own++;return}var w=t.rec?t.rec.v[1]:'';if(w!==t.st.cleaner)dirty=true;if(!w)return;g[w]=g[w]||{c:0,p:0};g[w][t.out?'c':'p']++});
@@ -1841,17 +1858,17 @@ function renderClean(){
   var hsC=$('#cHotel').value?[$('#cHotel').value]:hotels(),all=[];hsC.forEach(function(hh){all=all.concat(boardRows(hh,d,ts))});
   var ct=function(x){return all.filter(function(r){return r.st===x}).length};
   var chips=[['전체',all.length,'k-all'],['재실',ct('재실'),'k-stay'],['공실',ct('공실'),'k-vac'],['자가',ct('자가'),'k-self'],['청소',all.filter(function(r){return r.st==='청소'&&!r.owner}).length,'k-clean'],['소유주직접',all.filter(function(r){return r.st==='청소'&&r.owner}).length,'k-own'],['오늘입실',all.filter(function(r){return r.nIn==='오늘'}).length,'k-in'],
-    ['입실점검',ts.filter(function(t){return !t.out}).length,'k-chk'],['미배정',ts.filter(function(t){return !t.st.cleaner&&!ownerCleans(t)&&t.st.mv==null&&!t.st.mvx}).length,'k-un'],['이월 예정',ts.filter(function(t){return t.st.mv!=null}).length,'k-mv']];
-  chips=chips.filter(function(c){return c[1]||['자가','소유주직접','이월 예정'].indexOf(c[0])<0});   // 자가·소유주직접은 있을 때만
+    ['입실점검',ts.filter(function(t){return !t.out&&!t.vac}).length,'k-chk'],['공실점검',ts.filter(function(t){return t.vac}).length,'k-vac'],['미배정',ts.filter(function(t){return !t.vac&&!t.st.cleaner&&!ownerCleans(t)&&t.st.mv==null&&!t.st.mvx}).length,'k-un'],['이월 예정',ts.filter(function(t){return t.st.mv!=null}).length,'k-mv']];
+  chips=chips.filter(function(c){return c[1]||['자가','소유주직접','이월 예정','공실점검'].indexOf(c[0])<0});   // 자가·소유주직접은 있을 때만
   $('#cCount').innerHTML='<span class="kdate">'+md(d)+'</span>'+chips.map(function(c){return '<span class="kc '+c[2]+'">'+c[0]+' <b>'+c[1]+'</b></span>'}).join('')+cWhoLine(ts);
   var away=cleanAway(d,$('#cHotel').value);
   var awayHtml=away.length?'<div class="awaybox no-print">'+away.map(function(r){return '<span class="aw">'+esc(r.v[R.hotel])+' '+esc(r.v[R.room])+' · '+md(r.v[R.co])+' 퇴실 → <b>'+md(r.v[R.cmove])+' 청소로 이월</b></span>'}).join('')+'</div>':'';
   if(!ts.length){$('#cList').innerHTML=awayHtml+'<div class="empty">이 날짜에 퇴실하거나 입실하는 예약이 없습니다.'+(away.length?' (위 이월 건은 넘긴 날짜에 나옵니다)':'')+'</div>';renderSheet();return}
-  var nOut=ts.filter(function(t){return t.out}).length,nIn=ts.length-nOut;
+  var nOut=ts.filter(function(t){return t.out}).length,nVac=ts.filter(function(t){return t.vac}).length,nIn=ts.length-nOut-nVac;
   $('#cList').classList.toggle('many',ts.length>=8);   // 청소 객실이 8개 이상이면 PC 가로 4칸
   $('#cList').innerHTML=awayHtml+ts.map(function(t,i){var o=t.out,n=t.inn,who=t.st.cleaner,uns=who!==(t.rec?t.rec.v[1]:'');
     var col=who?cleanerColor(who):'',prep=!o;
-    var sec=i===0&&o?'<div class="tsec">청소 객실 (퇴실 있음) · '+nOut+'실</div>':(prep&&(i===0||ts[i-1].out)?'<div class="tsec prep">입실 준비만 있는 객실 · '+nIn+'실</div>':'');
+    var sec=t.vac?((i===0||!ts[i-1].vac)?'<div class="tsec prep">공실 점검 · '+nVac+'실</div>':''):(i===0&&o?'<div class="tsec">청소 객실 (퇴실 있음) · '+nOut+'실</div>':(prep&&(i===0||ts[i-1].out)?'<div class="tsec prep">입실 준비만 있는 객실 · '+nIn+'실</div>':''));
     return sec+'<div class="task '+t.type+(prep?' prepc':(col?' whoc':''))+'" data-k="'+esc(t.key)+'"'+(prep?(col?' style="border-left-color:'+col+'"':''):(col?' style="background:'+pastel(col)+';color:#111"':''))+'><div class="row"><span class="room">'+esc(t.hotel)+' '+esc(t.room)+'</span><span class="chip '+TYPE[t.type][1]+'">'+TYPE[t.type][0]+'</span>'+
       (t.moved?'<span class="chip mv" title="'+esc(md(t.out[R.co]))+' 퇴실 청소를 넘겨받음">이월 '+md(t.out[R.co])+'</span>':'')+
       (t.st.mv!=null?'<span class="chip mv">'+md(t.st.mv)+'로 이월 <small class="unsv">저장 전</small></span>':'')+
@@ -1859,7 +1876,7 @@ function renderClean(){
       (o?'<div class="sub">퇴실: '+esc(o[R.name]||'')+' '+esc(o[R.ppl])+'명'+(t.st.bed==='교체필요'?' · <b class="red">교체필요</b>':'')+(memoHide(o[R.memo])?' · <b>'+esc(memoHide(o[R.memo]))+'</b>':'')+'</div>':'')+
       (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(memoHide(n[R.memo])?' · <b>'+esc(memoHide(n[R.memo]))+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
       (!n&&t.next5?'<div class="sub">다음 입실 '+md(t.next5[R.ci])+': '+esc(t.next5[R.ppl])+'명 '+esc(t.next5[R.n])+'박 · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(memoHide(t.next5[R.memo])?' · <b>'+esc(memoHide(t.next5[R.memo]))+'</b>':'')+'</div>':'')+
-      (t.def?'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅 수건 '+t.towel+'장 · 물 '+t.water+'개</div>':'')+
+      (t.vac?'<div class="sub">예약 없는 공실 — 상태 점검 (수건 '+t.towel+'장 · 물 '+t.water+'개 기준)</div>':t.def?'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅 수건 '+t.towel+'장 · 물 '+t.water+'개</div>':'')+
       (o&&!isOwnerClean(t.hotel,t.room)?'<label class="chk ownchk no-print"><input type="checkbox" data-f="own"'+(t.st.own?' checked':'')+'> 소유주 직접 청소 <small>(정산 청소비 0 · 수당 없음)</small>'+(t.st.own!==t.st.own0?' <small class="unsv">저장 전</small>':'')+'</label>':'')+
       (ownerCleans(t)?'':'<div class="row cform no-print"><div class="f"><label>담당자</label><select data-f="cleaner">'+cleanerOpts(t.hotel,t.st.cleaner,'미배정',false,o?{sel:t.st.mv!=null?'mv':t.st.mvx?'mvx':'',moved:t.moved}:null)+'</select></div>'+
       (t.st.mv!=null?'<div class="f"><label>이월 날짜</label><input data-f="mvd" type="date" value="'+esc(t.st.mv)+'"></div>':'')+
@@ -1970,12 +1987,14 @@ function renderBoard(ts){
 // 키퍼·이불 선택 → 청소실적에 바로 저장 (구분수동: 교체필요=추가, 일반이불=기본, 빈칸=인원으로 자동)
 function recItem(t){var d=$('#cDate').value,bed=t.st.bed||'',memo=[bed,(t.out&&t.out[R.memo])||''].filter(Boolean).join(' · ');
   if(!t.st.cleaner)return t.rec?{r:t.rec.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:''}}:null;
-  return {r:t.rec?t.rec.r:null,v:{1:d,2:t.st.cleaner,3:t.hotel,4:t.room,5:Number(t.st.ppl)||'',6:t.type==='in'?'입실준비':bed==='교체필요'?'추가':bed==='일반이불'?'기본':'',12:memo}}}
+  return {r:t.rec?t.rec.r:null,v:{1:d,2:t.st.cleaner,3:t.hotel,4:t.room,5:Number(t.st.ppl)||'',6:t.type==='vac'?'공실점검':t.type==='in'?'입실준비':bed==='교체필요'?'추가':bed==='일반이불'?'기본':'',12:t.type==='vac'?'공실 점검':memo}}}
 $('#cBoard').addEventListener('change',function(e){var s=e.target.closest('.ksel,.bsel');if(!s)return;var k=s.dataset.k,t=cleanTasks().find(function(z){return z.key===k});if(!t)return;
   if(s.classList.contains('ksel'))t.st.cleaner=s.value;else t.st.bed=s.value;
   renderClean()});
 $('#cBoard').addEventListener('input',function(e){var el=e.target;if(!el.classList.contains('ntext'))return;var h=el.dataset.h,hr=rows('호텔').find(function(x){return x.v[1]===h});
   if(hr&&el.value!==String(hr.v[15]||''))CNOTE[h]=el.value;else delete CNOTE[h];var nv=el.parentNode.querySelector('.nview');if(nv)nv.textContent=el.value;showDirty()});
+$('#cVac').addEventListener('click',function(){VAC=!VAC;store('cVac',VAC?'Y':'');vacBtn();renderClean()});
+setTimeout(vacBtn,0);
 $('#cAll').addEventListener('change',function(){var c=this.value;if(!c)return;cleanTasks().forEach(function(t){if(!t.st.cleaner&&!ownerCleans(t))t.st.cleaner=c});this.value='';renderClean()});   // 미배정 객실 모두 이 담당자로 (저장은 [저장])
 // 호텔별 기본 세팅 수량 (호텔 Q·R열, 비어 있으면 2명 2박 기준 계산)
 // 객실별 기본 세팅(객실 AB 수건·AC 물) → 없으면 호텔 기본
