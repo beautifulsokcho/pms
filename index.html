@@ -478,7 +478,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2720,22 +2720,37 @@ function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty
 function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,w=r.warn||0,bd=$('#inboxN');if(bd){bd.hidden=!n;bd.textContent=n;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w}).catch(function(){})}
 function ibxSortBar(){return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select></div>'}
 function ibxSortBind(sel){var s2=$('#ibxSort');if(!s2)return;s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)}}
-function nolShow(r){
+function nolShow(r,all){
   var md2=function(x){return x?(+x.slice(5,7))+'/'+(+x.slice(8,10)):''};
-  var over=(r&&r.over)||[],miss=(r&&r.miss)||[];
-  var h='<h3>놀 달력 대조</h3><p class="note">놀 예약달력과 우리 장부를 맞춰 본 결과입니다. 호텔: '+esc(((r&&r.hotels)||[]).join(', ')||'(놀 달력 번호가 등록된 호텔 없음)')+'</p>';
-  h+='<h4 class="cwh">취소 의심 '+over.length+'건 <small class="note">놀에서는 빈 방인데 우리 장부에는 놀 예약이 있음</small></h4>';
+  var over=(r&&r.over)||[],open=(r&&r.open)||[],shut=(r&&r.shut)||[];
+  var h='<h3>놀 달력 대조</h3><p class="note">호텔: '+esc(((r&&r.hotels)||[]).join(', ')||'(놀 달력 번호가 등록된 호텔 없음)')+
+    ' · 놀이 \'완\'이어도 우리 장부에 그 방 예약(플랫폼 무관)이 있으면 정상입니다.</p>';
+  h+='<h4 class="cwh">방을 풀어야 할 날 '+open.length+'건 <small class="note">놀은 막혀 있는데 우리 장부엔 그 방 예약이 없음</small></h4>';
+  h+=open.length?'<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>상품</th><th>기간</th><th class="n">박</th><th>방풀기 완료</th></tr></thead><tbody>'+
+      open.map(function(x,i){return '<tr><td><b>'+esc(x.room||'-')+'</b></td><td>'+esc(x.name)+'</td><td class="num">'+md2(x.from)+(x.from===x.to?'':'~'+md2(x.to))+'</td><td class="n">'+x.nights+'</td>'+
+        '<td><label class="chk"><input type="checkbox" class="nolok" data-k="'+esc(x.keys.join('@'))+'"> 완료</label></td></tr>'}).join('')+'</tbody></table></div>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="nolSave">체크한 것 완료 처리</button></div>'
+    :'<div class="empty">없습니다. 막아 둔 날이 모두 예약과 맞습니다.</div>';
+  if(shut.length){h+='<h4 class="cwh" style="margin-top:14px">안 파는 방에 들어온 예약 '+shut.length+'건</h4>'+
+    '<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>기간</th><th>고객</th></tr></thead><tbody>'+
+    shut.map(function(x){return '<tr><td><b>'+esc(x.room)+'</b></td><td class="num">'+md2(x.ci)+'~'+md2(x.co)+'</td><td>'+esc(x.guest||'(이름 없음)')+'</td></tr>'}).join('')+'</tbody></table></div>'}
+  h+='<h4 class="cwh" style="margin-top:14px">취소 의심 '+over.length+'건 <small class="note">놀에서는 빈 방인데 우리 장부에는 놀 예약이 있음</small></h4>';
   h+=over.length?'<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>기간</th><th>고객</th><th>예약번호</th></tr></thead><tbody>'+
       over.map(function(x){return '<tr><td><b>'+esc(x.room)+'</b></td><td class="num">'+md2(x.ci)+'~'+md2(x.co)+'</td><td>'+esc(x.guest||'(이름 없음)')+'</td><td class="num">'+esc(x.no||'')+'</td></tr>'}).join('')+'</tbody></table></div>'
-    :'<div class="empty">없습니다. 놀 예약이 모두 달력과 맞습니다.</div>';
-  h+='<h4 class="cwh" style="margin-top:14px">장부에 없는 날 '+miss.length+'건 <small class="note">놀 달력은 \'완\'인데 우리 장부에는 그 방이 비어 있음 (앞으로 3주)</small></h4>';
-  h+='<p class="note">놀에 팔지 않고 막아 둔 방도 \'완\'으로 보이기 때문에, 여기 있는 것이 모두 놓친 예약은 아닙니다. 2주 넘게 연달아 막힌 방은 뺐습니다.</p>';
-  h+=miss.length?'<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>상품</th><th>기간</th><th class="n">박</th></tr></thead><tbody>'+
-      miss.map(function(x){return '<tr><td><b>'+esc(x.room||'-')+'</b></td><td>'+esc(x.name)+'</td><td class="num">'+md2(x.from)+'~'+md2(x.to)+'</td><td class="n">'+x.nights+'</td></tr>'}).join('')+'</tbody></table></div>'
     :'<div class="empty">없습니다.</div>';
-  h+='<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>';
+  h+='<p class="note" style="margin-top:12px">「놀 당분간 안 팜」으로 표시한 객실은 방풀기 목록에서 빠집니다 (관리 → 객실 시트). 완료 처리한 날 '+((r&&r.done)||0)+'건.</p>';
+  h+='<div class="actions"><label class="chk"><input type="checkbox" id="nolAll"'+(all?' checked':'')+'> 완료한 것도 보기</label><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>';
   modal(h);
+  var sv=$('#nolSave');if(sv)sv.onclick=function(){
+    var ks=[];document.querySelectorAll('.nolok:checked').forEach(function(c){ks=ks.concat(c.dataset.k.split('@'))});
+    if(!ks.length){toast('완료할 줄을 체크하세요');return}
+    sv.disabled=true;sv.textContent='저장 중…';
+    call('nolUndo',ks,true).then(function(){toast('방풀기 완료로 표시했습니다');nolRun(all)})
+      .catch(function(e){sv.disabled=false;sv.textContent='체크한 것 완료 처리';toast(errText(e))})};
+  var ac=$('#nolAll');if(ac)ac.onchange=function(){nolRun(this.checked)};
 }
+function nolRun(all){modal('<h3>놀 달력 대조</h3><div class="empty">대조 중…</div>');
+  call('nolCheck',!!all).then(function(r){nolShow(r,!!all)}).catch(function(e){closeModal();toast(errText(e))})}
 function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],th={};
   rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(r.kind!=='보냄'&&!r.read)t.unread++});
   var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':'⚠ 자동등록 경고'};
@@ -2746,8 +2761,7 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
     ibxSortBind();
     box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num)}});
     var nb2=$('#ibxNol');if(nb2)nb2.onclick=function(){nb2.disabled=true;nb2.textContent='대조 중…';
-      call('nolCheck').then(function(r){nolShow(r)}).catch(function(e){toast(errText(e))})
-        .then(function(){nb2.disabled=false;nb2.textContent='놀 달력 대조'})};
+      nolRun(false);setTimeout(function(){nb2.disabled=false;nb2.textContent='놀 달력 대조'},800)};
     var rb=$('#ibxRoom');if(rb)rb.onclick=function(){rb.disabled=true;rb.textContent='점검 중…';
       call('roomCheck').then(function(r){var n=r&&r.n||0;toast(n?'호실이 다른 예약 '+n+'건을 올렸습니다':'오늘~7일 안 입실 중 호실이 다른 예약은 없습니다');inboxOpen()})
         .catch(function(e){rb.disabled=false;rb.textContent='입실 호실 점검';toast(errText(e))})};
