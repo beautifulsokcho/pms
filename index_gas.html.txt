@@ -23,7 +23,8 @@
   --accent:#43b4b0; --accent-soft:#16383a; --accent-ink:#062022;
   --warn:#e38b55; --warn-soft:#3a2417; --ok:#66bb87; --ok-soft:#15301f; --hold:#d9b45a; --hold-soft:#33290f; color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:contain;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);-webkit-text-size-adjust:100%}
+html{overscroll-behavior:none}
+body{margin:0;-webkit-tap-highlight-color:transparent;overscroll-behavior:none;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-body);-webkit-text-size-adjust:100%}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -48,8 +49,8 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
   nav.desk-tabs{display:none}
   nav.mob-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
     padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-  nav.mob-tabs button{display:flex;flex-direction:column;align-items:center;font-size:11.5px;padding:6px 0;white-space:nowrap;min-width:0}
-  nav.mob-tabs button span{font-size:17px;line-height:1.1;font-family:var(--f-display);font-weight:700}
+  nav.mob-tabs button{display:flex;flex-direction:column;align-items:center;font-size:clamp(9.5px,2.7vw,12px);padding:5px 1px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  nav.mob-tabs button span{font-size:clamp(14px,4.2vw,17px);line-height:1.1;font-family:var(--f-display);font-weight:700}
   main{padding-bottom:calc(var(--tabh) + 24px + env(safe-area-inset-bottom,0px))}
 }
 .panel-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px;margin-bottom:12px}
@@ -469,7 +470,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -625,8 +626,8 @@ function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());
       '<button class="btn" type="button" id="myToday">오늘</button><button class="btn" type="button" id="myTom">내일</button></div>'+
       '<div class="count cwsum">'+md(d.date)+' · '+d.items.length+'실'+(d.items.length?' <span class="cwneed">— 수건 <b>'+tw+'</b>장 · 물 <b>'+wa+'</b>개</span>':'')+'</div>';   // 오늘 필요한 수건·물 합계
     if(!d.items.length)html+='<div class="empty">이 날짜에 배정된 객실이 없습니다.</div>';
-    else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비';
-      return '<div class="task cwcard '+(prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(prep?'hold':'x')+'">'+(prep?'입실 준비':'청소')+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
+    else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':'청소';
+      return '<div class="task cwcard '+(vac?'vac':prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(vac?'ok':prep?'hold':'x')+'">'+lab+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
         (x.outPpl!==''?'<div class="sub">퇴실: '+esc(x.outPpl)+'명'+(x.outMemo?' · <b>'+esc(x.outMemo)+'</b>':'')+'</div>':'')+
         (x.inDate?'<div class="sub">다음 입실 '+esc(x.inDate)+': '+esc(x.inPpl)+'명 '+esc(x.inN)+'박'+(x.inMemo?' · <b>'+esc(x.inMemo)+'</b>':'')+'</div>':'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅</div>')+
         '<div class="sub">'+(x.def?'기본 세팅 · ':'')+'수건 <b>'+(x.towel===''?'기본':esc(x.towel)+'장')+'</b> · 물 <b>'+(x.water===''?'기본':esc(x.water)+'개')+'</b></div></div>'}).join('')+'</div>';
@@ -676,7 +677,8 @@ function cwRoom(date,h,rm){
   cApi('myRoom',date,h,rm).then(function(d){cwRoomDraw(d)}).catch(function(e){$('#cwRm').innerHTML='<p class="err">'+esc(errText(e))+'</p>'});
 }
 function cwRoomDraw(d){var box=$('#cwRm');if(!box)return;var PEND={};   // 고른 사진은 [저장] 때 한꺼번에 올림
-  box.innerHTML='<label class="chk cwbig"><input type="checkbox" id="cwDone"'+(d.done?' checked':'')+'> 청소 완료'+(d.done?' <small class="note">('+esc(d.done)+')</small>':'')+'</label>'+
+  var dlab=d.kind==='공실점검'?'공실 점검 완료':d.kind==='입실준비'?'입실 준비 완료':'청소 완료';
+  box.innerHTML='<label class="chk cwbig"><input type="checkbox" id="cwDone"'+(d.done?' checked':'')+'> '+dlab+(d.done?' <small class="note">('+esc(d.done)+')</small>':'')+'</label>'+
     (d.items.length?'<h4 class="cwh">추가 작업·비품 (해당하는 것 체크)</h4><div class="cwitems">'+d.items.map(function(m,i){return '<div class="cwit"><label class="chk"><input type="checkbox" data-i="'+i+'"'+(m.on?' checked':'')+(m.on&&!m.mine?' disabled':'')+'> '+esc(m.name)+'</label>'+
       '<div class="cwph" id="cwph'+i+'"'+(m.on?'':' hidden')+'>'+(m.photo?'<a href="'+esc(m.photo.split('\n').pop())+'" target="_blank" rel="noopener" class="chip ok">올린 사진 '+m.photo.split('\n').length+'장 ✓</a>':'')+
         '<span class="cwsel note" id="cwsel'+i+'"></span>'+
@@ -843,13 +845,41 @@ var Demo={
 // ───────── 탭 ─────────
 var TABS=[['new','새 예약','새'],['res','예약검색','검'],['settle','객실정산','정'],['clean','청소배정','청'],['pay','청소수당','수'],['admin','관리','관']];
 function tabHtml(mob){return TABS.map(function(t){return '<button type="button" data-t="'+t[0]+'">'+(mob?'<span>'+t[2]+'</span>':'')+t[1]+'</button>'}).join('')}
-$('#deskTabs').innerHTML=tabHtml(false);$('#mobTabs').innerHTML=tabHtml(true);
+$('#deskTabs').innerHTML=tabHtml(false);$('#mobTabs').innerHTML=tabHtml(true);setTimeout(function(){try{tabFit()}catch(e){}},0);
 function show(t){
   document.querySelectorAll('[data-tab]').forEach(function(s){s.hidden=s.id!=='v-'+t});
   document.querySelectorAll('nav.tabs button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.t===t)});
-  store('tab',t);syncHotel(t); if(t==='admin')adminOpen(); if(t==='clean'){openClean();renderClean()}
+  store('tab',t);syncHotel(t);try{tabFit()}catch(e){} if(t==='admin')adminOpen(); if(t==='clean'){openClean();renderClean()}
 }
 document.querySelectorAll('nav.tabs').forEach(function(n){n.addEventListener('click',function(e){var b=e.target.closest('button');if(b)show(b.dataset.t)})});
+// ── 폰 조작: 하단 탭 높이 맞추기 · 뒤로가기 두 번에 종료 · 옆으로 넘겨 메뉴 이동
+function visTabs(){return [].slice.call(document.querySelectorAll('#mobTabs button, #deskTabs button'))
+  .filter(function(b){return !b.hidden&&b.style.display!=='none'&&b.offsetParent!==null}).map(function(b){return b.dataset.t})
+  .filter(function(t,i,a){return a.indexOf(t)===i})}
+function tabFit(){var n=$('#mobTabs');if(!n)return;   // 글자를 크게 보거나 시스템 버튼이 있어도 본문·탭이 가려지지 않게 실제 높이를 씀
+  if(getComputedStyle(n).display==='none'){document.documentElement.style.removeProperty('--tabh');return}
+  var h=n.offsetHeight;if(h>20)document.documentElement.style.setProperty('--tabh',h+'px')}
+addEventListener('resize',tabFit);addEventListener('orientationchange',function(){setTimeout(tabFit,300)});
+var BACK_ARM=false;
+function backPush(){try{history.pushState({pms:1},'')}catch(e){}}
+backPush();
+addEventListener('popstate',function(){
+  if($('#modalRoot')&&$('#modalRoot').innerHTML){closeModal();backPush();return}   // ① 열린 창 닫기
+  var list=visTabs(),first=list.length?list[0]:'new',cur=store('tab')||first;
+  if(cur!==first){show(first);backPush();return}                                    // ② 첫 화면으로
+  if(!BACK_ARM){BACK_ARM=true;toast('한 번 더 누르면 종료됩니다');backPush();setTimeout(function(){BACK_ARM=false},2000);return}
+  setTimeout(function(){try{history.back()}catch(e){}},0);                          // ③ 종료
+});
+(function(){var x0=0,y0=0,ok=false;   // 옆으로 넘기기 → 메뉴 이동 (표·입력칸·가로 스크롤 영역에서는 동작 안 함)
+  var skip=function(el){return !!(el&&el.closest&&el.closest('input,textarea,select,button,a,label,.modal,.scroll,.xscroll,table,.cal,[data-noswipe]'))};
+  addEventListener('touchstart',function(e){if(e.touches.length!==1){ok=false;return}
+    var t=e.touches[0];x0=t.clientX;y0=t.clientY;ok=!skip(e.target)&&!($('#modalRoot')&&$('#modalRoot').innerHTML)},{passive:true});
+  addEventListener('touchend',function(e){if(!ok)return;ok=false;
+    var t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;
+    if(Math.abs(dx)<70||Math.abs(dx)<Math.abs(dy)*2)return;
+    var list=visTabs();if(list.length<2)return;var i=list.indexOf(store('tab')||list[0]);if(i<0)return;
+    var j=i+(dx<0?1:-1);if(j<0||j>=list.length)return;show(list[j])},{passive:true});
+})();
 
 // ───────── 모달 ─────────
 function modal(html,sticky){$('#modalRoot').innerHTML='<div class="modal-bg'+(sticky?' mtop':'')+'" id="mbg"><div class="modal" role="dialog" aria-modal="true">'+html+'</div></div>';
@@ -2565,6 +2595,12 @@ function smsOffBar(){if($('#smsOffBar'))return;
   d.onclick=function(){show('admin');$('#aSheet').value='문자';adminOpen();window.scrollTo(0,0)};
   document.body.insertBefore(d,document.body.firstChild)}
 function smsOffBarHide(){var d=$('#smsOffBar');if(d)d.remove()}
+function smsLogDraw(r){var o=$('#smsLogOut');if(!o)return;var rows=(r&&r.rows)||[];
+  if(!rows.length){o.innerHTML='<p class="note">보낸 문자가 없습니다.</p>';return}
+  o.innerHTML='<p class="note">최근 '+rows.length+'건'+(r.wait?' · 보내는 중 '+r.wait+'건':'')+'</p><div class="scroll"><table><tr><th>시각</th><th>호실</th><th>고객</th><th>종류</th><th>받는 번호</th><th>상태</th></tr>'+
+    rows.map(function(x){var cls=x.st==='실패'?' class="warnc"':'',n=String(x.to||'').replace(/[^\d#]/g,''),
+      t=n.length>=10?n.slice(0,3)+'-'+n.slice(3,n.length-4)+'-'+n.slice(n.length-4):n;
+      return '<tr><td class="nw">'+esc(x.at)+'</td><td class="nw">'+esc(x.room?x.hotel+' '+x.room:'')+'</td><td class="nw">'+esc(x.name||'')+'</td><td class="nw">'+esc(x.kind||'')+'</td><td class="nw">'+esc(t)+'</td><td'+cls+'>'+esc(x.st||'')+(x.err?' · '+esc(x.err):'')+'</td></tr>'}).join('')+'</table></div>'}
 // 문자 설정 (솔라피): API Key·Secret·발신번호는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(대표님 폰)으로만 발송
   box.innerHTML='<div class="report" style="margin-top:12px"><h3>문자 설정</h3><div id="smsForm"><p class="note">불러오는 중…</p></div></div>';
@@ -2581,6 +2617,8 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
+      '<h4 class="cwh" style="margin-top:14px">최근 보낸 문자</h4><p class="note">예약 문자(문자기록)와 답장·바로 보내기를 시각 순으로 모아 보여 줍니다.</p>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="smsLogBtn">불러오기</button></div><div id="smsLogOut"></div>'+
       '<h4 class="cwh" style="margin-top:14px">앱 설치 안내 문자 (일괄)</h4><p class="note">소유주·청소담당자에게 앱 주소와 설치 방법을 문자로 보냅니다. 전화번호가 없거나 사용여부 N인 분은 빠집니다. 문구의 {이름} {호텔} {호실} {주소} {안내}는 사람마다 자동으로 바뀝니다.</p>'+
       '<div class="form"><div class="f s"><label for="insWho">받을 사람</label><select id="insWho"><option value="owner">소유주</option><option value="cleaner">청소담당자</option><option value="all">둘 다</option></select></div>'+
       '<div class="f full"><label for="insTx">문구</label><textarea id="insTx" rows="6"></textarea></div></div>'+
@@ -2601,6 +2639,8 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
+    if($('#smsLogBtn'))$('#smsLogBtn').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
+      call('smsLogList',60).then(smsLogDraw).catch(function(e){toast(errText(e))}).then(function(){b2.disabled=false;b2.textContent='다시 불러오기'})};
     if($('#chatSms')){$('#chatSms').checked=(st&&st.chatSms)==='Y';
       $('#chatSms').onchange=function(){var on=this.checked;call('smsConfig',{chatSms:on?'Y':''}).then(function(){toast(on?'대화 알림 문자를 보냅니다':'대화 알림 문자를 끄었습니다')}).catch(function(e){toast(errText(e))})}}
     if($('#insPrev'))$('#insPrev').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';

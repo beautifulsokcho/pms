@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -1506,7 +1506,7 @@ function myAssigned_(name, date, hotel, room) {
   var cs = SpreadsheetApp.getActive().getSheetByName('청소실적'), lc = cs.getLastRow(), v = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues() : [];
   var k = v.findIndex(function (x) { return x[1] === name && fmt_(x[0], false) === date && x[2] === hotel && String(x[3]) === String(room); });
   if (k < 0) throw new Error('나에게 배정된 객실이 아닙니다.');
-  return { sh: cs, row: k + 2, done: v[k][12] };
+  return { sh: cs, row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || '') };
 }
 function manualItems_(hotel, room) {   // 그 객실에 쓰는 '수동' 정산항목 (적용 호텔·객실 V열 반영, 관리자 직접 운영 객실은 없음)
   var ss = SpreadsheetApp.getActive(), it = ss.getSheetByName('정산항목'), ob = ss.getSheetByName('객실');
@@ -1522,7 +1522,7 @@ function manualItems_(hotel, room) {   // 그 객실에 쓰는 '수동' 정산�
 function myRoomData_(name, date, hotel, room) {
   var a = myAssigned_(name, date, hotel, room), pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
   var got = lp > 1 ? pi.getRange(2, 1, lp - 1, 15).getValues().map(function (x, k) { return { r: k + 2, x: x }; }).filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; }) : [];
-  return { date: date, hotel: hotel, room: room, done: a.done ? String(fmt_(a.done, false)) : '', items: manualItems_(hotel, room).map(function (m) {
+  return { date: date, hotel: hotel, room: room, kind: a.kind, done: a.done ? String(fmt_(a.done, false)) : '', items: manualItems_(hotel, room).map(function (m) {
     var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
     return { name: m.name, price: m.price, on: !!g, mine: !!(g && /^청소담당자/.test(String(g.x[9]))), photo: g ? String(g.x[14] || '') : '' };
   }) };
@@ -1578,7 +1578,15 @@ function ocrImage(pin, dataUrl) {
     .concat(Utilities.base64Decode(m[2])).concat(Utilities.newBlob('\r\n--' + bd + '--').getBytes());
   var up = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&ocrLanguage=ko', {
     method: 'post', contentType: 'multipart/related; boundary=' + bd, payload: body, headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
-  if (up.getResponseCode() >= 300) throw new Error('사진 글자 읽기 실패 (' + up.getResponseCode() + '). 관리자가 편집기에서 codeSetup을 한 번 실행해 권한을 다시 허용하세요.');
+  if (up.getResponseCode() >= 300) {
+    var why = String(up.getContentText() || '').replace(/\s+/g, ' ').slice(0, 300), num = PropertiesService.getScriptProperties().getProperty('GCP_NO') || '';
+    if (/not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(why)) {   // 이 스크립트가 쓰는 구글 클라우드 프로젝트에서 Drive API가 꺼져 있음
+      var pn = (why.match(/project[s]?[\/ ]"?(\d{6,})/i) || [])[1] || num;
+      throw new Error('사진 글자 읽기를 쓰려면 구글 클라우드에서 Drive API를 켜야 합니다. ' +
+        'https://console.cloud.google.com/apis/library/drive.googleapis.com' + (pn ? '?project=' + pn : '') + ' 에서 [사용] 을 누른 뒤 1~2분 기다렸다가 다시 해 보세요.');
+    }
+    throw new Error('사진 글자 읽기 실패 (' + up.getResponseCode() + '). ' + why);
+  }
   var id = JSON.parse(up.getContentText()).id, text = '';
   try {
     var ex = UrlFetchApp.fetch('https://www.googleapis.com/drive/v3/files/' + id + '/export?mimeType=text/plain', { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
@@ -1767,6 +1775,31 @@ function smsSentMap_() {   // '예약키|종류' → 상태
   var sh = SpreadsheetApp.getActive().getSheetByName('문자기록'), m = {}; if (!sh || sh.getLastRow() < 2) return m;
   sh.getRange(2, 3, sh.getLastRow() - 1, 7).getValues().forEach(function (x) { m[x[0] + '|' + x[4]] = x[6]; });
   return m;
+}
+function smsLogList(pin, n) {   // 관리자: 최근 보낸 문자 (예약 문자 + 바로 보내기·연결 문자)
+  checkPin_(pin); adminOnly_();
+  n = Math.min(Math.max(Number(n) || 60, 10), 300);
+  var ss = SpreadsheetApp.getActive(), out = [];
+  var lg = ss.getSheetByName('문자기록');
+  if (lg && lg.getLastRow() > 1) {
+    var lr = lg.getLastRow(), from = Math.max(2, lr - n + 1), v = lg.getRange(from, 1, lr - from + 1, 11).getValues();
+    v.forEach(function (x) {
+      if (!x[1]) return;
+      out.push({ at: String(x[1]), hotel: String(x[3] || ''), room: String(x[4] || ''), name: String(x[5] || ''), kind: String(x[6] || ''),
+        to: String(x[7] || ''), st: String(x[8] || ''), doneAt: x[9] ? String(x[9]) : '', err: String(x[10] || '') });
+    });
+  }
+  var gw = ss.getSheetByName('문자대기');
+  if (gw && gw.getLastRow() > 1) {
+    var gr = gw.getLastRow(), gf = Math.max(2, gr - n + 1), g = gw.getRange(gf, 1, gr - gf + 1, 10).getValues();
+    g.forEach(function (x) {
+      if (!x[1] || /^log:/.test(String(x[9] || ''))) return;   // 예약 문자는 위 문자기록에 이미 있음
+      out.push({ at: String(x[1]).replace(/:\d\d$/, ''), hotel: '', room: '', name: '', kind: String(x[9] || '') === 'reply' ? '답장·바로 보내기' : '그 밖의 문자',
+        to: String(x[2] || ''), st: String(x[4] || ''), doneAt: x[6] ? String(x[6]) : '', err: String(x[7] || ''), text: String(x[3] || '').slice(0, 60) });
+    });
+  }
+  out.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  return { rows: out.slice(0, n), wait: gwCount_() };
 }
 function smsLogSet_(id, st, err) {
   var sh = SpreadsheetApp.getActive().getSheetByName('문자기록'); if (!sh || sh.getLastRow() < 2) return;
@@ -3510,7 +3543,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.5076668a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.99ea2e08';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
