@@ -469,7 +469,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2573,6 +2573,12 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
+      '<h4 class="cwh" style="margin-top:14px">앱 설치 안내 문자 (일괄)</h4><p class="note">소유주·청소담당자에게 앱 주소와 설치 방법을 문자로 보냅니다. 전화번호가 없거나 사용여부 N인 분은 빠집니다. 문구의 {이름} {호텔} {호실} {주소} {안내}는 사람마다 자동으로 바뀝니다.</p>'+
+      '<div class="form"><div class="f s"><label for="insWho">받을 사람</label><select id="insWho"><option value="owner">소유주</option><option value="cleaner">청소담당자</option><option value="all">둘 다</option></select></div>'+
+      '<div class="f full"><label for="insTx">문구</label><textarea id="insTx" rows="6"></textarea></div></div>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="insPrev">미리보기 · 명단</button></div><div id="insOut"></div>'+
+      '<h4 class="cwh" style="margin-top:14px">대화 알림 문자</h4><p class="note">관리자가 대화방에 글을 남기면 상대에게 「메시지가 있습니다」 문자를 보냅니다 (한 사람에게 1시간에 한 번).</p>'+
+      '<label class="chk"><input type="checkbox" id="chatSms"> 대화 알림 문자 보내기</label>'+
       '<h4 class="cwh" style="margin-top:14px">당일예약 문자</h4><p class="note">종류 「당일예약」 문구를 기준(5분후~3시간후)으로 두면, 입실일=등록일·자동등록·겹치는 예약 없음·연락처 있음인 예약에 한해 때가 됐을 때 「보낼까요?」를 묻습니다. 오전 예약은 그날 12시에 묻습니다.</p>'+
       '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="askNow">지금 확인</button></div>'+
       '<h4 class="cwh" style="margin-top:14px">바로 보내기</h4><div class="form"><div class="f"><label for="smsTo">받는 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000 (끝에 # → 두 번째 번호로)"></div>'+
@@ -2587,6 +2593,12 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
+    if($('#chatSms')){$('#chatSms').checked=(c&&c.chatSms)==='Y';
+      $('#chatSms').onchange=function(){var on=this.checked;call('smsConfig',{chatSms:on?'Y':''}).then(function(){toast(on?'대화 알림 문자를 보냅니다':'대화 알림 문자를 끄었습니다')}).catch(function(e){toast(errText(e))})}}
+    if($('#insPrev'))$('#insPrev').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
+      call('installSms',$('#insWho').value,$('#insTx').value,false).then(function(r){insDraw(r)})
+        .catch(function(e){toast(errText(e))}).then(function(){b2.disabled=false;b2.textContent='미리보기 · 명단'})};
+    if($('#insTx')&&!$('#insTx').value)call('installSms','owner','',false).then(function(r){if($('#insTx'))$('#insTx').value=r.text||''}).catch(function(){});
     $('#smsTestBtn').onclick=function(){var b=this,to=$('#smsTo').value.trim(),tx=$('#smsTx').value.trim(),out=$('#smsSendMsg');if(!to){toast('받을 번호를 넣으세요');return}
       b.disabled=true;b.textContent='넣는 중…';out.innerHTML='';
       (tx?call('smsNow',to,tx):call('smsTest',to)).then(function(r){if(tx)$('#smsTx').value='';
@@ -2743,7 +2755,8 @@ function chatRoomsDraw(r){
     '<button type="button" class="btn'+(CHAT.tab==='cleaners'?' on':'')+'" data-ct="cleaners">청소담당자</button></div>'+
     '<p class="note">대화가 없던 상대도 눌러서 먼저 말을 걸 수 있습니다. 안 읽은 메시지는 <b class="warnc">● 주황색</b>입니다.</p>'+
     (list.length?'<div class="clist">'+list.map(function(x){return '<button type="button" class="crow'+(x.unread?' un':'')+'" data-room="'+esc(x.room)+'"><b>'+lab(x)+(x.unread?' · 새 '+x.unread:'')+'</b>'+
-      (x.last?'<small>'+esc(x.at||'')+' · '+(x.who==='관리자'?'나: ':'')+esc(x.last)+'</small>':'<small>대화 없음</small>')+'</button>'}).join('')+'</div>':'<div class="empty">상대가 없습니다.</div>')+
+      (x.last?'<small>'+esc(x.at||'')+' · '+(x.who==='관리자'?'나: ':'')+esc(x.last)+'</small>':'<small>대화 없음</small>')+
+      '<small>'+(x.seen?'앱 '+esc(x.app||'')+' · 마지막 접속 '+esc(x.seen):'<b class="warnc">앱 접속 기록 없음</b>')+'</small></button>'}).join('')+'</div>':'<div class="empty">상대가 없습니다.</div>')+
     '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>';
   box.querySelectorAll('[data-ct]').forEach(function(b){b.onclick=function(){CHAT.tab=b.dataset.ct;store('chatTab',CHAT.tab);chatOpen()}});
   box.querySelectorAll('[data-room]').forEach(function(b){b.onclick=function(){chatThread(b.dataset.room)}});
@@ -2800,6 +2813,22 @@ function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty
 function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,w=r.warn||0,bd=$('#inboxN');if(bd){bd.hidden=!n;bd.textContent=n;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w}).catch(function(){})}
 function ibxSortBar(){return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select></div>'}
 function ibxSortBind(sel){var s2=$('#ibxSort');if(!s2)return;s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)}}
+function insDraw(r){
+  var box=$('#insOut');if(!box)return;var rows=r.rows||[];
+  if(!rows.length){box.innerHTML='<div class="empty">보낼 사람이 없습니다. 전화번호와 사용여부를 확인하세요.</div>';return}
+  box.innerHTML='<p class="note"><b>'+rows.length+'명</b>에게 보냅니다. 「앱 접속 기록 없음」인 분이 아직 설치하지 않은 분입니다.</p>'+
+    '<div class="scroll" style="max-height:38vh"><table class="restable"><thead><tr><th>구분</th><th>이름</th><th>호실</th><th>번호</th><th>앱</th><th>마지막 접속</th></tr></thead><tbody>'+
+    rows.map(function(x){return '<tr><td>'+esc(x.kind)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.room||'')+'</td><td class="num">'+esc(x.to)+'</td><td>'+(x.seen||x.last?esc(x.app||'앱'):'<b class="warnc">기록 없음</b>')+'</td><td class="num">'+esc(x.last||'')+'</td></tr>'}).join('')+'</tbody></table></div>'+
+    '<div class="ibx-m" style="max-width:100%;margin:8px 0">'+esc(rows[0].text)+'<small>첫 번째 분에게 가는 내용</small></div>'+
+    '<div class="actions" style="justify-content:flex-start"><button class="btn warn" type="button" id="insGo">'+rows.length+'명에게 보내기</button></div><p class="note" id="insMsg"></p>';
+  $('#insGo').onclick=function(){var b=this;
+    if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='정말 '+rows.length+'명에게 보낼까요? (한 번 더)';setTimeout(function(){if(b.isConnected){b.dataset.ok='';b.textContent=rows.length+'명에게 보내기'}},6000);return}
+    b.disabled=true;b.textContent='보내는 중…';
+    call('installSms',$('#insWho').value,$('#insTx').value,true).then(function(x){
+      $('#insMsg').innerHTML='보냈습니다 · 성공 '+x.sent+'건'+(x.fail?' · 실패 '+x.fail+'건<br>'+esc((x.errors||[]).join(' / ')):'');
+      toast('앱 설치 안내 문자 '+x.sent+'건을 보냈습니다')})
+      .catch(function(e){b.disabled=false;b.dataset.ok='';b.textContent=rows.length+'명에게 보내기';$('#insMsg').textContent=errText(e)})};
+}
 function nolShow(r,all){
   var md2=function(x){return x?(+x.slice(5,7))+'/'+(+x.slice(8,10)):''};
   var over=(r&&r.over)||[],open=(r&&r.open)||[],shut=(r&&r.shut)||[];
@@ -2979,6 +3008,8 @@ function boot(){
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}
     if(LIVE&&!ROLE)inboxInit();
     try{chatInit()}catch(e){}
+    if(LIVE&&!DEMO)try{var md0=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+      call('hello',{app:md0?'앱':'브라우저',dev:/Android|iPhone|iPad/i.test(navigator.userAgent)?'폰':'PC'}).catch(function(){})}catch(e){}
     setTimeout(function(){verCheck(true)},4000);
     try{mailInit()}catch(e){}   // 관리자: 문자함 (손님 문의 문자·부재중 전화)
     try{viewInit()}catch(e){}

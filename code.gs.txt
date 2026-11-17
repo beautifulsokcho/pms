@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -2115,6 +2115,7 @@ function smsConfig(pin, cfg) {   // 관리자: 문자 설정 보기·저장 (Sec
     if (cfg.hnames) p.setProperty('SMS_HNAMES', JSON.stringify(cfg.hnames));
     if (cfg.doorFill) { out0.filled = doorFill_(); }
     if (cfg.dual !== undefined) p.setProperty('SMS_DUAL', cfg.dual ? 'Y' : 'N');
+    if (cfg.chatSms !== undefined) p.setProperty('CHAT_SMS', cfg.chatSms === 'Y' || cfg.chatSms === true ? 'Y' : '');   // 대화 알림 문자
     if (cfg.blocks !== undefined) p.setProperty('SMS_BLOCK', String(cfg.blocks).split(/[,\s]+/).map(telKey_).filter(String).join(','));
     if (cfg.kw !== undefined) p.setProperty('SMS_INBOX_KW', String(cfg.kw).split(/\s*,\s*/).filter(String).join(',') || INBOX_KW_DEF_);
     if (cfg.phones) p.setProperty('SMS_PHONES', JSON.stringify((cfg.phones || []).map(function (x) { return { n: String(x.n || '').replace(/\D/g, ''), dual: !!x.dual, memo: String(x.memo || '').slice(0, 30) }; }).filter(function (x) { return /^0\d{8,11}$/.test(x.n); })));
@@ -2134,7 +2135,8 @@ function smsConfig(pin, cfg) {   // 관리자: 문자 설정 보기·저장 (Sec
     if (p.getProperty('SMS_ON') === 'Y' && p.getProperty('SMS_VIA') === 'app') ScriptApp.newTrigger('smsWatch').timeBased().everyHours(1).create();
   }
   var c = smsCfg_(), out = { hasKey: !!(c.key && c.secret), keyTail: c.key ? c.key.slice(-4) : '', from: c.from, on: c.on, relay: c.relay, hasRelayToken: !!c.relayToken, via: c.via, gwUser: c.gwUser, hasGwPass: !!c.gwPass, hasGwKey: !!c.gwKey,
-    trigger: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'smsTick' || t.getHandlerFunction() === 'smsMorning'; }) };
+    trigger: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'smsTick' || t.getHandlerFunction() === 'smsMorning'; }),
+    chatSms: p.getProperty('CHAT_SMS') === 'Y' ? 'Y' : '' };
   if (c.via === 'app') { var pp = PropertiesService.getScriptProperties(); out.hasKey = !!c.gwToken; out.gwToken = c.gwToken; out.gwSeen = pp.getProperty('GW_SEEN') || ''; try { out.gwState = JSON.parse(pp.getProperty('GW_STATE') || '{}'); } catch (e) { out.gwState = {}; } out.gwWait = gwCount_(); out.url = ScriptApp.getService().getUrl(); out.fwd = pp.getProperty('GW_FWD') || ''; out.kw = inboxKw_(pp); out.blocks = smsBlocks_(pp); out.phones = smsPhones_(pp); out.gwDev = pp.getProperty('GW_DEV') || ''; out.devs = gwDevs_(pp); out.phone = pp.getProperty('SMS_PHONE') || ''; out.dual = pp.getProperty('SMS_DUAL') === 'Y'; }
   else if (c.via === 'phone') out.hasKey = !!(c.gwUser && c.gwPass && c.gwKey);
   else if (out.hasKey) { try { var b = solapi_('get', '/cash/v1/balance'); out.balance = Number(b.balance || 0); out.point = Number(b.point || 0); } catch (e) { out.balErr = String(e && e.message || e); } }
@@ -2973,6 +2975,101 @@ function roomCheck(pin, from, to) {   // 관리자: 지금 바로 점검 (기본
   var now = new Date(), d = function (k) { return Utilities.formatDate(new Date(+now + k * 864e5), tz_(), 'yyyy-MM-dd'); };
   return { n: roomChk_(from || d(0), to || d(7)) };
 }
+// ── 접속기록: 누가 앱을 설치해 쓰고 있는지 (키 · 구분 · 이름 · 호텔 · 호실 · 첫 접속 · 마지막 접속 · 설치 · 기기 · 접속 수 · 마지막 알림)
+function seenSheet_() {
+  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('접속기록');
+  if (!sh) { sh = ss.insertSheet('접속기록'); sh.getRange(1, 1, 1, 11).setValues([['키', '구분', '이름', '호텔', '호실', '첫 접속', '마지막 접속', '설치', '기기', '접속 수', '마지막 알림']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:A').setNumberFormat('@'); sh.getRange('E:E').setNumberFormat('@'); }
+  return sh;
+}
+function seenMap_() {
+  var sh = seenSheet_(), lr = sh.getLastRow(), m = {};
+  if (lr > 1) sh.getRange(2, 1, lr - 1, 11).getValues().forEach(function (x, i) { if (x[0]) m[String(x[0])] = { r: i + 2, v: x }; });
+  return { sh: sh, m: m };
+}
+function seen_(key, kind, name, hotel, room, info) {
+  try {
+    info = info || {};
+    var g = seenMap_(), now = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'), cur = g.m[key];
+    var app = String(info.app || ''), dev = String(info.dev || '');
+    if (cur) {
+      if (String(cur.v[6]).slice(0, 16) === now) return;   // 같은 분이면 다시 쓰지 않음
+      g.sh.getRange(cur.r, 7, 1, 4).setValues([[now, app || cur.v[7], dev || cur.v[8], (Number(cur.v[9]) || 0) + 1]]);
+      if (name && !cur.v[2]) g.sh.getRange(cur.r, 3).setValue(name);
+    } else g.sh.appendRow([key, kind, name || '', hotel || '', String(room || ''), now, now, app, dev, 1, '']);
+  } catch (e) { }
+}
+function hello(cred, info) {   // 앱이 열릴 때 한 번 — 누가 언제 들어왔는지, 앱으로 쓰는지
+  var key, kind, name = '', hotel = '', room = '';
+  try {
+    if (cred && cred.cln) { name = cleanerLogin_(cred); key = '청소|' + name; kind = '청소담당자'; }
+    else {
+      checkPin_(cred);
+      if (CTX_.role === 'owner') {
+        var mine = (CTX_.rooms && CTX_.rooms.length ? CTX_.rooms : []), here = mine.filter(function (o) { return String(o.r) === String(CTX_.room); })[0] || mine[0] || { h: (CTX_.hotels || [])[0] || '', r: CTX_.room };
+        hotel = here.h; room = String(here.r); key = '소유주|' + hotel + '|' + room; kind = '소유주'; name = CTX_.name || '';
+      } else if (CTX_.role === 'manager') { key = '매니저|' + (CTX_.name || ''); kind = '매니저'; name = CTX_.name || ''; }
+      else if (CTX_.role === 'cleanmgr') { key = '청소|' + (CTX_.name || ''); kind = '청소담당자'; name = CTX_.name || ''; }
+      else { key = '관리자'; kind = '관리자'; name = '관리자'; }
+    }
+  } catch (e) { return { ok: false }; }
+  seen_(key, kind, name, hotel, room, info);
+  return { ok: true };
+}
+// ── 앱 설치 안내 문자 (소유주·청소담당자 일괄) ──
+var APP_LINK_ = 'https://beautifulsokcho.github.io/pms/';
+function installText_() {
+  return PropertiesService.getScriptProperties().getProperty('INSTALL_SMS') ||
+    ['[{호텔}] {이름}님, 객실관리 앱 안내드립니다.',
+      '아래 주소를 열고 「홈 화면에 추가」를 하시면 앱처럼 쓰실 수 있습니다.',
+      '{주소}',
+      '{안내}',
+      '문의는 앱 안 대화방으로 주세요.'].join('\n');
+}
+function installList_(kind) {
+  var ss = SpreadsheetApp.getActive(), out = [];
+  if (kind !== 'cleaner') {
+    var ob = ss.getSheetByName('객실');
+    if (ob && ob.getLastRow() > 1) ob.getRange(2, 1, ob.getLastRow() - 1, Math.min(ob.getMaxColumns(), 14)).getValues().forEach(function (x) {
+      var h = String(x[1] || '').trim(), rm = String(x[2] == null ? '' : x[2]).trim(), ph = String(x[6] || '').replace(/\D/g, '');
+      if (!h || !rm || /^\s*대체객실/.test(rm) || String(x[13] || '').trim().toUpperCase() === 'N' || !/^0\d{8,11}$/.test(ph)) return;
+      out.push({ key: '소유주|' + h + '|' + rm, kind: '소유주', name: String(x[5] || '').trim() || (rm + '호'), hotel: h, room: rm, to: ph,
+        guide: '로그인: 호실 ' + rm + ' · PIN은 따로 안내드린 번호입니다.', role: 'owner' });
+    });
+  }
+  if (kind !== 'owner') {
+    var cl = ss.getSheetByName('청소담당자');
+    if (cl && cl.getLastRow() > 1) cl.getRange(2, 1, cl.getLastRow() - 1, Math.min(cl.getMaxColumns(), 17)).getValues().forEach(function (x) {
+      var nm = String(x[0] || '').trim(), ph = String(x[3] || '').replace(/\D/g, '');
+      if (!nm || String(x[10] || '').trim().toUpperCase() === 'N' || !/^0\d{8,11}$/.test(ph)) return;
+      out.push({ key: '청소|' + nm, kind: '청소담당자', name: nm, hotel: String(x[15] || '').trim(), room: '', to: ph,
+        guide: '로그인 아이디·비밀번호는 따로 안내드립니다.', role: 'cleaner' });
+    });
+  }
+  var uniq = {}; return out.filter(function (o) { if (uniq[o.to + '|' + o.key]) return false; uniq[o.to + '|' + o.key] = 1; return true; });
+}
+function installFill_(t, o) {
+  var url = (PropertiesService.getScriptProperties().getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + '?role=' + o.role;
+  return String(t).replace(/\{([^{}]+)\}/g, function (m, k) {
+    k = k.trim();
+    return k === '이름' ? o.name : k === '호텔' ? (o.hotel || '객실관리') : k === '호실' ? o.room : k === '주소' ? url : k === '안내' ? o.guide : m;
+  });
+}
+function installSms(pin, kind, text, send) {   // send=false면 미리보기(명단·건수), true면 발송
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  var list = installList_(kind || 'all'), t = String(text || '').trim() || installText_();
+  if (send && text && String(text).trim()) PropertiesService.getScriptProperties().setProperty('INSTALL_SMS', String(text).trim());
+  var seen = seenMap_().m;
+  var rows = list.map(function (o) { var s = seen[o.key];
+    return { name: o.name, kind: o.kind, hotel: o.hotel, room: o.room, to: o.to, last: s ? String(s.v[6]).slice(0, 16) : '', app: s ? String(s.v[7]) : '', text: installFill_(t, o) }; });
+  if (!send) return { n: rows.length, text: t, rows: rows };
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) throw new Error('문자 설정이 꺼져 있거나 발송 준비가 안 됐습니다.');
+  var okN = 0, err = [];
+  list.forEach(function (o) {
+    try { smsSendRaw_(o.to, installFill_(t, o), { col: 'fwd' }); okN++; }
+    catch (e) { err.push(o.name + ': ' + String(e && e.message || e).slice(0, 60)); }
+  });
+  return { ok: true, sent: okN, fail: err.length, errors: err.slice(0, 10) };
+}
 // ── 대화방: 관리자 ↔ 소유주 / 관리자 ↔ 청소담당자 ──
 //    '대화' 시트: ID · 시각 · 방 · 보낸이(관리자/소유주/청소) · 이름 · 내용 · 관리자읽음 · 상대읽음
 function chatSheet_() {
@@ -2991,7 +3088,38 @@ function chatAdd_(room, who, name, text) {
   var sh = chatSheet_();
   sh.appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), room, who, String(name || ''), text,
     who === '관리자' ? 'Y' : '', who === '관리자' ? '' : 'Y']);
+  if (who === '관리자') { try { chatSms_(room); } catch (e) { } }   // 상대에게 '새 메시지' 문자 (설정이 켜져 있을 때, 1시간에 한 번)
   return { ok: true };
+}
+function chatTo_(room) {   // 방 → 받는 번호·이름
+  var p = String(room).split('|'), ss = SpreadsheetApp.getActive();
+  if (p[0] === '청소') {
+    var cl = ss.getSheetByName('청소담당자'); if (!cl || cl.getLastRow() < 2) return null;
+    var c = cl.getRange(2, 1, cl.getLastRow() - 1, Math.min(cl.getMaxColumns(), 11)).getValues()
+      .filter(function (x) { return String(x[0] || '').trim() === p[1] && String(x[10] || '').trim().toUpperCase() !== 'N'; })[0];
+    var ph = c ? String(c[3] || '').replace(/\D/g, '') : '';
+    return /^0\d{8,11}$/.test(ph) ? { to: ph, name: p[1] } : null;
+  }
+  var ob = ss.getSheetByName('객실'); if (!ob || ob.getLastRow() < 2) return null;
+  var o = ob.getRange(2, 1, ob.getLastRow() - 1, Math.min(ob.getMaxColumns(), 14)).getValues()
+    .filter(function (x) { return String(x[1] || '').trim() === p[1] && String(x[2] == null ? '' : x[2]).trim() === p[2]; })[0];
+  var ph2 = o ? String(o[6] || '').replace(/\D/g, '') : '';
+  return /^0\d{8,11}$/.test(ph2) ? { to: ph2, name: String(o[5] || '').trim() || (p[2] + '호') } : null;
+}
+function chatSms_(room) {
+  var pr = PropertiesService.getScriptProperties();
+  if (pr.getProperty('CHAT_SMS') !== 'Y') return;
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) return;
+  var g = seenMap_(), cur = g.m[room], now = new Date();
+  if (cur && cur.v[10]) { var t0 = gwTime_(String(cur.v[10])); if (t0 && now - t0 < 60 * 60000) return; }   // 1시간에 한 번만
+  var who = chatTo_(room); if (!who) return;
+  var url = (pr.getProperty('APP_URL') || APP_LINK_).replace(/\/+$/, '/') + '?role=' + (String(room).indexOf('청소|') === 0 ? 'cleaner' : 'owner');
+  var txt = pr.getProperty('CHAT_SMS_TEXT') || '[객실관리] {이름}님, 관리자 메시지가 도착했습니다.\n앱에서 확인해 주세요.\n{주소}';
+  txt = txt.replace(/\{이름\}/g, who.name).replace(/\{주소\}/g, url);
+  try { smsSendRaw_(who.to, txt, { col: 'fwd' }); } catch (e) { return; }
+  var stamp = Utilities.formatDate(now, tz_(), 'yyyy-MM-dd HH:mm');
+  if (cur) g.sh.getRange(cur.r, 11).setValue(stamp);
+  else g.sh.appendRow([room, String(room).indexOf('청소|') === 0 ? '청소담당자' : '소유주', who.name, '', '', '', '', '', '', 0, stamp]);
 }
 function chatMark_(rows, sh, room, col) {   // col 7=관리자 읽음 · 8=상대 읽음
   rows.forEach(function (x, i) { if (String(x[2]) === room && String(x[col - 1]) !== 'Y') sh.getRange(i + 2, col).setValue('Y'); });
@@ -3020,7 +3148,11 @@ function chatRooms(pin) {   // 관리자: 방 목록 (대화가 있었던 방 + 
     var nm = String(x[0] || '').trim(); if (!nm || String(x[10] || '').trim().toUpperCase() === 'N') return;
     cleaners.push({ room: '청소|' + nm, name: nm });
   });
-  var fill = function (o) { var t = by[o.room]; o.last = t ? t.last : ''; o.at = t ? t.at : ''; o.unread = t ? t.unread : 0; o.who = t ? t.who : ''; return o; };
+  var sm = seenMap_().m;
+  var fill = function (o) { var t = by[o.room], s2 = sm[o.room];
+    o.last = t ? t.last : ''; o.at = t ? t.at : ''; o.unread = t ? t.unread : 0; o.who = t ? t.who : '';
+    o.seen = s2 ? String(s2.v[6]).slice(0, 16) : ''; o.app = s2 ? String(s2.v[7]) : ''; o.hits = s2 ? (Number(s2.v[9]) || 0) : 0;
+    return o; };
   return { owners: owners.map(fill), cleaners: cleaners.map(fill), unread: Object.keys(by).reduce(function (n, k) { return n + by[k].unread; }, 0) };
 }
 function chatRead(pin, room) {   // 관리자: 한 방의 대화 (읽음 처리)
@@ -3374,7 +3506,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.12a39996';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.974a280a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
