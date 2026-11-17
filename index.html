@@ -490,7 +490,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17p';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-17q';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1870,7 +1870,7 @@ function cleanTasks(){
       if(b2.st!=='공실'||b2.owner)return;
       var k=hh+'|'+b2.room;if(seenV[k])return;seenV[k]=1;
       var hd=roomDefault(hh,b2.room),ck=d+'|'+k;
-      var st2=CS[ck]||(CS[ck]={cleaner:'',ppl:1,on:true,bed:''});
+      var st2=CS[ck]||(CS[ck]={cleaner:'',ppl:1,on:true,bed:''});st2.bed0===undefined&&(st2.bed0=st2.bed);   // 공실 줄도 기준값을 넣어야 '변경 없음'으로 봄
       var rec=rows('청소실적').find(function(r){return r.v[0]===d&&r.v[2]===hh&&String(r.v[3])===String(b2.room)});
       if(rec&&!st2.cleaner)st2.cleaner=rec.v[1]||'';
       list.push({hotel:hh,room:String(b2.room),key:k,type:'vac',towel:hd.towel,water:hd.water,def:true,st:st2,rec:rec||null,vac:true});
