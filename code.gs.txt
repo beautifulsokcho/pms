@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 78) return;
+  if (ver >= 79) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1300,6 +1300,18 @@ function ensureSchema_() {
   }
   props.setProperty('SCHEMA', '78');
   }
+  if (ver < 79) {   // v79: 비품 부가세 가산 객실(N1>1 · 804호)은 '부가세 발행금액'을 청구합계 ÷ 1.1 로 — 청구액이 부가세 포함이므로 공급가액을 역산
+  var st79 = ss.getSheetByName('객실정산서');
+  if (st79) {
+    var bill79 = 'OR(IFERROR(INDEX(호텔!$T$2:$T$30,MATCH($B$1,호텔!$B$2:$B$30,0))="Y",FALSE),N(C11)-N(C24)-N(C40)<0)';
+    var vx79 = 'N($N$1)>1';   // N1 = 비품 부가세 가산 배수 (1.1 또는 1)
+    st79.getRange('A42').setFormula('=IF(' + bill79 + ',IF(' + vx79 + ',"부가세 발행금액(청구합계÷1.1)",IF(N(C24)>=N(C11),"부가세 발행금액(B-A)","부가세 발행금액(A-B)")),"부가세 발행금액(A-B)")');
+    st79.getRange('C42').setFormula('=IF(' + bill79 + ',IF(' + vx79 + ',ROUND(N(C43)/1.1,0),ABS(N(C24)-N(C11))),C11-C24)');
+    st79.getRange('A43').setFormula('=IF(' + bill79 + ',"청구합계(B+C-A)","지급(이월)합계(A-B-C)")');
+    st79.getRange('C43').setFormula('=IF(' + bill79 + ',C24+C40-C11,C11-C24-C40)');
+  }
+  props.setProperty('SCHEMA', '79');
+  }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -1343,7 +1355,7 @@ function integrated(pin, hotel, spec) {
   if (!month && (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from)) throw new Error('기간을 확인하세요');
   var inRange = function (d) { var k = fmt_(d, false); return month ? String(k).slice(0, 7) === month : (k >= from && k <= to); };
   var ss = SpreadsheetApp.getActive(), ob = ss.getSheetByName('객실'), ht = ss.getSheetByName('호텔'), rv = ss.getSheetByName('예약');
-  var rooms = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 31)).getValues().filter(function (x) { return x[1] && x[2] !== ''; });
+  var rooms = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 36)).getValues().filter(function (x) { return x[1] && x[2] !== ''; });
   var lr = rv.getLastRow(), used = {};
   if (lr > 1) rv.getRange(2, 2, lr - 1, 6).getValues().forEach(function (x) { if (x[5] && inRange(x[5])) used[x[0] + '|' + x[1]] = true; });
   // 정산 대상: 기간 안에 관리한 날이 있는 객실(사용여부≠N, 등록일 ≤ 기간 끝, 해지일 ≥ 기간 시작) + 기간 안 입실 예약 또는 수동 정산항목이 있는 객실 (해지 후에도 정산은 남김)
@@ -1359,7 +1371,8 @@ function integrated(pin, hotel, spec) {
     var m = t.trim().match(/^(.+?)\s+(\S+)$/); if (m) list.push({ h: m[1].trim(), r: m[2].replace(/호$/, ''), extra: true });
   });
   var admRoom = {}; rooms.forEach(function (x) { if (String(x[30] || '').trim().toUpperCase() === 'Y') admRoom[x[1] + '|' + x[2]] = true; });
-  var info = {}; rooms.forEach(function (x) { info[x[1] + '|' + x[2]] = { owner: x[5], biz: x[7], trade: x[8], email: x[18] || '', kind: x[19] || '', item: x[20] || '' }; });
+  var info = {}; rooms.forEach(function (x) { info[x[1] + '|' + x[2]] = { owner: x[5], biz: x[7], trade: x[8], email: x[18] || '', kind: x[19] || '', item: x[20] || '',
+    vatx: String(x[34] || '').trim().toUpperCase() === 'Y' }; });   // AI열 비품 부가세 가산 (804호)
   var man = month ? null : manualByRoom_(from, to);
   var lock = LockService.getScriptLock(); lock.waitLock(30000);
   var out = [], st = ss.getSheetByName('객실정산서'), fH = st.getRange('H1').getFormula(), fI = st.getRange('I1').getFormula();
@@ -1390,6 +1403,11 @@ function integrated(pin, hotel, spec) {
   }
   if (hv && String(hv[19] || '').trim().toUpperCase() === 'Y') out.forEach(function (o) { o.vat = o.Bsum - o.sales; o.pay = o.total - o.sales; o.bill = true; });   // 청구형 호텔: 부가세 발행금액(B-A)·청구합계(B+C-A) 플러스
   else out.forEach(function (o) { o.vat = o.sales - o.Bsum; o.pay = o.sales - o.total; });   // 일반 호텔: 통합정산서는 기존대로 A-B · A-B-C (객실별 정산서가 마이너스를 청구합계로 바꿔 보여도 통합 표의 부호는 그대로)
+  out.forEach(function (o) {   // 비품 부가세 가산 객실(804호): 청구가 되는 달은 청구액이 부가세 포함이므로 부가세 발행금액 = 청구합계 ÷ 1.1
+    if (!(info[o.hotel + '|' + o.room] || {}).vatx) return;
+    var billAmt = o.bill ? o.pay : -o.pay;
+    if (billAmt > 0) { o.vat = (o.bill ? 1 : -1) * Math.round(billAmt / 1.1); o.vatDiv = true; }   // 부호는 그 호텔 표의 기존 방식 그대로
+  });
   return { hotel: hotel, month: month, from: from, to: to, bill: !!(hv && String(hv[19] || '').trim().toUpperCase() === 'Y'), rows: out };
 }
 // 기간 정산의 수동 항목(정산입력): 일자가 기간 안이면 포함, 일자 없는 항목은 그 달 전체가 기간에 들어갈 때만
@@ -3543,7 +3561,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.99ea2e08';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-17.3b84b4a1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
