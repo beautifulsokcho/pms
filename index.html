@@ -352,7 +352,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div id="pasteOut"></div>
     </div>
     <div class="newbox" id="newBox"></div>
-    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recNote" hidden>🤖 비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
+    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
@@ -439,9 +439,9 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f" id="sToF" style="display:none"><label for="sTo">종료일</label><input id="sTo" type="date"></div>
       <button class="btn pri" id="sGo" type="button">정산서 보기</button>
       <button class="btn" id="sBatch" type="button" title="호텔의 모든 호실 정산서를 PDF로 만들어 ZIP 파일 1개로 저장 (이다경 소유 제외)">개별정산서 일괄 저장</button>
-      <button class="btn" id="sAiChk" type="button" title="그 달 숫자를 Claude가 지난달과 견줘 보고 이상한 곳을 짚어 줍니다">🤖 이상 점검</button>
-      <button class="btn" id="sAiPrice" type="button" title="가동률·남은 방·과거 판매가를 보고 값을 올리거나 내릴 만한 날">🤖 가격 제안</button>
-      <button class="btn" id="sWeek" type="button" title="지난주 요약과 앞으로 2주 주의할 날">🤖 주간 요약</button>
+      <button class="btn" id="sAiChk" type="button" title="지난달과 견줘 손으로 넣은 항목의 실수를 찾습니다">이상 점검</button>
+      <button class="btn" id="sAiPrice" type="button" title="가동률로 값을 올리거나 내릴 만한 날을 골라 줍니다">가격 힌트</button>
+      <button class="btn" id="sWeek" type="button" title="지난주 요약과 앞으로 2주 주의할 날">주간 요약</button>
     </div>
     <div id="sOut"></div>
     <div id="sManual"></div>
@@ -496,7 +496,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1027,16 +1027,16 @@ $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
 $('#recNote').onclick=function(){var b=this,L=autoRegs().filter(function(r){return String(r.v[R.note]||'').trim()}).slice(0,20);
   if(!L.length){toast('정리할 비고가 없습니다');return}
   b.disabled=true;b.textContent='읽는 중…';
-  call('aiNote',L.map(function(r){return r.r}),false).then(function(r){var ch=(r.rows||[]).filter(function(x){return x.change});
-    modal('<h3>🤖 비고 정리</h3><p class="note">자동등록 예약 '+(r.rows||[]).length+'건의 비고를 읽어 <b>메모·인원·반려견</b> 칸에 넣을 것을 골랐습니다. 저장은 누르셔야 됩니다.</p>'+
+  call('noteTidy',L.map(function(r){return r.r}),false).then(function(r){var ch=(r.rows||[]).filter(function(x){return x.change});
+    modal('<h3>비고 정리</h3><p class="note">자동등록 예약 '+(r.rows||[]).length+'건의 비고를 읽어 <b>메모·인원·반려견</b> 칸에 넣을 것을 골랐습니다. 저장은 누르셔야 됩니다.</p>'+
       (ch.length?'<div class="scroll" style="max-height:48vh"><table class="restable"><thead><tr><th>호실</th><th>입실</th><th>지금 메모</th><th>바꿀 메모</th><th>인원</th><th>반려견</th></tr></thead><tbody>'+
         ch.map(function(x){return '<tr><td class="nw"><b>'+esc(x.room)+'</b></td><td class="nw">'+esc(md(x.ci))+'</td><td>'+esc(x.nowMemo||'-')+'</td><td><b>'+esc(x.memo||'-')+'</b></td><td class="n">'+(x.ppl&&x.ppl!==x.nowPpl?x.nowPpl+'→<b>'+x.ppl+'</b>':'')+'</td><td class="n">'+(x.pets&&x.pets!==x.nowPets?x.nowPets+'→<b>'+x.pets+'</b>':'')+'</td></tr>'}).join('')+'</tbody></table></div>'+
         '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button><button class="btn pri" type="button" id="noteSave">'+ch.length+'건 저장</button></div>'
       :'<div class="empty">바꿀 것이 없습니다.</div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>'));
     var sv=$('#noteSave');if(sv)sv.onclick=function(){var b2=this;b2.disabled=true;b2.textContent='저장 중…';
-      call('aiNote',ch.map(function(x){return x.r}),true).then(function(){return load(['예약'],true)}).then(function(){closeModal();renderRecent();renderRes();toast('비고에서 읽은 내용을 저장했습니다')})
+      call('noteTidy',ch.map(function(x){return x.r}),true).then(function(){return load(['예약'],true)}).then(function(){closeModal();renderRecent();renderRes();toast('비고에서 읽은 내용을 저장했습니다')})
         .catch(function(e){b2.disabled=false;b2.textContent=ch.length+'건 저장';toast(errText(e))})}})
-    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 비고 정리'})};
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='비고 정리'})};
 $('#recAll').onclick=function(){REC_MODE='recent';renderRecent()};
 $('#recPlat').innerHTML=opts(platforms(),'','전체');
 ['recDate','recTo','recView','recCx','recSort','recPlat'].forEach(function(id){var keep=id==='recView'||id==='recSort',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소·플랫폼 고름은 기억하지 않음 (열 때마다 기본값)
@@ -2364,18 +2364,7 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       (LIVE?'':printBtn('sPrint'))+'</div>';
 }
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
-function askOpen(){   // 소유주·매니저: 내 호실 자료로 물어보기
-  modal('<h3>🤖 물어보기</h3><p class="note">내 호실의 예약 자료(앞뒤 몇 달)만 보고 답합니다. 자료에 없는 것은 모른다고 답합니다.</p>'+
-    '<div class="form"><div class="f full"><label for="askQ">질문</label><input id="askQ" placeholder="예) 12월에 우리 방 며칠이나 찼나요?"></div></div>'+
-    '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="askGo">물어보기</button></div><div id="askOut"></div>'+
-    '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
-  var go=function(){var b=$('#askGo'),q=$('#askQ').value.trim();if(!q){toast('무엇이 궁금한지 적어 주세요');return}
-    b.disabled=true;b.textContent='보는 중…';$('#askOut').innerHTML='<p class="note">자료를 보고 있습니다…</p>';
-    call('aiAsk',q).then(function(r){$('#askOut').innerHTML='<div class="ibx-m" style="max-width:100%">'+esc(r.text||'')+'<small>예약 '+(r.n||0)+'건을 보고 답했습니다</small></div>'})
-      .catch(function(e){$('#askOut').innerHTML='<p class="err">'+esc(errText(e))+'</p>'}).then(function(){b.disabled=false;b.textContent='물어보기'})};
-  $('#askGo').onclick=go;$('#askQ').addEventListener('keydown',function(e){if(e.key==='Enter')go()});
-}
-function aiTable(title,note,rows,cols){
+function chkTable(title,note,rows,cols){
   modal('<h3>'+title+'</h3><p class="note">'+note+'</p>'+
     (rows.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c[0])+'</th>'}).join('')+'</tr></thead><tbody>'+
       rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td'+(c[2]||'')+'>'+c[1](x)+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>':'<div class="empty">해당하는 것이 없습니다.</div>')+
@@ -2383,7 +2372,7 @@ function aiTable(title,note,rows,cols){
 function lvChip(l){return l==='높음'?'<span class="chip x">높음</span>':l==='보통'?'<span class="chip hold">보통</span>':'<span class="chip">낮음</span>'}
 $('#occBtn').onclick=function(){var b=this,h=$('#qHotel').value||defHotel();b.disabled=true;b.textContent='보는 중…';
   call('occCheck',h,60).then(function(r){
-    aiTable('만실 점검',esc(r.hotel)+' · '+esc(r.from)+' ~ '+esc(r.to)+' · 예약이 <b>80% 이상</b>인 날입니다. (계산이라 비용이 들지 않습니다)',r.rows||[],
+    chkTable('만실 점검',esc(r.hotel)+' · '+esc(r.from)+' ~ '+esc(r.to)+' · 예약이 <b>80% 이상</b>인 날입니다.',r.rows||[],
       [['날짜',function(x){return esc(md(x.d))},' class="nw"'],
        ['상태',function(x){return x.level==='만실 임박'?'<span class="chip x">만실 임박</span>':'<span class="chip hold">만실 주의</span>'},' class="nw"'],
        ['예약/객실',function(x){return x.booked+' / '+x.rooms},' class="n"'],
@@ -2391,31 +2380,32 @@ $('#occBtn').onclick=function(){var b=this,h=$('#qHotel').value||defHotel();b.di
        ['남은 방',function(x){return '<b>'+x.left+'</b>'},' class="n"']])})
     .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='만실 점검'})};
 $('#sAiPrice').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}var b=this,h=$('#sHotel').value;b.disabled=true;b.textContent='보는 중…';
-  call('aiPrice',h,45).then(function(r){
-    aiTable('🤖 가격 제안',esc(r.hotel)+' · 앞으로 '+r.days+'일 · 가동률과 과거 판매가만 보고 고른 날입니다. <b>참고용</b>입니다.',r.list||[],
-      [['날짜',function(x){return esc(x.date||'')},' class="nw"'],
+  call('priceHint',h,45).then(function(r){
+    chkTable('가격 힌트',esc(r.hotel)+' · 앞으로 '+r.days+'일 · <b>가동률만</b> 보고 고른 날입니다. 참고용입니다.',r.list||[],
+      [['날짜',function(x){return esc(md(x.date||''))+(x.w?'('+esc(x.w)+')':'')},' class="nw"'],
+       ['가동',function(x){return (x.pct||0)+'% · 남은 '+(x.left||0)},' class="n"'],
        ['제안',function(x){return x.move==='올림'?'<span class="chip x">올림</span>':'<span class="chip ok">내림</span>'},' class="nw"'],
        ['정도',function(x){return lvChip(x.level)},' class="nw"'],
        ['이유',function(x){return esc(x.why||'')}]])})
-    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 가격 제안'})};
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='가격 힌트'})};
 $('#sWeek').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}var b=this,h=$('#sHotel').value;b.disabled=true;b.textContent='만드는 중…';
   call('weekReport',h,false).then(function(r){var a=r.last||{},n=r.next||{};
-    modal('<h3>🤖 주간 요약</h3><div class="ibx-m" style="max-width:100%">'+esc(r.text||'')+'</div>'+
+    modal('<h3>주간 요약</h3><div class="ibx-m" style="max-width:100%">'+esc(r.text||'')+'</div>'+
       '<div class="scroll"><table class="restable"><thead><tr><th></th><th>예약</th><th>취소</th><th>매출</th><th>청소비</th><th>평균 가동</th></tr></thead><tbody>'+
       '<tr><td class="nw">지난주</td><td class="n">'+(a.nres||0)+'</td><td class="n">'+(a.cx||0)+'</td><td class="n">'+won(a.sale||0)+'</td><td class="n">'+won(a.clean||0)+'</td><td class="n">'+(a.occ||0)+'%</td></tr>'+
       '<tr><td class="nw">앞으로 2주</td><td class="n">'+(n.nres||0)+'</td><td class="n">'+(n.cx||0)+'</td><td class="n">'+won(n.sale||0)+'</td><td class="n">'+won(n.clean||0)+'</td><td class="n">'+(n.occ||0)+'%</td></tr>'+
       '</tbody></table></div>'+((n.full||[]).length?'<p class="note">주의할 날: '+esc(n.full.join(', '))+'</p>':'')+
       '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')})
-    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 주간 요약'})};
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='주간 요약'})};
 $('#sAiChk').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}
   var b=this,h=$('#sHotel').value,m=$('#sMonth').value;if(!m){toast('정산월을 고르세요');return}
   b.disabled=true;b.textContent='보는 중…';
-  call('aiCheck',h,m).then(function(r){var L=r.list||[];
-    modal('<h3>🤖 정산 이상 점검</h3><p class="note">'+esc(r.hotel)+' '+esc(r.month)+(r.prev?' · 지난달('+esc(r.prev)+')과 견줌':' · 지난달 자료 없음')+' · <b>사람이 넣은 항목</b>을 중심으로 봅니다. 참고용이니 반드시 눈으로 확인하세요.</p>'+
+  call('ruleCheck',h,m).then(function(r){var L=r.list||[];
+    modal('<h3>정산 이상 점검</h3><p class="note">'+esc(r.hotel)+' '+esc(r.month)+(r.prev?' · 지난달('+esc(r.prev)+')과 견줌':' · 지난달 자료 없음')+' · <b>사람이 넣은 항목</b>을 중심으로 봅니다. 참고용이니 반드시 눈으로 확인하세요.</p>'+
       (L.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr><th>호실</th><th>정도</th><th>무엇이 이상한지</th></tr></thead><tbody>'+
         L.map(function(x){return '<tr><td class="nw"><b>'+esc(x.room||'')+'</b></td><td class="nw">'+(x.level==='높음'?'<span class="chip x">높음</span>':x.level==='보통'?'<span class="chip hold">보통</span>':'<span class="chip">낮음</span>')+'</td><td>'+esc(x.why||'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">눈에 띄는 이상은 없습니다.</div>')+
       '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')})
-    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 이상 점검'})};
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='이상 점검'})};
 $('#sGo').onclick=function(){
   if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
   $('#sAll').innerHTML='';
@@ -2744,27 +2734,6 @@ function smsOffBar(){if($('#smsOffBar'))return;
   d.onclick=function(){show('admin');$('#aSheet').value='문자';adminOpen();window.scrollTo(0,0)};
   document.body.insertBefore(d,document.body.firstChild)}
 function smsOffBarHide(){var d=$('#smsOffBar');if(d)d.remove()}
-// Claude API 설정: 키는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
-function aiPanel(){var box=$('#aiBox');if(!box)return;
-  var draw=function(st){
-    box.innerHTML='<p class="note">키 '+(st.has?'<b>넣음 (…'+esc(st.tail)+')</b>':'<span class="err">아직 없음</span>')+' · 최근 30일 '+(st.n||0)+'번 · $'+((st.cost||0)<1?(st.cost||0).toFixed(4):(st.cost||0).toFixed(2))+' · 이번 달 $'+((st.month||0)<1?(st.month||0).toFixed(4):(st.month||0).toFixed(2))+' <span class="note">(크레딧은 매달 새로 채워지고 남은 것은 넘어가지 않습니다)</span></p>'+
-      '<div class="form"><div class="f full"><label for="aiKey">API 키 <span class="note">(platform.claude.com → API keys · 넣고 저장하면 화면에는 끝 4자리만 남습니다)</span></label><input id="aiKey" type="password" autocomplete="off" placeholder="'+(st.has?'…'+esc(st.tail)+' (바꿀 때만 새로 넣으세요)':'sk-ant-...')+'"></div></div>'+
-      '<label class="chk"><input type="checkbox" id="aiOn"'+(st.on?' checked':'')+'> Claude 기능 쓰기</label>'+
-      '<div class="aichk"><label class="chk"><input type="checkbox" id="aiNoti"'+(st.noti?' checked':'')+'> 알림 읽기 보조 <span class="note">(규칙이 못 읽은 예약 알림만)</span></label>'+
-      '<label class="chk"><input type="checkbox" id="aiOcr"'+(st.ocr?' checked':'')+'> 캡처 사진 읽기 <span class="note">(구글 드라이브 OCR 대신)</span></label>'+
-      '<label class="chk"><input type="checkbox" id="aiReplyC"'+(st.reply?' checked':'')+'> 문자함 답장 초안</label>'+
-      '<label class="chk"><input type="checkbox" id="aiCheckC"'+(st.check?' checked':'')+'> 정산 이상 점검</label></div>'+
-      '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="aiSave">저장</button><button class="btn" type="button" id="aiTestB">연결 시험</button></div><p class="note" id="aiMsg"></p>';
-    $('#aiSave').onclick=function(){var b2=this;b2.disabled=true;
-      var cfg={on:$('#aiOn').checked,noti:$('#aiNoti').checked,ocr:$('#aiOcr').checked,reply:$('#aiReplyC').checked,check:$('#aiCheckC').checked};
-      var k=$('#aiKey').value.trim();if(k)cfg.key=k;
-      call('aiConfig',cfg).then(function(st2){toast('Claude API 설정을 저장했습니다');draw(st2)}).catch(function(e){b2.disabled=false;$('#aiMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
-    $('#aiTestB').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='시험 중…';
-      call('aiTest').then(function(r){$('#aiMsg').innerHTML='<b>연결됨</b> — 답: '+esc(r.text||'')}).catch(function(e){$('#aiMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})
-        .then(function(){b2.disabled=false;b2.textContent='연결 시험'})};
-  };
-  call('aiConfig',null).then(draw).catch(function(e){box.innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
-}
 function smsLogDraw(r){var o=$('#smsLogOut');if(!o)return;var rows=(r&&r.rows)||[];
   if(!rows.length){o.innerHTML='<p class="note">보낸 문자가 없습니다.</p>';return}
   o.innerHTML='<p class="note">최근 '+rows.length+'건'+(r.wait?' · 보내는 중 '+r.wait+'건':'')+'</p><div class="scroll"><table><tr><th>시각</th><th>호실</th><th>고객</th><th>종류</th><th>받는 번호</th><th>상태</th></tr>'+
@@ -2787,7 +2756,6 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
-      '<h4 class="cwh" style="margin-top:14px">Claude API <span class="note">(Max 플랜의 월 $100 크레딧)</span></h4><div id="aiBox"><p class="note">불러오는 중…</p></div>'+
       '<h4 class="cwh" style="margin-top:14px">최근 보낸 문자</h4><p class="note">예약 문자(문자기록)와 답장·바로 보내기를 시각 순으로 모아 보여 줍니다.</p>'+
       '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="smsLogBtn">불러오기</button></div><div id="smsLogOut"></div>'+
       '<h4 class="cwh" style="margin-top:14px">앱 설치 안내 문자 (일괄)</h4><p class="note">소유주·청소담당자에게 앱 주소와 설치 방법을 문자로 보냅니다. 전화번호가 없거나 사용여부 N인 분은 빠집니다. 문구의 {이름} {호텔} {호실} {주소} {안내}는 사람마다 자동으로 바뀝니다.</p>'+
@@ -2810,7 +2778,6 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
-    try{aiPanel()}catch(e){}
     if($('#smsLogBtn'))$('#smsLogBtn').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
       call('smsLogList',60).then(smsLogDraw).catch(function(e){toast(errText(e))}).then(function(){b2.disabled=false;b2.textContent='다시 불러오기'})};
     if($('#chatSms')){$('#chatSms').checked=(st&&st.chatSms)==='Y';
@@ -3114,16 +3081,20 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
     (sys?'<p class="note">카톡 알림이 와도 예약이 자동으로 들어가지 않은 건들입니다. 아래 내용을 보고 예약검색에서 확인한 뒤 손으로 넣으세요.</p>':'<p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p>')+
     ibxSortBar()+'<div class="ibx-msgs" id="ibxMsgs">'+t.list.slice().sort(function(a,b){return (a.at<b.at?-1:a.at>b.at?1:0)*(IBX.sort==='asc'?1:-1)}).map(function(r){var out=r.kind==='보냄',isNew=!out&&!r.read;
       return '<div class="ibx-m'+(out?' out':'')+(isNew?' new':'')+(r.kind==='알림'?' warnmsg':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'&&r.kind!=='알림'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+(out&&r.note?' · '+esc(r.note):'')+'</small></div>'}).join('')+'</div>'+
-    (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button><button class="btn" type="button" id="ibxAi">🤖 답장 초안</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
+    (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button><button class="btn" type="button" id="ibxTpl">문구 넣기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
   var mm=$('#ibxMsgs');mm.scrollTop=IBX.sort==='asc'?mm.scrollHeight:0;   // 오래된순이면 맨 아래(최근), 최신순이면 맨 위
   ibxSortBind(sel);
   $('#ibxBack').onclick=function(){inboxOpen(null,true)};
   if(sys){IBX.unread=-1;inboxCount();return}
   $('#ibxBlock').onclick=function(){var b=this;if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='이 번호 문자를 앞으로 저장하지 않을까요? (한 번 더 누르기)';return}
     b.disabled=true;call('smsBlock',sel,true,$('#ibxPurge').checked).then(function(r){toast(sel+' 번호는 앞으로 문자함에 저장하지 않습니다'+(r&&r.deleted?' · 지난 문자 '+r.deleted+'줄 지움':''));inboxOpen()}).catch(function(e){b.disabled=false;toast(errText(e))})};
-  var ai=$('#ibxAi');if(ai)ai.onclick=function(){var b=this;b.disabled=true;b.textContent='만드는 중…';
-    call('aiReply',sel).then(function(r){$('#ibxTxt').value=r.text||'';$('#ibxMsg').textContent='초안입니다. 읽어 보고 고친 뒤 [보내기]를 누르세요.'+(r.res?' (예약: '+r.res.hotel+' '+r.res.room+'호 '+r.res.ci+'~'+r.res.co+')':' (이 번호로 찾은 예약 없음)')})
-      .catch(function(e){$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'}).then(function(){b.disabled=false;b.textContent='🤖 답장 초안'})};
+  var tb=$('#ibxTpl');if(tb)tb.onclick=function(){var b=this;b.disabled=true;b.textContent='찾는 중…';
+    call('replyTpl',sel).then(function(r){var L=r.list||[];
+      if(!L.length){$('#ibxMsg').textContent=r.res?'이 예약에 맞는 문구가 없습니다 (관리 → 문자에서 만드세요).':'이 번호로 찾은 예약이 없습니다.';return}
+      $('#ibxMsg').innerHTML='<b>'+esc(r.res.hotel+' '+r.res.room+'호 · '+r.res.ci+'~'+r.res.co)+'</b> — 아래에서 고르면 답장 칸에 들어갑니다.'+
+        '<div class="ctabs" id="ibxTplPick">'+L.map(function(x,i){return '<button class="btn" type="button" data-t="'+i+'">'+esc(x.kind)+'</button>'}).join('')+'</div>';
+      $('#ibxTplPick').querySelectorAll('[data-t]').forEach(function(bt){bt.onclick=function(){$('#ibxTxt').value=L[+bt.dataset.t].text;toast('문구를 넣었습니다. 고쳐서 보내세요')}})})
+      .catch(function(e){$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'}).then(function(){b.disabled=false;b.textContent='문구 넣기'})};
   $('#ibxSend').onclick=function(){var b=this,tx=$('#ibxTxt').value.trim();if(!tx){toast('내용을 쓰세요');return}b.disabled=true;
     call('smsReply',sel,tx).then(function(){$('#ibxTxt').value='';$('#ibxMsg').textContent='보낼 문자에 넣었습니다. 손님 문자가 온 뒤 15분 동안은 1분 안에, 그 밖에는 다음 확인 때(최대 15분) 발송 폰이 보냅니다.';b.disabled=false})
       .catch(function(e){b.disabled=false;$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
@@ -3237,8 +3208,7 @@ function boot(){
     if(!$('#mgOut')){var ob=document.createElement('button');ob.className='iconbtn';ob.id='mgOut';ob.type='button';ob.textContent='로그아웃';ob.onclick=logoutAll;$('#reload').parentNode.insertBefore(ob,$('#reload'))}
   }
   return load(base).then(function(){
-    if(OWNER&&!$('#owPin')){var pb=document.createElement('button');pb.className='iconbtn';pb.id='owPin';pb.type='button';pb.textContent='PIN 변경';pb.dataset.s='PIN';pb.onclick=ownerPinChange;$('#mgOut').parentNode.insertBefore(pb,$('#mgOut'))}
-    if(OWNER&&!$('#owAsk')){var qb=document.createElement('button');qb.className='iconbtn';qb.id='owAsk';qb.type='button';qb.textContent='🤖 물어보기';qb.dataset.s='질문';qb.onclick=askOpen;$('#mgOut').parentNode.insertBefore(qb,$('#mgOut'))}   // 소유주 PIN 바꾸기
+    if(OWNER&&!$('#owPin')){var pb=document.createElement('button');pb.className='iconbtn';pb.id='owPin';pb.type='button';pb.textContent='PIN 변경';pb.dataset.s='PIN';pb.onclick=ownerPinChange;$('#mgOut').parentNode.insertBefore(pb,$('#mgOut'))}   // 소유주 PIN 바꾸기
     if(OWNER){OWN.rooms=rows('객실').map(function(r){return {h:r.v[1],r:String(r.v[2])}}).sort(function(a,b){return a.h.localeCompare(b.h)||(Number(a.r)||0)-(Number(b.r)||0)});OWN.hotels=OWN.rooms.map(function(o){return o.h}).filter(function(h,i,a){return a.indexOf(h)===i});OWN.hotel=OWN.hotels[0]||'';OWN.room=(OWN.rooms[0]||{}).r||'';document.body.classList.add('owner-mode');
       [OWN.hotels.length<2?'qHotel':'','qView','sKind'].filter(String).forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=true;f.style.display='none'}});$('#qView').value='card';$('#sKind').value='room';$('#resStatus').innerHTML='';}
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}
@@ -3281,7 +3251,7 @@ function softReload(){
   OWNER=!DEMO&&ROLE==='owner';LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');OWN={hotel:'',room:'',rooms:[],hotels:[]};S={};CW_LOADED=false;CTAB='clean';CW_DAY='';
   var vc=$('#v-clean');if(vc&&vc.parentNode!==$('#vCleaner').parentNode)$('#vCleaner').parentNode.insertBefore(vc,$('#vCleaner'));
   $('#vCleaner').innerHTML='';$('#vCleaner').hidden=true;document.body.classList.remove('owner-mode','cw-board');
-  ['mgOut','adOut','owPin'].forEach(function(id){var e=$('#'+id);if(e)e.remove()});
+  ['mgOut','adOut','owPin','owAsk'].forEach(function(id){var e=$('#'+id);if(e)e.remove()});
   document.querySelectorAll('nav.tabs button').forEach(function(b){b.hidden=false;b.style.display=''});$('#deskTabs').style.display='';$('#mobTabs').style.display='';
   ['qHotel','qRoom','qView','sKind'].forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=false;f.style.display=''}});
   $('#sHotel').disabled=false;$('#sRoom').disabled=false;$('#sRPrev').disabled=$('#sRNext').disabled=false;$('#newBox').innerHTML='';$('#resStatus').innerHTML='';

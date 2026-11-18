@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, aiReply: aiReply, aiCheck: aiCheck, aiConfig: aiConfig, aiTest: aiTest, occCheck: occCheck, aiSmsDraft: aiSmsDraft, weekReport: weekReport, aiPhotoCheck: aiPhotoCheck, aiNote: aiNote, aiAsk: aiAsk, aiPrice: aiPrice };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -1625,8 +1625,6 @@ function myPhoto(cred, date, hotel, room, item, dataUrl) {   // 구글 드라이
 function ocrImage(pin, dataUrl) {
   checkPin_(pin);
   var m = String(dataUrl || '').match(/^data:(image\/[\w+.-]+);base64,(.+)$/); if (!m) throw new Error('사진 파일이 아닙니다.');
-  if (aiOn_('ocr')) { try { return aiOcr_(m[1], m[2]); } catch (e) { }   // Claude가 사진을 바로 읽음 (드라이브 권한 필요 없음)
-  }                                                                        // 크레딧이 떨어지거나 키가 없으면 아래 드라이브 OCR로 그대로 넘어감
   var token = ScriptApp.getOAuthToken(), bd = 'ocr' + Date.now();
   var meta = JSON.stringify({ name: '예약캡처_OCR_' + Date.now(), mimeType: 'application/vnd.google-apps.document' });
   var body = Utilities.newBlob('--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + bd + '\r\nContent-Type: ' + m[1] + '\r\n\r\n').getBytes()
@@ -3069,8 +3067,7 @@ function gwNoti(token, items) {
   (items || []).slice(0, 20).forEach(function (o) {
     var key = String(o && o.key || ''), txt = String(o && o.text || ''), title = String(o && o.title || ''), at = +(o && o.at) || Date.now();
     var it = notiParse_(title, txt);
-    if (!it) { try { it = aiParseNoti_(txt); } catch (e) { } }   // 규칙이 못 읽으면 Claude가 한 번 읽어 봄 (Max 플랜 API 크레딧)
-    if (!it) {   // 그래도 못 읽으면 앱이 직접 처리. 어떤 글이었는지 알림처리 시트에 남겨 규칙을 고칠 수 있게
+    if (!it) {   // 서버가 모르는 형식 → 앱이 직접 처리. 어떤 글이었는지 알림처리 시트에 남겨 규칙을 고칠 수 있게
       if (!key || !done['skip:' + key]) { try { lg.appendRow([key ? 'skip:' + key : '', Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'), '읽지 못함', '폰에서 직접 처리', '', '', '', '', String(txt).slice(0, 1000)]); done['skip:' + key] = 1; } catch (e) { } }
       out.push({ key: key, skip: true }); return;
     }
@@ -3717,7 +3714,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-18.d1bb5513';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-18.0334f56d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -3890,167 +3887,8 @@ function codeInfo(pin) { checkPin_(pin); adminOnly_(); codeLive_();   // 관리 
   var p = PropertiesService.getScriptProperties();
   return { ver: CODE_VER, auto: p.getProperty('CODE_AUTO') !== 'N' && ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'codeTick'; }), last: p.getProperty('CODE_VER_AT') || '' };
 }
-// ── Claude API (Max 플랜의 월 $100 API 크레딧) ───────────────────────────────
-// 키는 스크립트 속성 AI_KEY에만 둡니다 (시트·화면에는 끝 4자리만). 쓸 때마다 'AI기록' 시트에 토큰·비용을 남깁니다.
-var AI_URL_ = 'https://api.anthropic.com/v1/messages';
-var AI_MODELS_ = { fast: 'claude-haiku-5-5', mid: 'claude-sonnet-5-5', deep: 'claude-opus-5-5' };
-var AI_PRICE_ = { 'claude-haiku-5-5': [0.10, 0.50], 'claude-sonnet-5-5': [2, 10], 'claude-opus-5-5': [4, 20], 'claude-opus-5': [5, 25] };
-function aiKey_() { return String(PropertiesService.getScriptProperties().getProperty('AI_KEY') || '').trim(); }
-function aiOn_(what) {   // what: noti · ocr · reply · check (칸을 비우면 전체)
-  var p = PropertiesService.getScriptProperties();
-  if (!aiKey_()) return false;
-  if (p.getProperty('AI_OFF') === 'Y') return false;
-  return !what || p.getProperty('AI_OFF_' + what) !== 'Y';
-}
-function aiLogSheet_() {
-  var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('AI기록');
-  if (!sh) { sh = ss.insertSheet('AI기록'); sh.getRange(1, 1, 1, 7).setValues([['시각', '쓰임', '모델', '입력 토큰', '출력 토큰', '비용(USD)', '결과']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.hideSheet(); }
-  return sh;
-}
-function aiLog_(why, model, tin, tout, err) {
-  try {
-    var pr = AI_PRICE_[model] || [0, 0], cost = (tin / 1e6) * pr[0] + (tout / 1e6) * pr[1];
-    aiLogSheet_().appendRow([Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), why || '', model, tin, tout, Math.round(cost * 1e6) / 1e6, err || '성공']);
-  } catch (e) { }
-}
-function aiCall_(kind, system, content, maxTok, why) {
-  var key = aiKey_(); if (!key) throw new Error('Claude API 키가 없습니다 — 관리 → 문자 설정의 「Claude API」에 키를 넣으세요.');
-  var model = AI_MODELS_[kind] || kind;
-  var body = { model: model, max_tokens: maxTok || 1024, messages: [{ role: 'user', content: content }] };
-  if (system) body.system = system;
-  var r = UrlFetchApp.fetch(AI_URL_, { method: 'post', contentType: 'application/json',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' }, payload: JSON.stringify(body), muteHttpExceptions: true });
-  var c = r.getResponseCode(), t = r.getContentText();
-  if (c >= 300) {
-    var m = ''; try { m = (JSON.parse(t).error || {}).message || ''; } catch (e) { }
-    aiLog_(why, model, 0, 0, '실패 ' + c + ' ' + String(m || t).slice(0, 120));
-    if (c === 401 || c === 403) throw new Error('Claude API 키가 잘못되었거나 권한이 없습니다.');
-    if (/credit balance/i.test(m)) throw new Error('API 크레딧이 떨어졌습니다 (매달 1일 다시 채워집니다).');
-    if (c === 429) throw new Error('요청이 몰렸습니다. 잠시 뒤 다시 해 주세요.');
-    throw new Error('Claude API 오류 (' + c + ') ' + String(m || t).slice(0, 150));
-  }
-  var j = JSON.parse(t), u = j.usage || {};
-  aiLog_(why, model, u.input_tokens || 0, u.output_tokens || 0, '');
-  return (j.content || []).filter(function (x) { return x.type === 'text'; }).map(function (x) { return x.text; }).join('\n').trim();
-}
-function aiJson_(s) {   // 글 안에서 JSON 한 덩어리 꺼내기 (```로 감싸 와도 됨)
-  var t = String(s || '').replace(/```[a-z]*\s*/gi, '').replace(/```/g, '');
-  var a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a < 0 || b <= a) return null;
-  try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
-}
-function aiUsage_(days) {   // 최근 N일 사용량·비용
-  var sh = SpreadsheetApp.getActive().getSheetByName('AI기록'); if (!sh || sh.getLastRow() < 2) return { n: 0, cost: 0, month: 0 };
-  var lr = sh.getLastRow(), from = Math.max(2, lr - 999), v = sh.getRange(from, 1, lr - from + 1, 7).getValues();
-  var lim = Utilities.formatDate(new Date(Date.now() - (days || 30) * 864e5), tz_(), 'yyyy-MM-dd');
-  var mon = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM'), n = 0, cost = 0, mc = 0;
-  v.forEach(function (x) { var d = String(x[0] || ''); if (!d) return;
-    if (d.slice(0, 10) >= lim) { n++; cost += Number(x[5]) || 0; }
-    if (d.slice(0, 7) === mon) mc += Number(x[5]) || 0; });
-  return { n: n, cost: Math.round(cost * 1e4) / 1e4, month: Math.round(mc * 1e4) / 1e4 };
-}
 
-// ① 알림 읽기 보조 — 규칙이 못 읽은 알림을 Claude가 읽어 같은 모양으로 돌려줌
-function aiParseNoti_(text) {
-  if (!aiOn_('noti')) return null;
-  var today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
-  var sys = '너는 한국 숙박 예약 알림(카카오톡 알림톡·문자)을 읽는 도구다. JSON 한 개만 출력한다. 설명·코드블록 금지.\n' +
-    '{"kind":"new 또는 cancel","plat":"놀|놀호텔|떠나요|기타","resNo":"예약번호 숫자만, 없으면 빈 문자열","place":"숙소명","roomName":"상품명/객실명 전체","name":"예약자 이름(가려졌으면 가려진 그대로)","tel":"연락처, 없으면 빈 문자열","sale":판매금액 숫자(없으면 0),"ppl":인원 숫자(없으면 0),"ci":"입실 YYYY-MM-DD","co":"퇴실 YYYY-MM-DD","nights":박수 숫자,"way":"방문방법, 없으면 빈 문자열"}\n' +
-    '오늘은 ' + today + '. 연도가 없으면 오늘에서 가장 가까운 미래로 본다. 퇴실일이 없으면 입실일+박수로 계산한다.\n' +
-    '예약·취소 알림이 아니거나 날짜를 못 찾으면 {"kind":"none"} 만 출력한다.';
-  var it = null;
-  try { it = aiJson_(aiCall_('fast', sys, String(text || '').slice(0, 6000), 700, '알림 읽기')); } catch (e) { return null; }
-  if (!it || it.kind === 'none') return null;
-  var ymd = function (s) { var m = String(s || '').match(/(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2) : ''; };
-  var o = { kind: it.kind === 'cancel' ? 'cancel' : 'new', resNo: String(it.resNo || '').replace(/\D/g, ''), place: String(it.place || ''),
-    roomName: String(it.roomName || ''), room: '', name: String(it.name || '').trim(), tel: it.tel ? notiTel_(it.tel) : '',
-    sale: Number(it.sale) || 0, ppl: Number(it.ppl) || 0, way: String(it.way || ''), ci: ymd(it.ci), co: ymd(it.co), nights: Number(it.nights) || 0, ai: true };
-  if (!o.ci) return null;
-  if (!o.co) o.co = notiAdd_(o.ci, o.nights || 1);
-  if (String(it.plat || '').indexOf('떠나요') >= 0) o.plat = '떠나요';
-  var rm = String(o.roomName).match(/(?:^|\D)(\d{3,4})\s*호/); if (rm) o.room = String(+rm[1]);
-  return o;
-}
-
-// ② 캡처 사진 읽기 — 구글 드라이브 OCR 대신 Claude가 사진을 그대로 읽어 글자로
-function aiOcr_(mime, b64) {
-  var sys = '너는 예약 화면 캡처에서 글자를 그대로 옮겨 적는 도구다. 보이는 글자만 위에서 아래로 줄바꿈 그대로 옮긴다. ' +
-    '설명·요약·추측을 덧붙이지 않는다. 번호·금액·날짜는 화면에 있는 그대로 쓴다. 글자가 없으면 빈 줄만 출력한다.';
-  return aiCall_('mid', sys, [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
-    { type: 'text', text: '이 캡처의 글자를 그대로 옮겨 적어 주세요.' }], 2000, '사진 읽기');
-}
-
-// ③ 고객 문자 답장 초안
-function aiReply(pin, num) {
-  checkPin_(pin); adminOnly_();
-  if (!aiKey_()) throw new Error('Claude API 키가 없습니다 — 관리 → 문자 설정의 「Claude API」에 키를 넣으세요.');
-  var sh = inboxSheet_(), lr = sh.getLastRow(); if (lr < 2) throw new Error('문자함이 비어 있습니다.');
-  var key = telKey_(num), v = sh.getRange(2, 1, lr - 1, 10).getValues();
-  var msgs = v.filter(function (x) { return telKey_(x[3]) === key; }).slice(-12)
-    .map(function (x) { return (String(x[2]) === '보냄' ? '[우리]' : '[손님]') + ' ' + String(x[4] || '').slice(0, 500); });
-  if (!msgs.length) throw new Error('이 번호의 문자가 없습니다.');
-  var ctx = mailCtx_(), today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), res = null, gap = 1e9;
-  ctx.res.slice(1).forEach(function (vv) {   // 그 번호의 예약 중 오늘에 가장 가까운 것
-    if (!vv[6] || vv[23] || telKey_(vv[4]) !== key) return;
-    var d = Math.abs((new Date(mailYmd_(vv[6])) - new Date(today)) / 864e5);
-    if (d < gap) { gap = d; res = vv; }
-  });
-  var info = res ? ['예약: ' + res[1] + ' ' + res[2] + '호 · ' + mailYmd_(res[6]) + '~' + mailYmd_(res[7]) + ' · ' + (res[9] || '') + '명 · ' + (res[10] || ''),
-    res[22] ? '메모: ' + res[22] : ''].filter(String).join('\n') : '이 번호로 찾은 예약 없음';
-  var sys = '너는 속초의 숙박업소(써밋베이·마리나베이) 관리자를 대신해 손님 문자에 답장 초안을 쓰는 도우미다.\n' +
-    '규칙: 존댓말, 문자 1통 분량(200자 안팎), 인사말은 짧게. 확실하지 않은 것은 약속하지 말고 "확인 후 안내드리겠습니다"로 쓴다. ' +
-    '비밀번호·요금·환불 규정은 모르면 지어내지 않는다. 이모지는 쓰지 않는다. 답장 본문만 출력하고 다른 말은 붙이지 않는다.\n' +
-    '오늘은 ' + today + '이다.';
-  var txt = aiCall_('mid', sys, info + '\n\n--- 지난 문자 (오래된 것부터) ---\n' + msgs.join('\n'), 600, '답장 초안');
-  return { text: txt, res: res ? { hotel: res[1], room: String(res[2]), ci: mailYmd_(res[6]), co: mailYmd_(res[7]) } : null };
-}
-
-// ④ 정산 이상 점검 — 그 달 호텔 전체 숫자를 보고 의심스러운 곳을 짚어 줌
-function aiCheck(pin, hotel, month) {
-  checkPin_(pin); adminOnly_();
-  if (!aiKey_()) throw new Error('Claude API 키가 없습니다 — 관리 → 문자 설정의 「Claude API」에 키를 넣으세요.');
-  var now = integrated(pin, hotel, month), prevM = (function () { var p = String(month).split('-'), d = new Date(+p[0], +p[1] - 2, 1); return Utilities.formatDate(d, tz_(), 'yyyy-MM'); })();
-  var prev = null; try { prev = integrated(pin, hotel, prevM); } catch (e) { }
-  var line = function (o) {
-    return [o.room, Math.round(o.sales || 0), Math.round(o.Bsum || 0), Math.round(o.Csum || 0), Math.round(o.pay || 0),
-      (o.B || []).map(function (x) { return x[0] + ':' + Math.round(x[1]); }).join(' '),
-      (o.C || []).map(function (x) { return x[0] + ':' + Math.round(x[1]); }).join(' ')].join(' | ');
-  };
-  var tbl = function (r) { return (r.rows || []).filter(function (o) { return o.sales || o.Bsum || o.Csum; }).map(line).join('\n'); };
-  var sys = '너는 숙박 정산서를 검토하는 회계 보조다. 사람이 손으로 넣은 항목에서 잘못 들어갔을 법한 것을 찾는다.\n' +
-    '보는 것: 지난달에 견줘 크게 뛰거나 빠진 금액, 같은 항목이 한 달에 여러 번 들어간 것, 다른 호실은 없는데 한 호실에만 있는 항목, ' +
-    '0원이거나 자릿수가 이상한 금액, 매출이 없는데 비용만 있는 호실.\n' +
-    '출력: JSON 한 개만. {"list":[{"room":"호실","why":"무엇이 이상한지 한 줄","level":"높음|보통|낮음"}]}. 이상이 없으면 {"list":[]}. ' +
-    '확실하지 않으면 level을 낮음으로 한다. 최대 12건.';
-  var body = '[' + hotel + ' ' + month + '] 호실 | 매출 | 공제합계 | 미공제합계 | 지급 | 공제항목 | 미공제항목\n' + tbl(now) +
-    (prev ? '\n\n[지난달 ' + prevM + ' 같은 형식]\n' + tbl(prev) : '\n\n(지난달 자료 없음)');
-  var j = aiJson_(aiCall_('deep', sys, body.slice(0, 60000), 1500, '정산 점검'));
-  return { hotel: hotel, month: month, prev: prev ? prevM : '', list: (j && j.list) || [] };
-}
-
-// 관리 화면: 키 저장·기능 켜기/끄기·사용량
-function aiConfig(pin, cfg) {
-  checkPin_(pin); adminOnly_();
-  var p = PropertiesService.getScriptProperties();
-  if (cfg) {
-    if (cfg.key !== undefined) { var k = String(cfg.key || '').trim(); if (k === '') p.deleteProperty('AI_KEY'); else if (k.indexOf('…') < 0) p.setProperty('AI_KEY', k); }
-    if (cfg.on !== undefined) p.setProperty('AI_OFF', cfg.on ? 'N' : 'Y');
-    ['noti', 'ocr', 'reply', 'check', 'week', 'ask', 'note', 'price', 'photo'].forEach(function (w) { if (cfg[w] !== undefined) p.setProperty('AI_OFF_' + w, cfg[w] ? 'N' : 'Y'); });
-  }
-  var key = aiKey_(), u = aiUsage_(30);
-  return { has: !!key, tail: key ? key.slice(-4) : '', on: p.getProperty('AI_OFF') !== 'Y',
-    noti: p.getProperty('AI_OFF_noti') !== 'Y', ocr: p.getProperty('AI_OFF_ocr') !== 'Y',
-    reply: p.getProperty('AI_OFF_reply') !== 'Y', check: p.getProperty('AI_OFF_check') !== 'Y',
-    week: p.getProperty('AI_OFF_week') !== 'Y', ask: p.getProperty('AI_OFF_ask') !== 'Y',
-    note: p.getProperty('AI_OFF_note') !== 'Y', price: p.getProperty('AI_OFF_price') !== 'Y', photo: p.getProperty('AI_OFF_photo') !== 'Y',
-    n: u.n, cost: u.cost, month: u.month, models: AI_MODELS_ };
-}
-function aiTest(pin) {   // 키가 되는지 한 번 불러 봄
-  checkPin_(pin); adminOnly_();
-  var t = aiCall_('fast', '한 단어로만 답한다.', '연결 시험입니다. "좋음"이라고만 답해 주세요.', 20, '연결 시험');
-  return { ok: true, text: t };
-}
-
-// ── 만실 주의·임박 (계산만 — Claude를 쓰지 않습니다) ─────────────────────────
+// ── 만실 주의·임박 (계산) ───────────────────────────────────────────────────
 // 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박'
 function occScan_(hotel, from, to) {
   var ss = SpreadsheetApp.getActive(), ob = ss.getSheetByName('객실');
@@ -4099,19 +3937,7 @@ function occTick() {   // 매일 아침: 새로 80%·90%를 넘은 날만 문자
   } catch (e) { return { err: String(e && e.message || e) }; }
 }
 
-// ── 1. 문자 문구 초안 ───────────────────────────────────────────────────────
-function aiSmsDraft(pin, kind, hotel, plat, hint) {
-  checkPin_(pin); adminOnly_();
-  var ex = smsTemplates_().slice(0, 3).map(function (t) { return '· ' + t.kind + ': ' + String(t.text || '').slice(0, 300); }).join('\n');
-  var sys = '너는 속초 숙박업소의 손님 안내 문자 문구를 쓰는 도우미다. 존댓말, 군더더기 없이, 문자 1~2통 분량.\n' +
-    '쓸 수 있는 자동 바꿈말: {고객명} {호텔} {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}. 이 말들만 쓰고 다른 중괄호는 쓰지 않는다.\n' +
-    '이모지는 쓰지 않는다. 지어낸 규정·요금·시간은 넣지 않는다. 문구 본문만 출력한다.';
-  var body = '종류: ' + String(kind || '') + '\n호텔: ' + String(hotel || '') + '\n플랫폼: ' + String(plat || '전체') +
-    (hint ? '\n요청: ' + String(hint).slice(0, 500) : '') + (ex ? '\n\n--- 지금 쓰고 있는 문구 (말투 참고) ---\n' + ex : '');
-  return { text: aiCall_('mid', sys, body, 900, '문구 초안') };
-}
-
-// ── 2. 주간 요약 ────────────────────────────────────────────────────────────
+// ── 주간 요약 (계산) ────────────────────────────────────────────────────────
 function weekStats_(hotel, from, to) {
   var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
   var v = lr > 1 ? rv.getRange(2, 1, lr - 1, 46).getValues() : [], plat = {}, sale = 0, nights = 0, nres = 0, cx = 0, clean = 0;
@@ -4128,128 +3954,157 @@ function weekStats_(hotel, from, to) {
     plat: Object.keys(plat).map(function (k) { return k + ' ' + plat[k] + '건'; }).join(', '),
     full: occ.filter(function (x) { return x.level; }).map(function (x) { return x.d.slice(5) + ' ' + x.level + '(' + x.pct + '%)'; }).slice(0, 10) };
 }
+function weekText_(hotel, a, b) {
+  var won = function (n) { return Number(n || 0).toLocaleString(); };
+  var up = a.lastSale !== undefined ? '' : '';
+  return ['[' + hotel + ' 주간] 지난주(' + a.from.slice(5) + '~' + a.to.slice(5) + ') 예약 ' + a.nres + '건 · 취소 ' + a.cx + '건',
+    '매출 ' + won(a.sale) + '원 · 청소비 ' + won(a.clean) + '원 · 평균 가동 ' + a.occ + '%',
+    a.plat ? '플랫폼: ' + a.plat : '',
+    '앞으로 2주 예약 ' + b.nres + '건 · 평균 가동 ' + b.occ + '%',
+    b.full.length ? '주의: ' + b.full.join(', ') : '주의할 날 없음'].filter(String).join('\n') + up;
+}
 function weekReport(pin, hotel, send) {
   checkPin_(pin); adminOnly_();
   var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
-  var lastFrom = notiAdd_(t0, -7), lastTo = notiAdd_(t0, -1), nextTo = notiAdd_(t0, 13);
-  var a = weekStats_(hotel, lastFrom, lastTo), b = weekStats_(hotel, t0, nextTo);
-  var txt = '';
-  if (aiOn_('week')) {
-    var sys = '너는 숙박업소 관리자에게 주간 현황을 알려 주는 비서다. 존댓말, 문자 1통(250자 안팎), 숫자는 준 것만 쓴다.\n' +
-      '① 지난주 요약 ② 앞으로 2주 중 눈여겨볼 날 ③ 한 가지 할 일 제안. 이 순서로 짧게. 지어내지 않는다. 이모지 금지. 본문만 출력.';
-    try { txt = aiCall_('mid', sys, '[지난주 ' + lastFrom + '~' + lastTo + ']\n' + JSON.stringify(a) + '\n\n[앞으로 2주 ' + t0 + '~' + nextTo + ']\n' + JSON.stringify(b), 500, '주간 요약'); } catch (e) { txt = ''; }
-  }
-  if (!txt) txt = '[' + hotel + ' 주간] 지난주 예약 ' + a.nres + '건 · 매출 ' + a.sale.toLocaleString() + '원 · 평균 가동 ' + a.occ + '%' +
-    (b.full.length ? ' · 앞으로 2주 주의: ' + b.full.join(', ') : '');
+  var a = weekStats_(hotel, notiAdd_(t0, -7), notiAdd_(t0, -1)), b = weekStats_(hotel, t0, notiAdd_(t0, 13));
+  var txt = weekText_(hotel, a, b);
   if (send) { var to = PropertiesService.getScriptProperties().getProperty('SMS_PHONE') || ''; if (to) smsSendRaw_(to, txt, { col: 'reply' }); }
   return { hotel: hotel, last: a, next: b, text: txt };
 }
-function weekTick() { try { var ht = SpreadsheetApp.getActive().getSheetByName('호텔');
-  ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().forEach(function (x) { var h = String(x[0] || '').trim(); if (!h) return;
-    try { var r = weekReport_(h); inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '알림', '주간', r, '', '', '', '', '주간 요약']); } catch (e) { } });
-  } catch (e) { } }
-function weekReport_(hotel) { var p = PropertiesService.getScriptProperties().getProperty('APP_PIN') || ''; return weekReport(p, hotel, false).text; }
-
-// ── 3. 청소 사진 점검 ───────────────────────────────────────────────────────
-function aiPhotoCheck(pin, date, hotel, room) {
-  checkPin_(pin); adminOnly_();
-  var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
-  if (lp < 2) throw new Error('올라온 사진이 없습니다.');
-  var urls = [], names = [];
-  pi.getRange(2, 1, lp - 1, 15).getValues().forEach(function (x) {
-    if (x[1] !== hotel || String(x[2]) !== String(room) || !x[3] || fmt_(x[3], false) !== date || !x[14]) return;
-    String(x[14]).split(/\s+/).filter(String).forEach(function (u) { if (urls.length < 4) { urls.push(u); names.push(String(x[4] || '')); } });
-  });
-  if (!urls.length) throw new Error('그 날짜·호실에 올라온 사진이 없습니다.');
-  var content = [];
-  urls.forEach(function (u) {
-    var m = u.match(/\/d\/([\w-]{20,})/) || u.match(/[?&]id=([\w-]{20,})/); if (!m) return;
-    try { var f = DriveApp.getFileById(m[1]), bl = f.getBlob(), mt = bl.getContentType();
-      if (!/^image\//.test(mt)) return;
-      content.push({ type: 'image', source: { type: 'base64', media_type: mt, data: Utilities.base64Encode(bl.getBytes()) } });
-    } catch (e) { }
-  });
-  if (!content.length) throw new Error('사진을 열지 못했습니다.');
-  content.push({ type: 'text', text: '항목: ' + names.join(', ') + '\n이 사진들이 그 항목을 제대로 보여 주는지, 눈에 띄는 문제가 있는지 봐 주세요.' });
-  var sys = '너는 숙박업소 청소 점검 보조다. 올라온 사진을 보고 짧게 알려 준다.\n' +
-    'JSON 한 개만 출력: {"ok":true 또는 false,"list":["한 줄씩 짚은 것"]}. 사진이 흐리거나 항목과 맞지 않으면 그것도 적는다. ' +
-    '추측은 "~로 보입니다"로 쓴다. 최대 5줄.';
-  var j = aiJson_(aiCall_('mid', sys, content, 700, '청소 사진 점검'));
-  return { date: date, hotel: hotel, room: String(room), n: content.length - 1, ok: !!(j && j.ok), list: (j && j.list) || [] };
+function weekTick() {
+  try {
+    var ht = SpreadsheetApp.getActive().getSheetByName('호텔'), t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
+    ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().forEach(function (x) {
+      var h = String(x[0] || '').trim(); if (!h) return;
+      try {
+        var a = weekStats_(h, notiAdd_(t0, -7), notiAdd_(t0, -1)), b = weekStats_(h, t0, notiAdd_(t0, 13));
+        inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+          '알림', '주간', weekText_(h, a, b), h, '', '', '', '주간 요약']);
+      } catch (e) { }
+    });
+  } catch (e) { }
 }
 
-// ── 4. 비고 정리 ───────────────────────────────────────────────────────────
-function aiNote(pin, rowsIn, save) {
+// ── 정산 이상 점검 (규칙) ───────────────────────────────────────────────────
+// 손으로 넣은 항목에서 흔한 실수를 찾습니다: 지난달 대비 급변 · 같은 항목 여러 번 · 0원 · 자릿수 · 매출 없이 비용만
+function ruleCheck(pin, hotel, month) {
+  checkPin_(pin); adminOnly_();
+  var now = integrated(pin, hotel, month);
+  var p = String(month).split('-'), prevM = Utilities.formatDate(new Date(+p[0], +p[1] - 2, 1), tz_(), 'yyyy-MM'), prev = null;
+  try { prev = integrated(pin, hotel, prevM); } catch (e) { }
+  var pmap = {};
+  if (prev) (prev.rows || []).forEach(function (o) { var m = {}; (o.B || []).concat(o.C || []).forEach(function (x) { m[x[0]] = Number(x[1]) || 0; }); pmap[String(o.room)] = m; });
+  // 같은 달 정산입력에서 '한 호실·한 항목'이 몇 줄인지 (중복 입력 찾기)
+  var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow(), dup = {};
+  if (lp > 1) pi.getRange(2, 1, lp - 1, 11).getValues().forEach(function (x) {
+    if (x[1] !== hotel || !x[4]) return;
+    var mk = String(x[10] || x[0] || ''); if (mk.slice(0, 7) !== month) return;
+    var k = String(x[2]) + '|' + String(x[4]).trim(); dup[k] = (dup[k] || 0) + 1;
+  });
+  var out = [];
+  (now.rows || []).forEach(function (o) {
+    var room = String(o.room), was = pmap[room] || {}, items = (o.B || []).concat(o.C || []);
+    var hasPrev = !!pmap[room];
+    items.forEach(function (x) {
+      var name = String(x[0] || '').trim(), v = Number(x[1]) || 0; if (!name) return;
+      if (/자동-|대행수수료|청소비/.test(name)) return;   // 자동 계산 항목은 건너뜀
+      var n = dup[room + '|' + name] || 0;
+      if (n > 1) out.push({ room: room, why: '「' + name + '」이 이 달에 ' + n + '줄 들어가 있습니다 (중복 입력일 수 있음)', level: '높음' });
+      if (v && v % 10 !== 0 && v < 1000) out.push({ room: room, why: '「' + name + '」 ' + v.toLocaleString() + '원 — 자릿수를 확인해 보세요', level: '보통' });
+      if (hasPrev) {
+        var w = was[name] || 0;
+        if (w > 0 && v > 0 && v >= w * 3 && v - w >= 20000) out.push({ room: room, why: '「' + name + '」이 지난달 ' + w.toLocaleString() + '원 → ' + v.toLocaleString() + '원 (' + Math.round(v / w * 10) / 10 + '배)', level: '높음' });
+        if (w >= 20000 && v === 0) out.push({ room: room, why: '지난달 있던 「' + name + '」(' + w.toLocaleString() + '원)이 이 달엔 없습니다', level: '낮음' });
+      } else if (v >= 50000) out.push({ room: room, why: '「' + name + '」 ' + v.toLocaleString() + '원 — 지난달엔 없던 호실입니다', level: '낮음' });
+    });
+    if (!(Number(o.sales) > 0) && Number(o.Bsum) + Number(o.Csum) >= 50000)
+      out.push({ room: room, why: '매출이 없는데 비용만 ' + (Number(o.Bsum) + Number(o.Csum)).toLocaleString() + '원 잡혀 있습니다', level: '보통' });
+  });
+  var rank = { '높음': 0, '보통': 1, '낮음': 2 };
+  out.sort(function (a, b) { return rank[a.level] - rank[b.level] || String(a.room).localeCompare(String(b.room)); });
+  return { hotel: hotel, month: month, prev: prev ? prevM : '', list: out.slice(0, 30) };
+}
+
+// ── 비고 정리 (규칙) ────────────────────────────────────────────────────────
+// 비고 글에서 조기입실·늦은퇴실 시각, 인원, 반려견 마리수를 찾아 메모·인원·반려견 칸으로
+function noteRead_(s) {
+  var t = String(s || '').replace(/\s+/g, ' ');
+  var hm = function (m) { if (!m) return ''; var h = +m[1], mi = m[2] ? +m[2] : 0; if (/오후|pm/i.test(m[0]) && h < 12) h += 12; return ('0' + h).slice(-2) + ':' + ('0' + mi).slice(-2); };
+  var EARLY = '조기\\s*입실|얼리\\s*체크인|일찍\\s*입실', LATE = '늦은?\\s*퇴실|레이트\\s*체크아웃|늦게\\s*퇴실';
+  var pick2 = function (kw) {   // '조기입실 14시'와 '오후 2시 조기입실' 둘 다
+    return hm(t.match(new RegExp('(?:' + kw + ')[^\\d]{0,8}(?:오전|오후)?\\s*(\\d{1,2})\\s*(?::|시)?\\s*(\\d{2})?', 'i')))
+      || hm(t.match(new RegExp('(오전|오후)?\\s*(\\d{1,2})\\s*(?::|시)\\s*(\\d{2})?[^\\d]{0,6}(?:' + kw + ')', 'i')) && (function () {
+        var m2 = t.match(new RegExp('(?:오전|오후)?\\s*(\\d{1,2})\\s*(?::|시)\\s*(\\d{2})?[^\\d]{0,6}(?:' + kw + ')', 'i'));
+        if (m2 && /오후/.test(m2[0]) && +m2[1] < 12) return ['오후', String(+m2[1]), m2[2]];
+        return m2 ? [m2[0], m2[1], m2[2]] : null; })());
+  };
+  var early = pick2(EARLY), late = pick2(LATE);
+  var pm = t.match(/(?:총\s*)?(\d{1,2})\s*명/); var ppl = pm ? +pm[1] : 0;
+  var gm = t.match(/(?:반려견|강아지|애견|펫|댕댕이)\s*(\d{1,2})?\s*마?리?/);
+  var pets = gm ? (gm[1] ? +gm[1] : 1) : 0;
+  var memo = [];
+  if (early) memo.push('조기입실 ' + early);
+  if (late) memo.push('늦은퇴실 ' + late);
+  var req = t.match(/(?:요청\s*사항|요청|문의)\s*[:：]\s*([^\/|·]{2,40})/);
+  if (req) memo.push(req[1].trim());
+  return { memo: memo.join(' · '), ppl: ppl, pets: pets, early: early, late: late };
+}
+function noteTidy(pin, rowsIn, save) {
   checkPin_(pin); adminOnly_();
   var sh = SpreadsheetApp.getActive().getSheetByName('예약'), out = [], upd = [];
-  (rowsIn || []).slice(0, 20).forEach(function (r) {
+  (rowsIn || []).slice(0, 50).forEach(function (r) {
     var row = Number(r); if (!(row > 1)) return;
     var v = sh.getRange(row, 1, 1, 46).getValues()[0]; if (!v[6]) return;
     var note = String(v[21] || '').trim(); if (!note) return;
-    var sys = '너는 숙박 예약의 비고 글에서 쓸 정보를 뽑는 도구다. JSON 한 개만 출력한다.\n' +
-      '{"memo":"조기입실·늦은퇴실·요청사항만 짧게(없으면 \\"\\")","ppl":인원 숫자(모르면 0),"pets":반려견 마리수(모르면 0),"early":"조기입실 시각 HH:MM(없으면 \\"\\")","late":"늦은퇴실 시각 HH:MM(없으면 \\"\\")"}\n' +
-      '상품명·예약번호·방문방법·플랫폼 이름은 넣지 않는다. 글에 없는 것은 비우거나 0으로 둔다.';
-    var j = null; try { j = aiJson_(aiCall_('fast', sys, note.slice(0, 1500), 300, '비고 정리')); } catch (e) { }
-    if (!j) return;
-    var memo = String(j.memo || '').trim();
-    if (j.early) memo = (memo ? memo + ' · ' : '') + '조기입실 ' + j.early;
-    if (j.late) memo = (memo ? memo + ' · ' : '') + '늦은퇴실 ' + j.late;
-    var o = { r: row, room: String(v[2]), name: String(v[3] || ''), ci: mailYmd_(v[6]), note: note, memo: memo,
-      ppl: Number(j.ppl) || 0, pets: Number(j.pets) || 0, nowMemo: String(v[22] || ''), nowPpl: Number(v[9]) || 0, nowPets: Number(v[30]) || 0 };
-    o.change = (memo && memo !== o.nowMemo) || (o.ppl && o.ppl !== o.nowPpl) || (o.pets && o.pets !== o.nowPets);
+    var j = noteRead_(note); if (!j.memo && !j.ppl && !j.pets) return;
+    var o = { r: row, room: String(v[2]), name: String(v[3] || ''), ci: mailYmd_(v[6]), note: note, memo: j.memo,
+      ppl: j.ppl, pets: j.pets, nowMemo: String(v[22] || ''), nowPpl: Number(v[9]) || 0, nowPets: Number(v[30]) || 0 };
+    o.change = (!!o.memo && o.memo !== o.nowMemo) || (!!o.ppl && o.ppl !== o.nowPpl) || (!!o.pets && o.pets !== o.nowPets);
+    if (!o.change) return;
     out.push(o);
-    if (save && o.change) { var vv = {}; if (memo && memo !== o.nowMemo) vv[23] = memo;
-      if (o.ppl && o.ppl !== o.nowPpl) vv[10] = o.ppl; if (o.pets && o.pets !== o.nowPets) vv[31] = o.pets;
+    if (save) { var vv = {};
+      if (o.memo && o.memo !== o.nowMemo) vv[23] = o.nowMemo ? o.nowMemo + ' · ' + o.memo : o.memo;
+      if (o.ppl && o.ppl !== o.nowPpl) vv[10] = o.ppl;
+      if (o.pets && o.pets !== o.nowPets) vv[31] = o.pets;
       if (Object.keys(vv).length) upd.push({ r: row, v: vv }); }
   });
   if (upd.length) saveRowsRun_('예약', upd);
   return { rows: out, saved: upd.length };
 }
 
-// ── 5. 소유주 질문 받기 (자기 호실 자료만) ──────────────────────────────────
-function aiAsk(cred, q) {
-  checkPin_(cred);
-  var ask = String(q || '').trim(); if (!ask) throw new Error('무엇이 궁금한지 적어 주세요.');
-  if (ask.length > 300) ask = ask.slice(0, 300);
-  if (!aiOn_('ask')) throw new Error('지금은 질문 기능이 꺼져 있습니다.');
-  var mine = [];   // 볼 수 있는 호실만
-  if (CTX_.role === 'owner') mine = (CTX_.rooms || []).map(function (x) { return x.h + '|' + String(x.r); });
-  else if (CTX_.role === 'manager' || !CTX_.role) mine = null;   // 매니저·관리자는 전체
-  else throw new Error('권한이 없습니다.');
-  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
-  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), lo = notiAdd_(t0, -120), hi = notiAdd_(t0, 180);
-  var lines = [], v = lr > 1 ? rv.getRange(2, 1, lr - 1, 46).getValues() : [];
-  v.forEach(function (x) {
-    if (!x[6]) return; var k = x[1] + '|' + String(x[2]); if (mine && mine.indexOf(k) < 0) return;
-    var ci = mailYmd_(x[6]); if (ci < lo || ci > hi) return;
-    lines.push([x[1], x[2], ci, mailYmd_(x[7]), x[8], x[9], x[10], Math.round(Number(x[11]) || 0), Math.round(Number(x[15]) || 0), x[23] ? '취소' : ''].join('|'));
+// ── 가격 힌트 (규칙) ────────────────────────────────────────────────────────
+// 가동률만 봅니다: 많이 찼으면 올릴 만한 날, 임박했는데 비었으면 내릴 만한 날
+function priceHint(pin, hotel, days) {
+  checkPin_(pin); hotelOk_(hotel);
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), n = Math.min(Math.max(Number(days) || 45, 7), 120);
+  var occ = occScan_(hotel, t0, notiAdd_(t0, n)), wd = ['일', '월', '화', '수', '목', '금', '토'], out = [];
+  occ.forEach(function (x) {
+    var away = Math.round((new Date(x.d) - new Date(t0)) / 864e5), w = wd[new Date(x.d).getDay()];
+    if (x.pct >= 90) out.push({ date: x.d, w: w, pct: x.pct, left: x.left, move: '올림', level: '높음', why: '가동 ' + x.pct + '% · 남은 방 ' + x.left + '실 — 값을 올려도 팔릴 만합니다' });
+    else if (x.pct >= 80 && away >= 7) out.push({ date: x.d, w: w, pct: x.pct, left: x.left, move: '올림', level: '보통', why: '가동 ' + x.pct + '% · ' + away + '일 남음 — 여유가 있어 올려 볼 만합니다' });
+    else if (x.pct <= 30 && away <= 10 && x.rooms >= 5) out.push({ date: x.d, w: w, pct: x.pct, left: x.left, move: '내림', level: away <= 5 ? '높음' : '보통', why: '가동 ' + x.pct + '% · ' + away + '일 남음 — 빈방이 많아 값을 내리거나 특가가 필요합니다' });
+    else if ((w === '금' || w === '토') && x.pct <= 50 && away <= 21) out.push({ date: x.d, w: w, pct: x.pct, left: x.left, move: '내림', level: '낮음', why: '주말인데 가동 ' + x.pct + '% — 평소보다 느립니다' });
   });
-  if (lines.length > 600) lines = lines.slice(-600);
-  var sys = '너는 숙박 위탁관리 회사의 안내 담당이다. 아래 표에 있는 숫자만 보고 짧게(3문장 안) 답한다.\n' +
-    '표: 호텔|호실|입실일|퇴실일|박|인원|플랫폼|판매금액|입금금액|취소여부\n' +
-    '표에 없는 것은 "그 내용은 제가 가진 자료로는 알 수 없습니다"라고 답한다. 추측·약속·규정 설명은 하지 않는다. 존댓말. 이모지 금지.\n' +
-    '오늘은 ' + t0 + '이다.';
-  return { text: aiCall_('mid', sys, '--- 자료 ---\n' + lines.join('\n') + '\n\n--- 질문 ---\n' + ask, 600, '소유주 질문'), n: lines.length };
+  return { hotel: hotel, from: t0, days: n, list: out.slice(0, 30) };
 }
 
-// ── 6. 가격 제안 ───────────────────────────────────────────────────────────
-function aiPrice(pin, hotel, days) {
+// ── 문자함 답장: 그 번호 예약에 맞는 문구를 골라 넣기 ───────────────────────
+function replyTpl(pin, num) {
   checkPin_(pin); adminOnly_();
-  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), n = Math.min(Math.max(Number(days) || 45, 7), 120);
-  var occ = occScan_(hotel, t0, notiAdd_(t0, n));
-  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
-  var v = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues() : [], last = {};
-  v.forEach(function (x) {   // 지난해 같은 날 판매가 평균
-    if (x[1] !== hotel || !x[6] || x[23]) return; var ci = mailYmd_(x[6]); if (!ci) return;
-    var key = ci.slice(5); (last[key] = last[key] || []).push(Number(x[11]) || 0);
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh.getLastRow();
+  var key = telKey_(num), t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), hit = 0, gap = 1e9;
+  var v = lr > 1 ? sh.getRange(2, 1, lr - 1, 46).getValues() : [];
+  v.forEach(function (x, i) {
+    if (!x[6] || x[23] || telKey_(x[4]) !== key) return;
+    var d = Math.abs((new Date(mailYmd_(x[6])) - new Date(t0)) / 864e5);
+    if (d < gap) { gap = d; hit = i + 2; }
   });
-  var wd = ['일', '월', '화', '수', '목', '금', '토'];
-  var body = occ.map(function (x) {
-    var ago = last[x.d.slice(5)] || [], avg = ago.length ? Math.round(ago.reduce(function (a, b) { return a + b; }, 0) / ago.length) : 0;
-    return x.d + '(' + wd[new Date(x.d).getDay()] + ') 가동 ' + x.pct + '% 남은방 ' + x.left + '/' + x.rooms + ' 과거평균가 ' + avg;
-  }).join('\n');
-  var sys = '너는 숙박 요금 담당이다. 아래 날짜별 가동률·남은 방·과거 평균 판매가만 보고 값을 올리거나 내릴 만한 날을 고른다.\n' +
-    'JSON 한 개만: {"list":[{"date":"YYYY-MM-DD","move":"올림|내림","why":"한 줄 이유","level":"높음|보통|낮음"}]}. 최대 10건, 근거가 약하면 level을 낮음으로. 없으면 {"list":[]}.';
-  var j = aiJson_(aiCall_('deep', sys, body.slice(0, 40000), 1200, '가격 제안'));
-  return { hotel: hotel, from: t0, days: n, list: (j && j.list) || [] };
+  if (!hit) return { res: null, list: [] };
+  var row = v[hit - 2], kinds = {}, list = [];
+  smsTemplates_().forEach(function (t) { if (smsMatch_(t, row) >= 0) kinds[t.kind] = 1; });
+  Object.keys(kinds).forEach(function (k) {
+    var t = smsPick_(k, row); if (!t) return;
+    try { list.push({ kind: k, text: smsFill_(t, row) }); } catch (e) { }
+  });
+  return { res: { row: hit, hotel: row[1], room: String(row[2]), name: String(row[3] || ''), ci: mailYmd_(row[6]), co: mailYmd_(row[7]) }, list: list };
 }
