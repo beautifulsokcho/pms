@@ -65,6 +65,7 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
 .recbar .mo{flex:0 0 auto}
 .recbar #recDate{font-size:13px;padding:5px 6px;max-width:134px}
 .recbar .mpick .btn{padding:5px 9px}
+.aichk{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px;margin:6px 0 8px}
 .chip.blk{background:var(--warn);color:#fff;border-color:var(--warn);font-weight:600}
 .blkwarn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:var(--r);background:var(--warn-soft)}
 .blkwarn b{flex:1 1 100%;color:var(--warn);font-size:15px}
@@ -437,6 +438,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div class="f" id="sToF" style="display:none"><label for="sTo">종료일</label><input id="sTo" type="date"></div>
       <button class="btn pri" id="sGo" type="button">정산서 보기</button>
       <button class="btn" id="sBatch" type="button" title="호텔의 모든 호실 정산서를 PDF로 만들어 ZIP 파일 1개로 저장 (이다경 소유 제외)">개별정산서 일괄 저장</button>
+      <button class="btn" id="sAiChk" type="button" title="그 달 숫자를 Claude가 지난달과 견줘 보고 이상한 곳을 짚어 줍니다">🤖 이상 점검</button>
     </div>
     <div id="sOut"></div>
     <div id="sManual"></div>
@@ -491,7 +493,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2345,6 +2347,15 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       (LIVE?'':printBtn('sPrint'))+'</div>';
 }
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
+$('#sAiChk').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}
+  var b=this,h=$('#sHotel').value,m=$('#sMonth').value;if(!m){toast('정산월을 고르세요');return}
+  b.disabled=true;b.textContent='보는 중…';
+  call('aiCheck',h,m).then(function(r){var L=r.list||[];
+    modal('<h3>🤖 정산 이상 점검</h3><p class="note">'+esc(r.hotel)+' '+esc(r.month)+(r.prev?' · 지난달('+esc(r.prev)+')과 견줌':' · 지난달 자료 없음')+' · <b>사람이 넣은 항목</b>을 중심으로 봅니다. 참고용이니 반드시 눈으로 확인하세요.</p>'+
+      (L.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr><th>호실</th><th>정도</th><th>무엇이 이상한지</th></tr></thead><tbody>'+
+        L.map(function(x){return '<tr><td class="nw"><b>'+esc(x.room||'')+'</b></td><td class="nw">'+(x.level==='높음'?'<span class="chip x">높음</span>':x.level==='보통'?'<span class="chip hold">보통</span>':'<span class="chip">낮음</span>')+'</td><td>'+esc(x.why||'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">눈에 띄는 이상은 없습니다.</div>')+
+      '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 이상 점검'})};
 $('#sGo').onclick=function(){
   if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
   $('#sAll').innerHTML='';
@@ -2673,6 +2684,27 @@ function smsOffBar(){if($('#smsOffBar'))return;
   d.onclick=function(){show('admin');$('#aSheet').value='문자';adminOpen();window.scrollTo(0,0)};
   document.body.insertBefore(d,document.body.firstChild)}
 function smsOffBarHide(){var d=$('#smsOffBar');if(d)d.remove()}
+// Claude API 설정: 키는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
+function aiPanel(){var box=$('#aiBox');if(!box)return;
+  var draw=function(st){
+    box.innerHTML='<p class="note">키 '+(st.has?'<b>넣음 (…'+esc(st.tail)+')</b>':'<span class="err">아직 없음</span>')+' · 최근 30일 '+(st.n||0)+'번 · $'+((st.cost||0)<1?(st.cost||0).toFixed(4):(st.cost||0).toFixed(2))+' · 이번 달 $'+((st.month||0)<1?(st.month||0).toFixed(4):(st.month||0).toFixed(2))+' <span class="note">(크레딧은 매달 새로 채워지고 남은 것은 넘어가지 않습니다)</span></p>'+
+      '<div class="form"><div class="f full"><label for="aiKey">API 키 <span class="note">(platform.claude.com → API keys · 넣고 저장하면 화면에는 끝 4자리만 남습니다)</span></label><input id="aiKey" type="password" autocomplete="off" placeholder="'+(st.has?'…'+esc(st.tail)+' (바꿀 때만 새로 넣으세요)':'sk-ant-...')+'"></div></div>'+
+      '<label class="chk"><input type="checkbox" id="aiOn"'+(st.on?' checked':'')+'> Claude 기능 쓰기</label>'+
+      '<div class="aichk"><label class="chk"><input type="checkbox" id="aiNoti"'+(st.noti?' checked':'')+'> 알림 읽기 보조 <span class="note">(규칙이 못 읽은 예약 알림만)</span></label>'+
+      '<label class="chk"><input type="checkbox" id="aiOcr"'+(st.ocr?' checked':'')+'> 캡처 사진 읽기 <span class="note">(구글 드라이브 OCR 대신)</span></label>'+
+      '<label class="chk"><input type="checkbox" id="aiReplyC"'+(st.reply?' checked':'')+'> 문자함 답장 초안</label>'+
+      '<label class="chk"><input type="checkbox" id="aiCheckC"'+(st.check?' checked':'')+'> 정산 이상 점검</label></div>'+
+      '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="aiSave">저장</button><button class="btn" type="button" id="aiTestB">연결 시험</button></div><p class="note" id="aiMsg"></p>';
+    $('#aiSave').onclick=function(){var b2=this;b2.disabled=true;
+      var cfg={on:$('#aiOn').checked,noti:$('#aiNoti').checked,ocr:$('#aiOcr').checked,reply:$('#aiReplyC').checked,check:$('#aiCheckC').checked};
+      var k=$('#aiKey').value.trim();if(k)cfg.key=k;
+      call('aiConfig',cfg).then(function(st2){toast('Claude API 설정을 저장했습니다');draw(st2)}).catch(function(e){b2.disabled=false;$('#aiMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
+    $('#aiTestB').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='시험 중…';
+      call('aiTest').then(function(r){$('#aiMsg').innerHTML='<b>연결됨</b> — 답: '+esc(r.text||'')}).catch(function(e){$('#aiMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})
+        .then(function(){b2.disabled=false;b2.textContent='연결 시험'})};
+  };
+  call('aiConfig',null).then(draw).catch(function(e){box.innerHTML='<p class="err">불러오지 못했습니다: '+esc(errText(e))+'</p>'});
+}
 function smsLogDraw(r){var o=$('#smsLogOut');if(!o)return;var rows=(r&&r.rows)||[];
   if(!rows.length){o.innerHTML='<p class="note">보낸 문자가 없습니다.</p>';return}
   o.innerHTML='<p class="note">최근 '+rows.length+'건'+(r.wait?' · 보내는 중 '+r.wait+'건':'')+'</p><div class="scroll"><table><tr><th>시각</th><th>호실</th><th>고객</th><th>종류</th><th>받는 번호</th><th>상태</th></tr>'+
@@ -2695,6 +2727,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<label class="chk" style="margin:8px 0"><input type="checkbox" id="smsOn"'+(st.on?' checked':'')+'> 자동 발송 (예약 저장 직후 · 입실일 오전 8시)</label>'+
       '<div class="actions" style="justify-content:flex-start;flex-wrap:wrap"><button class="btn pri" type="button" id="smsSave">저장</button>'+
         (ok?'<a class="btn" target="_top" href="'+esc(setup)+'">폰 앱에 연결</a><a class="btn" target="_top" href="roomsms://poll">지금 보내기</a>':'')+'</div>'+
+      '<h4 class="cwh" style="margin-top:14px">Claude API <span class="note">(Max 플랜의 월 $100 크레딧)</span></h4><div id="aiBox"><p class="note">불러오는 중…</p></div>'+
       '<h4 class="cwh" style="margin-top:14px">최근 보낸 문자</h4><p class="note">예약 문자(문자기록)와 답장·바로 보내기를 시각 순으로 모아 보여 줍니다.</p>'+
       '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="smsLogBtn">불러오기</button></div><div id="smsLogOut"></div>'+
       '<h4 class="cwh" style="margin-top:14px">앱 설치 안내 문자 (일괄)</h4><p class="note">소유주·청소담당자에게 앱 주소와 설치 방법을 문자로 보냅니다. 전화번호가 없거나 사용여부 N인 분은 빠집니다. 문구의 {이름} {호텔} {호실} {주소} {안내}는 사람마다 자동으로 바뀝니다.</p>'+
@@ -2717,6 +2750,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
+    try{aiPanel()}catch(e){}
     if($('#smsLogBtn'))$('#smsLogBtn').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
       call('smsLogList',60).then(smsLogDraw).catch(function(e){toast(errText(e))}).then(function(){b2.disabled=false;b2.textContent='다시 불러오기'})};
     if($('#chatSms')){$('#chatSms').checked=(st&&st.chatSms)==='Y';
@@ -3020,13 +3054,16 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
     (sys?'<p class="note">카톡 알림이 와도 예약이 자동으로 들어가지 않은 건들입니다. 아래 내용을 보고 예약검색에서 확인한 뒤 손으로 넣으세요.</p>':'<p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p>')+
     ibxSortBar()+'<div class="ibx-msgs" id="ibxMsgs">'+t.list.slice().sort(function(a,b){return (a.at<b.at?-1:a.at>b.at?1:0)*(IBX.sort==='asc'?1:-1)}).map(function(r){var out=r.kind==='보냄',isNew=!out&&!r.read;
       return '<div class="ibx-m'+(out?' out':'')+(isNew?' new':'')+(r.kind==='알림'?' warnmsg':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'&&r.kind!=='알림'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+(out&&r.note?' · '+esc(r.note):'')+'</small></div>'}).join('')+'</div>'+
-    (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
+    (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button><button class="btn" type="button" id="ibxAi">🤖 답장 초안</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
   var mm=$('#ibxMsgs');mm.scrollTop=IBX.sort==='asc'?mm.scrollHeight:0;   // 오래된순이면 맨 아래(최근), 최신순이면 맨 위
   ibxSortBind(sel);
   $('#ibxBack').onclick=function(){inboxOpen(null,true)};
   if(sys){IBX.unread=-1;inboxCount();return}
   $('#ibxBlock').onclick=function(){var b=this;if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='이 번호 문자를 앞으로 저장하지 않을까요? (한 번 더 누르기)';return}
     b.disabled=true;call('smsBlock',sel,true,$('#ibxPurge').checked).then(function(r){toast(sel+' 번호는 앞으로 문자함에 저장하지 않습니다'+(r&&r.deleted?' · 지난 문자 '+r.deleted+'줄 지움':''));inboxOpen()}).catch(function(e){b.disabled=false;toast(errText(e))})};
+  var ai=$('#ibxAi');if(ai)ai.onclick=function(){var b=this;b.disabled=true;b.textContent='만드는 중…';
+    call('aiReply',sel).then(function(r){$('#ibxTxt').value=r.text||'';$('#ibxMsg').textContent='초안입니다. 읽어 보고 고친 뒤 [보내기]를 누르세요.'+(r.res?' (예약: '+r.res.hotel+' '+r.res.room+'호 '+r.res.ci+'~'+r.res.co+')':' (이 번호로 찾은 예약 없음)')})
+      .catch(function(e){$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'}).then(function(){b.disabled=false;b.textContent='🤖 답장 초안'})};
   $('#ibxSend').onclick=function(){var b=this,tx=$('#ibxTxt').value.trim();if(!tx){toast('내용을 쓰세요');return}b.disabled=true;
     call('smsReply',sel,tx).then(function(){$('#ibxTxt').value='';$('#ibxMsg').textContent='보낼 문자에 넣었습니다. 손님 문자가 온 뒤 15분 동안은 1분 안에, 그 밖에는 다음 확인 때(최대 15분) 발송 폰이 보냅니다.';b.disabled=false})
       .catch(function(e){b.disabled=false;$('#ibxMsg').innerHTML='<span class="err">'+esc(errText(e))+'</span>'})};
