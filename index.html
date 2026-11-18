@@ -490,7 +490,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-17r';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1975,11 +1975,15 @@ function snapFlat(c,orig){   // 인쇄에만 적용되는 모양(@media print)�
   c.querySelectorAll('.no-print,.notice .ntext,.scrcal').forEach(function(x){x.remove()});
   c.querySelectorAll('.notice .nview,.prtcal').forEach(function(x){x.style.display='block'});
 }
-function fitA4(cv,sc){   // 인쇄 한 쪽(A4 세로)에 들어가는 모양 그대로 — 넘치면 줄이고 남는 곳은 흰 바탕
-  var W=Math.round(PG_W*sc),H=Math.round(PG_H*sc),o=document.createElement('canvas');o.width=W;o.height=H;
-  var g=o.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,W,H);
-  var k=Math.min(W/cv.width,H/cv.height),w=cv.width*k,h=cv.height*k;
-  g.drawImage(cv,Math.round((W-w)/2),0,Math.round(w),Math.round(h));
+// 그림을 A4 용지 한 장에 인쇄한 모양으로: 종이 비율(210×297mm)·여백 8mm 그대로, 가로로 긴 쪽은 가로 용지
+var A4_W=794,A4_H=1123,A4_M=30;   // 96dpi 기준 A4와 8mm 여백
+function sheetA4(cv,sc,land){   // land: 인쇄 때 그 쪽이 가로 용지인지 (안 주면 그림 모양으로 판단)
+  sc=sc||2; if(land===undefined)land=cv.width>cv.height;
+  var pw=Math.round((land?A4_H:A4_W)*sc),ph=Math.round((land?A4_W:A4_H)*sc),m=A4_M*sc;
+  var o=document.createElement('canvas');o.width=pw;o.height=ph;
+  var g=o.getContext('2d');g.fillStyle='#ffffff';g.fillRect(0,0,pw,ph);
+  var k=Math.min((pw-2*m)/cv.width,(ph-2*m)/cv.height),w=cv.width*k,h=cv.height*k;
+  g.drawImage(cv,Math.round((pw-w)/2),Math.round(m),Math.round(w),Math.round(h));
   return o}
 function cleanPagesClone(fit,snap){var root=document.createElement('div');root.id='printRoot';root.className='snapmode cleanprint';
   root.style.cssText='display:block;position:fixed;left:-30000px;top:0;background:#fff';
@@ -2008,11 +2012,11 @@ function snapClean(){var b=$('#cSnapBtn');b.disabled=true;toast('그림을 만�
     root.style.cssText='display:block;position:fixed;left:-30000px;top:0;background:#fff';
     pages.forEach(function(c){c.style.zoom='';c.dataset.w=Math.max(c.scrollWidth,PG_W)});   // 인쇄와 같은 폭(줄바꿈)으로 그린 뒤 그대로 찍어 오른쪽이 잘리지 않게
     var next=function(){if(k>=pages.length)return Promise.resolve();var pg=pages[k++];
-      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',width:Math.max(pg.scrollWidth,PG_W),height:pg.scrollHeight,windowWidth:Math.max(pg.scrollWidth,PG_W)+40}).then(function(cv){out.push(fitA4(cv,2));return next()})};
+      return html2canvas(pg,{scale:2,backgroundColor:'#ffffff',width:Math.max(pg.scrollWidth,PG_W),height:pg.scrollHeight,windowWidth:Math.max(pg.scrollWidth,PG_W)+40}).then(function(cv){out.push(cv);return next()})};
     return next().then(function(){root.remove();
-      var base='청소배정_'+h+'_'+d;
-      snapPick([{cv:joinPages(out),file:base+'.jpg',label:'3장 합친 그림 (1개 파일)'}]
-        .concat(out.map(function(c,i){return {cv:c,file:base+'_'+(i+1)+'_'+nm[i]+'.jpg',label:(i+1)+'. '+nm[i]}})),
+      var base='청소배정_'+h+'_'+d,sh=out.map(function(c){return sheetA4(c,2,false)});   // 인쇄와 같이 A4 세로 한 장씩
+      snapPick([{cv:joinPages(sh),file:base+'.jpg',label:'3장 합친 그림 (1개 파일)'}]
+        .concat(sh.map(function(c,i){return {cv:c,file:base+'_'+(i+1)+'_'+nm[i]+'.jpg',label:(i+1)+'. '+nm[i]}})),
         '<div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn pri" type="button" id="snapPdf">PDF로 받기 (3쪽)</button></div>');
       var pb=$('#snapPdf');if(pb)pb.onclick=function(){var b2=this;b2.disabled=true;b2.textContent='만드는 중…';
         loadScript(JSPDF).then(function(){saveBlob(pagesPdf(out).output('blob'),base+'.pdf');b2.disabled=false;b2.textContent='PDF로 받기 (3쪽)'})
@@ -2235,10 +2239,10 @@ function settleBatch(fmt){
   .catch(function(e){box.remove();msg('만들지 못했습니다: '+errText(e))})}
 function snapReport(id,name){var el=document.getElementById(id),btn=$('#sSnap');if(btn)btn.disabled=true;toast('그림을 만드는 중…');
   loadScript(H2C).then(function(){
-    return snapPages(el,2).then(function(out){   // 3장을 위아래로 이어 붙여 그림 파일 1개로
-      var all=joinPages(out);
+    return snapPages(el,2).then(function(out){   // A4 한 장씩 + 3장을 위아래로 이어 붙여 그림 파일 1개로
+      var sh=out.map(function(c,k){return sheetA4(c,2,k===0)}),all=joinPages(sh);   // 1쪽(달력)은 인쇄와 같이 가로 용지
       var file=name+'_정산서.jpg',parts=['달력','정산요약','일자별'];
-      snapPick([{cv:all,file:file,label:'3장 합친 그림 (1개 파일)'}].concat(out.map(function(c,k){return {cv:c,file:name+'_'+(k+1)+'_'+parts[k]+'.jpg',label:(k+1)+'. '+parts[k]}})),
+      snapPick([{cv:all,file:file,label:'3장 합친 그림 (1개 파일)'}].concat(sh.map(function(c,k){return {cv:c,file:name+'_'+(k+1)+'_'+parts[k]+'.jpg',label:(k+1)+'. '+parts[k]}})),
         '<div class="actions" style="justify-content:flex-start;margin:0 0 8px"><button class="btn pri" type="button" id="snapPdf">PDF로 받기 (3쪽)</button></div>');
       $('#snapPdf').onclick=function(){var b=this;b.disabled=true;b.textContent='만드는 중…';
         loadScript(JSPDF).then(function(){var doc=null;
