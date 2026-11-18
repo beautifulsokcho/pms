@@ -65,6 +65,7 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
 .recbar .mo{flex:0 0 auto}
 .recbar #recDate{font-size:13px;padding:5px 6px;max-width:134px}
 .recbar .mpick .btn{padding:5px 9px}
+.chip.blk{background:var(--warn);color:#fff;border-color:var(--warn);font-weight:600}
 .blkwarn{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 10px;padding:10px 12px;border:1px solid var(--warn);border-left:4px solid var(--warn);border-radius:var(--r);background:var(--warn-soft)}
 .blkwarn b{flex:1 1 100%;color:var(--warn);font-size:15px}
 .blkwarn span{flex:1 1 220px;font-size:13.5px;color:var(--ink)}
@@ -490,7 +491,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -938,8 +939,9 @@ function setMonth(ym,quiet){var sel=$('#qMonth');
 function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');   // 날짜를 직접 바꾸면 맞는 달 또는 '직접 지정'으로 표시
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
+function needBlk(v){return String(v[R.block]||'').indexOf('확인필요')===0&&!v[R.cancel]}   // 자동등록 예약 · 아직 방막기 확인 전
 function cardHtml(r,reg){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인 필요</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
@@ -967,8 +969,8 @@ function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞�
   return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&/자동등록/.test(String(v[R.note]||''))&&String(v[R.co])>=lim})
     .sort(function(a,b){var am=autoMiss(a.v).length?0:1,bm=autoMiss(b.v).length?0:1;return am-bm||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
 function renderRecent(){
-  var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length;
-  ab.hidden=!regs.length;ab.textContent='🔔 알림 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'');ab.classList.toggle('miss',!!nm);
+  var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
+  ab.hidden=!regs.length;ab.textContent='🔔 알림 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
   if(REC_MODE==='auto'&&!regs.length)REC_MODE='recent';
   al.hidden=REC_MODE!=='auto';$('#recBar').hidden=REC_MODE==='auto';
   if(REC_MODE==='auto'){
@@ -1005,7 +1007,7 @@ function recDraw(list,emptyMsg){
 }
 function lineHtml(r){var v=r.v;   // 목록형: 예약 1건을 두 줄로 — 아래로 계속 이어 보여 줌
   return '<button type="button" class="rline'+(v[R.cancel]?' cx':'')+'" data-r="'+r.r+'">'+
-    '<div class="a"><b>'+esc(roomLab(v))+'</b><span class="num">'+md(v[R.ci])+' → '+md(v[R.co])+'</span><span>'+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+
+    '<div class="a"><b>'+esc(roomLab(v))+'</b><span class="num">'+md(v[R.ci])+' → '+md(v[R.co])+'</span><span>'+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인</span>':'')+
       (v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':'')+'</div>'+
     '<div class="b"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+'</span>'+
       (regLab(v)?'<span class="num">등록 '+regLab(v)+'</span>':'')+(/자동등록/.test(String(v[R.note]||''))?'<span>🔔 자동</span>':'')+'</div></button>'}
