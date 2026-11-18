@@ -1548,10 +1548,16 @@ function myAssigned_(name, date, hotel, room) {
   if (k < 0) throw new Error('나에게 배정된 객실이 아닙니다.');
   return { sh: cs, row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || '') };
 }
+function admRoom_(hotel, room) {   // 객실 AE열 '관리자 직접 운영 (Y)'
+  var ob = SpreadsheetApp.getActive().getSheetByName('객실');
+  var v = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 31)).getValues()
+    .find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
+  return String(v[30] || '').trim().toUpperCase() === 'Y';
+}
 function manualItems_(hotel, room) {   // 그 객실에 쓰는 '수동' 정산항목 (적용 호텔·객실 V열 반영, 관리자 직접 운영 객실은 없음)
   var ss = SpreadsheetApp.getActive(), it = ss.getSheetByName('정산항목'), ob = ss.getSheetByName('객실');
   var rv = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 31)).getValues().find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
-  if (String(rv[30] || '').trim().toUpperCase() === 'Y') return [];
+  // 관리자 직접 운영 객실(AE열 Y)도 청소담당자 화면에는 항목이 나오게 함 — 다만 정산에는 들어가지 않도록 mySave가 수량 0으로 적음
   var only = String(rv[21] || '').trim(); if (only === '없음') return [];
   var toks = only ? only.split(/\s*,\s*/).filter(String) : [];
   return it.getRange(2, 1, Math.max(it.getLastRow() - 1, 1), 10).getValues().filter(function (x) {
@@ -1572,8 +1578,9 @@ function mySave(cred, date, hotel, room, done, names) {
   var name = cleanerLogin_(cred), a = myAssigned_(name, date, hotel, room);
   a.sh.getRange(a.row, 13).setValue(done ? Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') : '');
   var cur = myRoomData_(name, date, hotel, room), want = names || [], add = [], del = [];
+  var adm = admRoom_(hotel, room);   // 관리자 직접 운영 객실: 기록은 남기되 수량 0으로 넣어 객실정산에는 안 들어가게
   cur.items.forEach(function (m) {
-    if (want.indexOf(m.name) >= 0 && !m.on) add.push({ r: null, v: { 1: date.slice(0, 7), 2: hotel, 3: String(room), 4: date, 5: m.name, 6: 1, 10: '청소담당자: ' + name } });
+    if (want.indexOf(m.name) >= 0 && !m.on) add.push({ r: null, v: { 1: date.slice(0, 7), 2: hotel, 3: String(room), 4: date, 5: m.name, 6: adm ? 0 : 1, 10: '청소담당자: ' + name + (adm ? ' (관리자 직접 운영 · 정산 제외)' : '') } });
     if (want.indexOf(m.name) < 0 && m.on && m.mine) del.push(m.name);   // 담당자가 넣은 것만 지움 (관리자가 넣은 것은 그대로)
   });
   if (add.length) saveRowsRun_('정산입력', add);
@@ -3608,7 +3615,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-17.156014ac';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-18.4d28664e';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
