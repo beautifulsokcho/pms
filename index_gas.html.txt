@@ -497,7 +497,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -965,24 +965,26 @@ function defHotel(){var h=store('hotel'),hs=hotels();return hs.indexOf(h)>=0?h:(
 // 어느 메뉴에서든 호텔을 고르면 모든 메뉴(새 예약·예약검색·객실정산·청소배정·관리)가 그 호텔로
 function setHotel(h){if(!h||h==='*')return;store('hotel',h);store('qHotel',h);store('aHotel',h)}
 var REC_MODE='recent';   // 최근 입력 / 알림·메일 자동등록만 보기
-function autoMiss(v){var m=[];   // 자동등록 예약에서 비어 있거나 가려진 정보
+function autoMiss(v){var m=[],pl=String(v[R.plat]||'ABNB'),own=pl==='개인예약';   // 자동등록 예약에서 비어 있거나 가려진 정보
   if(!String(v[R.name]||'').trim())m.push('이름 없음');else if(/\*/.test(String(v[R.name])))m.push('이름 가려짐');
-  if(!String(v[R.tel]||'').trim())m.push('연락처 없음');
-  if(v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');
-  if(!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
+  if(pl!=='ABNB'&&!own&&!String(v[R.tel]||'').trim())m.push('연락처 없음');   // 에어비앤비는 손님 연락처를 주지 않고, 개인예약은 본인·지인 사용
+  if(!own&&v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');   // 개인예약은 매출 없음·청소만
+  if(!own&&!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
-function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록(알림·카톡·메일) 예약
-  return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&(/자동등록/.test(String(v[R.note]||''))||needBlk(v))&&String(v[R.co])>=lim})   // 알림·메일 자동등록 + 엑셀로 새로 넣어 방막기 확인이 남은 예약
+function autoSrc(v){return /자동등록/.test(String(v[R.note]||''))||String(v[R.block]||'').trim()!==''}   // 알림·메일·엑셀로 들어온 예약 (방막기 칸에 확인필요/확인 기록이 있으면 그것도)
+function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록 예약 중 '아직 볼 것이 남은' 것만
+  return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&String(v[R.co])>=lim&&autoSrc(v)&&(needBlk(v)||autoMiss(v).length)})   // 방막기 확인을 누르고 정보도 다 차면 목록·건수에서 빠짐이 남은 예약
     .sort(function(a,b){var am=autoMiss(a.v).length?0:1,bm=autoMiss(b.v).length?0:1;return am-bm||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
 function renderRecent(){try{occDraw()}catch(e){}
+  try{mailTick()}catch(e){}
 
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
   var nb2=$('#recNote');if(nb2)nb2.hidden=!regs.length||!!ROLE;
-  ab.hidden=!regs.length;ab.textContent='🔔 자동 등록 예약 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
+  ab.hidden=!regs.length;ab.textContent='🔔 확인할 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
   if(REC_MODE==='auto'&&!regs.length)REC_MODE='recent';
   al.hidden=REC_MODE!=='auto';$('#recBar').hidden=REC_MODE==='auto';
   if(REC_MODE==='auto'){
-    $('#recentH').textContent='자동 등록 예약 · 알림·메일·엑셀 ('+regs.length+'건)';
+    $('#recentH').textContent='확인할 자동등록 예약 · 알림·메일·엑셀 ('+regs.length+'건)';
     $('#recentList').className='list';
     $('#recentList').innerHTML=regs.length?regs.map(function(r){var m=autoMiss(r.v),c=cardHtml(r);
       return m.length?c.replace('<div class="dates','<div class="l1">'+m.map(function(x){return '<span class="chip miss">'+x+'</span>'}).join('')+'</div><div class="dates'):c}).join(''):'<div class="empty">자동등록된 예약이 없습니다.</div>';
@@ -2010,10 +2012,12 @@ function ocrShrink(file){return new Promise(function(ok,no){var rd=new FileReade
 var MAILIN=[];   // 불러온 메일 카드: 저장(카드가 사라짐)되면 서버에 '확인 완료' 알림
 function mailGone(){var g=MAILIN.filter(function(x){return PASTE.indexOf(x)<0});if(!g.length)return;MAILIN=MAILIN.filter(function(x){return PASTE.indexOf(x)>=0});
   call('mailDone',g.map(function(x){return x.mailRow})).then(function(){var b=$('#mailBtn');if(b)call('mailPending').then(function(L){b.textContent='📥 확인 필요 예약'+(L&&L.length?' ('+L.length+')':'');b.classList.toggle('pri',!!(L&&L.length))})}).catch(function(){})}
+var MAILCNT=null,MAILCNT_AT=0;
+function mailTick(){if(!MAILCNT||Date.now()-MAILCNT_AT<5*60000)return;try{MAILCNT()}catch(e){}}   // 새 예약 화면이 열려 있으면 5분마다 '확인 필요 예약' 건수 다시 세기
 function mailInit(){var xr=$('#xlsRow');if(xr)xr.hidden=!!ROLE;   // 엑셀 올리기는 관리자만
   var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){row.hidden=true;return}row.hidden=false;
-  var cnt=function(){call('mailPending').then(function(L){$('#mailBtn').textContent='📥 확인 필요 예약'+(L&&L.length?' ('+L.length+')':'');$('#mailBtn').classList.toggle('pri',!!(L&&L.length))}).catch(function(){})};
-  cnt();
+  var cnt=function(){MAILCNT_AT=Date.now();call('mailPending').then(function(L){$('#mailBtn').textContent='📥 확인 필요 예약'+(L&&L.length?' ('+L.length+')':'');$('#mailBtn').classList.toggle('pri',!!(L&&L.length))}).catch(function(){})};
+  MAILCNT=cnt;cnt();
   $('#mailBtn').onclick=function(){var b=this;b.disabled=true;call('mailPending').then(function(L){b.disabled=false;
       if(!L||!L.length){toast('확인할 예약이 없습니다');return}
       L.forEach(function(it){var x={plat:it.plat,name:it.name||'',tel:it.tel||'',ci:it.ci,co:it.co,ppl:it.ppl||2,pplGuess:!!it.pplGuess,note:it.note||'',hotel:it.hotel||'',room:it.room||'',src:[it.mailWhy&&/알림/.test(it.mailWhy)?'놀 알림':'메일']};

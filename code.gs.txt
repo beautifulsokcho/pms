@@ -3066,10 +3066,10 @@ function notiPending_(mailList) {   // 호실을 몰라 자동등록이 안 된 
     if (!it) { try { it = notiParseNol2_(k0, t); } catch (e) { } }
     return it;
   };
-  var cx = [];   // 뒤이어 취소된 예약: 카드에서 아예 빼기
+  var cx = [];   // 뒤이어 취소된 예약: 카드에서 아예 빼기 (짧은 요약 알림의 [예약취소]도 포함)
   rows.forEach(function (x) {
-    if (!/취소/.test(String(x[3] || ''))) return;
     var it = parse1(x); if (!it || !it.ci) return;
+    if (!/취소/.test(String(x[3] || '')) && it.kind !== 'cancel') return;
     cx.push({ no: it.resNo || '', ci: it.ci, co: it.co, name: it.name || '', plat: '' });
   });
   var seen = (mailList || []).map(function (m) {   // 메일로 이미 올라온 같은 예약은 알림 쪽에서 빼기
@@ -3770,7 +3770,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.a90604d3';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.e371a10d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
