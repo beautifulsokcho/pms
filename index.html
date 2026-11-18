@@ -508,7 +508,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1985,14 +1985,16 @@ function renderPaste(){
       '<button class="btn" type="button" id="pClear">지우기</button>'+(cxIdx().length>1?'<button class="btn warn" type="button" id="pCxAll">취소 '+cxIdx().length+'건 모두 반영</button>':'')+(updIdx().length>1?'<button class="btn" type="button" id="pUpdAll">'+updIdx().length+'건 모두 기존 예약에 반영</button>':'')+
       (ok&&updIdx().length?'<button class="btn pri" type="button" id="pAllAll">모두 저장 (새 '+ok+'건 · 반영 '+updIdx().length+'건)</button>':'')+
       '<button class="btn'+(ok&&updIdx().length?'':' pri')+'" type="button" id="pSaveAll"'+(ok?'':' disabled')+'>'+ok+'건 모두 저장</button></span></div>'+
-    PASTE.map(function(x,i){var iss=pasteIssues(x),v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
+    PASTE.map(function(x,i){var iss=pasteIssues(x);
+      if(x.pplGuess&&!x.cancel&&x.room&&x.hotel&&x.ci){var dpp=dupOf(x);if(dpp&&Number(dpp.v[R.ppl])>0){x.ppl=Number(dpp.v[R.ppl]);x.pplKeep=true}}   // 기존 예약이 있으면 그 인원 그대로 (문구·엑셀에는 인원이 없음, 고치면 그때만 반영)
+      var v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
       return '<div class="pitem'+(iss.length?' bad':'')+'" data-i="'+i+'"><div class="row"><span class="chip">'+esc(x.plat)+'</span>'+(!x.cancel&&cxOf(x)?'<span class="chip hold">취소된 예약 되살림</span>':'')+(x.pets?'<span class="chip">반려견 '+x.pets+'</span>':'')+'<span class="ttl">'+esc((x.hotel||'')+' '+(x.room||'호실 ?'))+'</span>'+
         '<span class="num">'+(x.ci?md(x.ci):'?')+' → '+(x.co?md(x.co):'?')+(v[R.n]!==''?' · '+v[R.n]+'박':'')+'</span><span>'+esc(x.name||'')+'</span>'+
         iss.map(function(t){return '<span class="chip x">'+esc(t)+'</span>'}).join('')+'</div>'+
         '<div class="row">'+(needRoom?'<div class="f"><label>호텔</label><select data-p="hotel">'+opts(hotels(),x.hotel||defHotel())+'</select></div><div class="f"><label>호실</label><select data-p="room">'+opts(roomsOf(x.hotel||defHotel()),x.room,'선택')+'</select></div>'+(x.roomGuess&&x.room?'<button class="btn pri" type="button" data-p="okroom" style="align-self:flex-end">'+esc(x.room)+'호 맞음</button>':'')+
           (x.plat==='떠나요'&&x.roomHint?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="learn"'+(x.learn!==false?' checked':'')+'> 이 상품명을 이 호실로 기억</label>':''):
           '<button class="btn" type="button" data-p="chroom" style="align-self:flex-end;padding:6px 10px">호실 바꾸기</button>')+
-        '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
+        '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplKeep?' (기존)':x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
         '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>'+ownLab(x.hotel)+'</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
@@ -2109,7 +2111,7 @@ $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.close
   if(el.dataset.p==='hotel'){x.hotel=el.value;x.room='';x.unknownRoom=false}
   if(el.dataset.p==='room'){x.room=el.value;x.unknownRoom=false;x.roomGuess=false;x.roomPick=true;if(!x.hotel)x.hotel=it.querySelector('[data-p=hotel]').value;learnProduct(x)}
   if(el.dataset.p==='learn'){x.learn=el.checked;learnProduct(x)}
-  if(el.dataset.p==='ppl'){x.ppl=Number(el.value)||'';x.pplGuess=false}
+  if(el.dataset.p==='ppl'){x.ppl=Number(el.value)||'';x.pplGuess=false;x.pplKeep=false}
   if(el.dataset.p==='noclean'){x.noClean=el.checked;x.ncSet=true}
   renderPaste()});
 $('#pasteOut').addEventListener('click',function(e){
