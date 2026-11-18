@@ -20,7 +20,8 @@ var SHEETS = {
   '청소실적': { cols: 13, key: 2, edit: [1,2,3,4,5,6,10,12], dates: [1], texts: [4] },
   '매니저':   { cols: 7, key: 1, edit: [1,2,3,4,5,6,7], texts: [3,4] },
   '수당입력': { cols: 9,  key: 3, edit: [1,2,3,4,5,6,8,9], dates: [8], months: [1] },
-  '문자':     { cols: 10, key: 8, edit: [1,2,3,4,5,6,7,8,9,10], texts: [7] }
+  '문자':     { cols: 10, key: 8, edit: [1,2,3,4,5,6,7,8,9,10], texts: [7] },
+  '객실타입': { cols: 8, key: 3, edit: [1,2,3,4,5,6,7,8], texts: [3] }
 };
 
 // ── 주소로 직접 열었을 때: Index 파일이 있으면 화면을, 없으면 안내 문구를 보여줌
@@ -269,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 82) return;
+  if (ver >= 83) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1340,6 +1341,29 @@ function ensureSchema_() {
     .forEach(function (t) { try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === t[0]; })) t[1](); } catch (e) { } });
   props.setProperty('SCHEMA', '82');
   }
+  if (ver < 83) {   // v83: 객실타입 시트 — 플랫폼이 '객실 타입'으로만 파는 예약(놀호텔)의 호실 추천, 놀 허수 객실(코지 01·02) 배정
+    var ss83 = SpreadsheetApp.getActive(), rt83 = ss83.getSheetByName('객실타입');
+    if (!rt83) {
+      rt83 = ss83.insertSheet('객실타입');
+      rt83.getRange(1, 1, 1, 8).setValues([['호텔', '객실타입', '호실', '배정순서', '놀 판매 (N=안 팜)', '놀호텔 판매 (N=안 팜)', '놀 상품명 (허수 객실만: 코지 01 등)', '비고']]).setFontWeight('bold');
+      rt83.setFrozenRows(1); rt83.getRange('C:C').setNumberFormat('@');
+    }
+    if (rt83.getLastRow() < 2) {
+      var COZY83 = { '1810': '코지 01', '1913': '코지 02' }, ORD83 = { '1810': 1, '1913': 2 };
+      var GRAND83 = ['519', '621', '623', '1320', '1321', '1423', '1519', '1723', '2019'], NOSELL83 = ['621', '1423', '1519', '1403'];
+      var ob83 = ss83.getSheetByName('객실'), add83 = [];
+      if (ob83 && ob83.getLastRow() > 1) ob83.getRange(2, 1, ob83.getLastRow() - 1, 3).getValues().forEach(function (v) {
+        var h = String(v[1] || ''), rm = String(v[2] == null ? '' : v[2]).trim();
+        if (h !== '써밋베이' || !/^\d{3,4}$/.test(rm)) return;
+        var t = COZY83[rm] ? '디럭스 스튜디오 코지' : GRAND83.indexOf(rm) >= 0 ? '그랜드 스튜디오 오션뷰 1.5룸' : '파노라마오션뷰 디럭스 스튜디오';
+        var sell = NOSELL83.indexOf(rm) >= 0 ? 'N' : '';
+        add83.push([h, t, rm, ORD83[rm] || Number(rm), sell, sell, COZY83[rm] || '', '']);
+      });
+      add83.sort(function (a, b) { return String(a[1]).localeCompare(String(b[1])) || a[3] - b[3]; });
+      if (add83.length) rt83.getRange(2, 1, add83.length, 8).setValues(add83);
+    }
+    props.setProperty('SCHEMA', '83');
+  }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -1870,6 +1894,35 @@ function smsDo_(sh, r, kind, force, sent) {
   if (sent) sent[key + '|' + kind] = '대기';
   try { var sr = smsSendRaw_(v[4], text, { col: 'log:' + lid }); if (!(sr && sr.queued)) smsLogSet_(lid, '발송', ''); return stamp + (sr && sr.queued ? ' 대기 (폰 앱)' : ' 발송'); }
   catch (e) { smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100)); throw e; }
+}
+// ── 소유주 알림 문자: 정해 둔 객실에 예약이 들어오면 소유주 번호로 바로 보냄 (객실 G열 소유주 전화번호)
+var OWNER_SMS_ = [['써밋베이', '1913']];
+function ownerTel_(hotel, room) {
+  var sh = SpreadsheetApp.getActive().getSheetByName('객실'); if (!sh || sh.getLastRow() < 2) return '';
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, 7).getValues().filter(function (x) { return String(x[1]) === hotel && String(x[2] == null ? '' : x[2]).trim() === String(room); })[0];
+  return v ? String(v[6] || '').replace(/[^0-9]/g, '') : '';
+}
+function ownerSms_(rows) {
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) return;
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), sent = smsSentMap_();
+  var DW = ['일', '월', '화', '수', '목', '금', '토'], dw = function (y) { var p = String(y).split('-'); return DW[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; };
+  rows.forEach(function (r) {
+    try {
+      var v = sh.getRange(r, 1, 1, 46).getValues()[0], hotel = String(v[1] || ''), room = String(v[2] == null ? '' : v[2]).trim();
+      if (!OWNER_SMS_.some(function (x) { return x[0] === hotel && x[1] === room; })) return;
+      var ci = fmt_(v[6], false), co = fmt_(v[7], false);
+      if (v[23] || !ci || ci < today) return;
+      var key = smsResKey_(v); if (sent[key + '|소유주알림']) return;
+      var to = ownerTel_(hotel, room); if (!to) return;
+      var txt = '[' + hotel + ' ' + room + '호] 새 예약\n' + ci + '(' + dw(ci) + ') ~ ' + co + '(' + dw(co) + ') · ' + (Number(v[8]) || '') + '박 · ' + (Number(v[9]) || '') + '명 · ' + String(v[10] || '')
+        + (String(v[3] || '').trim() ? '\n' + String(v[3]).trim() : '');
+      var lid = Utilities.getUuid().slice(0, 8), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
+      smsLogSheet_().appendRow([lid, stamp, key, hotel, room, String(v[3] || ''), '소유주알림', to, '대기', '', '']);
+      sent[key + '|소유주알림'] = '대기';
+      try { var sr = smsSendRaw_(to, txt, { col: 'log:' + lid }); if (!(sr && sr.queued)) smsLogSet_(lid, '발송', ''); }
+      catch (e) { smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100)); }
+    } catch (e) { }
+  });
 }
 function smsAuto_(rows) {   // 새 예약 저장 직후: 기준 '예약 즉시' 문구 + 이미 보낼 시각이 지난 일정 문구
   var c = smsCfg_(); if (!c.on || !smsReady_(c)) return;
@@ -2596,7 +2649,7 @@ function saveRowsRun_(name, items) {
       if (bad.length) throw new Error('예약 시트 ' + bad.join(', ') + '행에 입실일·퇴실일이 저장되지 않았습니다. 저장기록 시트를 확인해 주세요.');
     }
   } finally { lock.releaseLock(); }
-  if (name === '예약') { var nw = savedRows.filter(function (r, k) { return !items[k].r && items[k].v && items[k].v[7]; }); if (nw.length) smsAuto_(nw); }   // 새 예약 → 예약확인 문자 (문자 설정이 켜져 있을 때)
+  if (name === '예약') { var nw = savedRows.filter(function (r, k) { return !items[k].r && items[k].v && items[k].v[7]; }); if (nw.length) { smsAuto_(nw); try { ownerSms_(nw); } catch (e) { } } }   // 새 예약 → 예약확인 문자 · 소유주 알림 (문자 설정이 켜져 있을 때)
   var out = getDataRun_([name])[name];
   out.saved = savedRows; out.file = SpreadsheetApp.getActive().getName();   // 어느 파일·몇 행에 저장했는지 (화면에 표시)
   return out;
@@ -3690,6 +3743,27 @@ function notiProdRoom_(ctx, name) {   // 떠나요 상품명(객실 Z열) → �
   var hit = ctx.rooms.filter(function (r) { var k = n(r[25]); return k && (pp.indexOf(k) >= 0 || k === pp) && String(r[13]) !== 'N'; })[0];
   return hit ? { hotel: String(hit[1]), room: String(hit[2]) } : null;
 }
+// ── 객실타입: 플랫폼이 '타입'으로만 파는 예약(놀호텔)의 호실 추천, 놀 허수 객실(코지 01·02) 배정
+function rtRows_() {
+  var sh = SpreadsheetApp.getActive().getSheetByName('객실타입'); if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues()
+    .filter(function (v) { return String(v[2] == null ? '' : v[2]).trim(); })
+    .map(function (v) { return { hotel: String(v[0] || ''), type: String(v[1] || ''), room: String(v[2]).trim(),
+      ord: Number(v[3]) || 9999, nol: String(v[4] || '').trim().toUpperCase(), nolh: String(v[5] || '').trim().toUpperCase(), prod: String(v[6] || '').replace(/\s+/g, ' ').trim() }; });
+}
+function rtProdRoom_(hotel, name) {   // 놀 상품명 안에 '코지 01'처럼 허수 객실 이름이 있으면 그 호실
+  var t = String(name || '').replace(/\s+/g, ' ').trim(); if (!t) return null;
+  var hit = rtRows_().filter(function (x) { return x.prod && (!hotel || x.hotel === hotel) && t.indexOf(x.prod) >= 0; })
+    .sort(function (a, b) { return b.prod.length - a.prod.length; })[0];
+  return hit || null;
+}
+function rtTypeOf_(hotel, room) { return rtRows_().filter(function (x) { return x.hotel === hotel && x.room === String(room); })[0] || null; }
+function rtSell_(x, plat) { return plat === '놀' ? x.nol !== 'N' : plat === '놀호텔' ? x.nolh !== 'N' : true; }
+function rtFree_(ctx, hotel, type, ci, co, plat) {   // 그 기간에 비는 같은 타입 객실 (배정순서대로)
+  return rtRows_().filter(function (x) { return x.hotel === hotel && x.type === type && rtSell_(x, plat); })
+    .sort(function (a, b) { return a.ord - b.ord; })
+    .filter(function (x) { return !mailOverlap_(ctx, hotel, x.room, ci, co); });
+}
 function notiReg_(ctx, it, at) {
   var no = it.resNo, hasNo = function (v) { return !!no && (String(v[50] || '').trim() === no || new RegExp('예약번호\\s*' + no + '(?!\\d)').test(String(v[21] || ''))); };   // 51열 예약번호 (옛 예약은 비고 글도 인정)
   var nameEq = function (a, b) { a = String(a || '').replace(/\s/g, ''); b = String(b || '').replace(/\s/g, ''); if (!a || !b) return false;
@@ -3722,6 +3796,19 @@ function notiReg_(ctx, it, at) {
     for (var mi = ms.length - 1; mi >= 0 && !it.room; mi--) {
       var cand = String(+ms[mi]);
       if (ctx.rooms.some(function (x) { return String(x[2]) === cand && (!h0 || String(x[1]) === h0); })) { it.room = cand; if (h0) it.hotel0 = h0; }
+    }
+  }
+  if (!it.room && it.roomName) {   // 객실타입: 놀 허수 객실(코지 01·02) → 실제 호실. 그 방이 차 있으면 같은 타입의 빈 방으로
+    var h1 = it.hotel0 || (notiPlace_(ctx, it.place, '') || {}).hotel || '';
+    var pr1 = rtProdRoom_(h1, it.roomName);
+    if (pr1) {
+      var pick1 = pr1.room, why1 = pr1.prod + ' → ' + pr1.room + '호';
+      if (mailOverlap_(ctx, pr1.hotel, pr1.room, it.ci, it.co)) {
+        var free1 = rtFree_(ctx, pr1.hotel, pr1.type, it.ci, it.co, it.plat || '놀');
+        pick1 = free1.length ? free1[0].room : '';
+        why1 = pick1 ? pr1.prod + ' → ' + pr1.room + '호가 차 있어 ' + pick1 + '호로 배정' : '';
+      }
+      if (pick1) { it.room = pick1; it.hotel0 = pr1.hotel; it.rtWhy = why1; }
     }
   }
   if (!it.room) return { result: '호실을 알 수 없음 (직접 입력)', warn: true };
@@ -3762,7 +3849,7 @@ function notiReg_(ctx, it, at) {
   if (cx) { nv[1] = cx.v[0]; nv[24] = ''; nv[22] = note + ' / 취소 되돌림 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'); saveRowsRun_('예약', [{ r: cx.r, v: nv }]); return { result: '취소 되돌림', hotel: pp.hotel, room: it.room, changed: true }; }
   nv[1] = mailNewId_();
   saveRowsRun_('예약', [{ r: null, v: nv }]);
-  return { result: '등록함', hotel: pp.hotel, room: it.room, changed: true };
+  return { result: '등록함' + (it.rtWhy ? ' · ' + it.rtWhy : ''), hotel: pp.hotel, room: it.room, changed: true };
 }
 
 // ── 서버 코드 자동 업데이트 (깃허브 → Apps Script) ──────────────────────────
@@ -3770,7 +3857,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.e371a10d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.b6d2340d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
