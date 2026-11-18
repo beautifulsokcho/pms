@@ -341,7 +341,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div id="pasteOut"></div>
     </div>
     <div class="newbox" id="newBox"></div>
-    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
+    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recNote" hidden>🤖 비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
@@ -357,6 +357,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
   <section id="v-res" data-tab hidden>
     <div class="panel-head">
       <h2>예약 검색</h2>
+      <button class="btn" id="occBtn" type="button" title="앞으로 60일 중 예약이 80%를 넘는 날">만실 점검</button>
       <button class="btn pri" id="newRes" type="button" style="margin-left:auto">새 예약</button>
       <p>호실·날짜·고객으로 찾고, 카드나 목록의 줄을 누르면 바로 수정합니다.</p>
     </div>
@@ -428,6 +429,8 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <button class="btn pri" id="sGo" type="button">정산서 보기</button>
       <button class="btn" id="sBatch" type="button" title="호텔의 모든 호실 정산서를 PDF로 만들어 ZIP 파일 1개로 저장 (이다경 소유 제외)">개별정산서 일괄 저장</button>
       <button class="btn" id="sAiChk" type="button" title="그 달 숫자를 Claude가 지난달과 견줘 보고 이상한 곳을 짚어 줍니다">🤖 이상 점검</button>
+      <button class="btn" id="sAiPrice" type="button" title="가동률·남은 방·과거 판매가를 보고 값을 올리거나 내릴 만한 날">🤖 가격 제안</button>
+      <button class="btn" id="sWeek" type="button" title="지난주 요약과 앞으로 2주 주의할 날">🤖 주간 요약</button>
     </div>
     <div id="sOut"></div>
     <div id="sManual"></div>
@@ -482,7 +485,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -961,6 +964,7 @@ function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞�
     .sort(function(a,b){var am=autoMiss(a.v).length?0:1,bm=autoMiss(b.v).length?0:1;return am-bm||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
 function renderRecent(){
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
+  var nb2=$('#recNote');if(nb2)nb2.hidden=!regs.length||!!ROLE;
   ab.hidden=!regs.length;ab.textContent='🔔 알림 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
   if(REC_MODE==='auto'&&!regs.length)REC_MODE='recent';
   al.hidden=REC_MODE!=='auto';$('#recBar').hidden=REC_MODE==='auto';
@@ -1009,6 +1013,19 @@ function recDay(all){var d=$('#recDate').value;
     d=t;$('#recDate').value=d}
   return d}
 $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
+$('#recNote').onclick=function(){var b=this,L=autoRegs().filter(function(r){return String(r.v[R.note]||'').trim()}).slice(0,20);
+  if(!L.length){toast('정리할 비고가 없습니다');return}
+  b.disabled=true;b.textContent='읽는 중…';
+  call('aiNote',L.map(function(r){return r.r}),false).then(function(r){var ch=(r.rows||[]).filter(function(x){return x.change});
+    modal('<h3>🤖 비고 정리</h3><p class="note">자동등록 예약 '+(r.rows||[]).length+'건의 비고를 읽어 <b>메모·인원·반려견</b> 칸에 넣을 것을 골랐습니다. 저장은 누르셔야 됩니다.</p>'+
+      (ch.length?'<div class="scroll" style="max-height:48vh"><table class="restable"><thead><tr><th>호실</th><th>입실</th><th>지금 메모</th><th>바꿀 메모</th><th>인원</th><th>반려견</th></tr></thead><tbody>'+
+        ch.map(function(x){return '<tr><td class="nw"><b>'+esc(x.room)+'</b></td><td class="nw">'+esc(md(x.ci))+'</td><td>'+esc(x.nowMemo||'-')+'</td><td><b>'+esc(x.memo||'-')+'</b></td><td class="n">'+(x.ppl&&x.ppl!==x.nowPpl?x.nowPpl+'→<b>'+x.ppl+'</b>':'')+'</td><td class="n">'+(x.pets&&x.pets!==x.nowPets?x.nowPets+'→<b>'+x.pets+'</b>':'')+'</td></tr>'}).join('')+'</tbody></table></div>'+
+        '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button><button class="btn pri" type="button" id="noteSave">'+ch.length+'건 저장</button></div>'
+      :'<div class="empty">바꿀 것이 없습니다.</div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>'));
+    var sv=$('#noteSave');if(sv)sv.onclick=function(){var b2=this;b2.disabled=true;b2.textContent='저장 중…';
+      call('aiNote',ch.map(function(x){return x.r}),true).then(function(){return load(['예약'],true)}).then(function(){closeModal();renderRecent();renderRes();toast('비고에서 읽은 내용을 저장했습니다')})
+        .catch(function(e){b2.disabled=false;b2.textContent=ch.length+'건 저장';toast(errText(e))})}})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 비고 정리'})};
 $('#recAll').onclick=function(){REC_MODE='recent';renderRecent()};
 $('#recPlat').innerHTML=opts(platforms(),'','전체');
 ['recDate','recTo','recView','recCx','recSort','recPlat'].forEach(function(id){var keep=id==='recView'||id==='recSort',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소·플랫폼 고름은 기억하지 않음 (열 때마다 기본값)
@@ -2336,6 +2353,49 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       (LIVE?'':printBtn('sPrint'))+'</div>';
 }
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
+function askOpen(){   // 소유주·매니저: 내 호실 자료로 물어보기
+  modal('<h3>🤖 물어보기</h3><p class="note">내 호실의 예약 자료(앞뒤 몇 달)만 보고 답합니다. 자료에 없는 것은 모른다고 답합니다.</p>'+
+    '<div class="form"><div class="f full"><label for="askQ">질문</label><input id="askQ" placeholder="예) 12월에 우리 방 며칠이나 찼나요?"></div></div>'+
+    '<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="askGo">물어보기</button></div><div id="askOut"></div>'+
+    '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+  var go=function(){var b=$('#askGo'),q=$('#askQ').value.trim();if(!q){toast('무엇이 궁금한지 적어 주세요');return}
+    b.disabled=true;b.textContent='보는 중…';$('#askOut').innerHTML='<p class="note">자료를 보고 있습니다…</p>';
+    call('aiAsk',q).then(function(r){$('#askOut').innerHTML='<div class="ibx-m" style="max-width:100%">'+esc(r.text||'')+'<small>예약 '+(r.n||0)+'건을 보고 답했습니다</small></div>'})
+      .catch(function(e){$('#askOut').innerHTML='<p class="err">'+esc(errText(e))+'</p>'}).then(function(){b.disabled=false;b.textContent='물어보기'})};
+  $('#askGo').onclick=go;$('#askQ').addEventListener('keydown',function(e){if(e.key==='Enter')go()});
+}
+function aiTable(title,note,rows,cols){
+  modal('<h3>'+title+'</h3><p class="note">'+note+'</p>'+
+    (rows.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c[0])+'</th>'}).join('')+'</tr></thead><tbody>'+
+      rows.map(function(x){return '<tr>'+cols.map(function(c){return '<td'+(c[2]||'')+'>'+c[1](x)+'</td>'}).join('')+'</tr>'}).join('')+'</tbody></table></div>':'<div class="empty">해당하는 것이 없습니다.</div>')+
+    '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')}
+function lvChip(l){return l==='높음'?'<span class="chip x">높음</span>':l==='보통'?'<span class="chip hold">보통</span>':'<span class="chip">낮음</span>'}
+$('#occBtn').onclick=function(){var b=this,h=$('#qHotel').value||defHotel();b.disabled=true;b.textContent='보는 중…';
+  call('occCheck',h,60).then(function(r){
+    aiTable('만실 점검',esc(r.hotel)+' · '+esc(r.from)+' ~ '+esc(r.to)+' · 예약이 <b>80% 이상</b>인 날입니다. (계산이라 비용이 들지 않습니다)',r.rows||[],
+      [['날짜',function(x){return esc(md(x.d))},' class="nw"'],
+       ['상태',function(x){return x.level==='만실 임박'?'<span class="chip x">만실 임박</span>':'<span class="chip hold">만실 주의</span>'},' class="nw"'],
+       ['예약/객실',function(x){return x.booked+' / '+x.rooms},' class="n"'],
+       ['가동률',function(x){return x.pct+'%'},' class="n"'],
+       ['남은 방',function(x){return '<b>'+x.left+'</b>'},' class="n"']])})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='만실 점검'})};
+$('#sAiPrice').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}var b=this,h=$('#sHotel').value;b.disabled=true;b.textContent='보는 중…';
+  call('aiPrice',h,45).then(function(r){
+    aiTable('🤖 가격 제안',esc(r.hotel)+' · 앞으로 '+r.days+'일 · 가동률과 과거 판매가만 보고 고른 날입니다. <b>참고용</b>입니다.',r.list||[],
+      [['날짜',function(x){return esc(x.date||'')},' class="nw"'],
+       ['제안',function(x){return x.move==='올림'?'<span class="chip x">올림</span>':'<span class="chip ok">내림</span>'},' class="nw"'],
+       ['정도',function(x){return lvChip(x.level)},' class="nw"'],
+       ['이유',function(x){return esc(x.why||'')}]])})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 가격 제안'})};
+$('#sWeek').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}var b=this,h=$('#sHotel').value;b.disabled=true;b.textContent='만드는 중…';
+  call('weekReport',h,false).then(function(r){var a=r.last||{},n=r.next||{};
+    modal('<h3>🤖 주간 요약</h3><div class="ibx-m" style="max-width:100%">'+esc(r.text||'')+'</div>'+
+      '<div class="scroll"><table class="restable"><thead><tr><th></th><th>예약</th><th>취소</th><th>매출</th><th>청소비</th><th>평균 가동</th></tr></thead><tbody>'+
+      '<tr><td class="nw">지난주</td><td class="n">'+(a.nres||0)+'</td><td class="n">'+(a.cx||0)+'</td><td class="n">'+won(a.sale||0)+'</td><td class="n">'+won(a.clean||0)+'</td><td class="n">'+(a.occ||0)+'%</td></tr>'+
+      '<tr><td class="nw">앞으로 2주</td><td class="n">'+(n.nres||0)+'</td><td class="n">'+(n.cx||0)+'</td><td class="n">'+won(n.sale||0)+'</td><td class="n">'+won(n.clean||0)+'</td><td class="n">'+(n.occ||0)+'%</td></tr>'+
+      '</tbody></table></div>'+((n.full||[]).length?'<p class="note">주의할 날: '+esc(n.full.join(', '))+'</p>':'')+
+      '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='🤖 주간 요약'})};
 $('#sAiChk').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}
   var b=this,h=$('#sHotel').value,m=$('#sMonth').value;if(!m){toast('정산월을 고르세요');return}
   b.disabled=true;b.textContent='보는 중…';
@@ -3166,7 +3226,8 @@ function boot(){
     if(!$('#mgOut')){var ob=document.createElement('button');ob.className='iconbtn';ob.id='mgOut';ob.type='button';ob.textContent='로그아웃';ob.onclick=logoutAll;$('#reload').parentNode.insertBefore(ob,$('#reload'))}
   }
   return load(base).then(function(){
-    if(OWNER&&!$('#owPin')){var pb=document.createElement('button');pb.className='iconbtn';pb.id='owPin';pb.type='button';pb.textContent='PIN 변경';pb.dataset.s='PIN';pb.onclick=ownerPinChange;$('#mgOut').parentNode.insertBefore(pb,$('#mgOut'))}   // 소유주 PIN 바꾸기
+    if(OWNER&&!$('#owPin')){var pb=document.createElement('button');pb.className='iconbtn';pb.id='owPin';pb.type='button';pb.textContent='PIN 변경';pb.dataset.s='PIN';pb.onclick=ownerPinChange;$('#mgOut').parentNode.insertBefore(pb,$('#mgOut'))}
+    if(OWNER&&!$('#owAsk')){var qb=document.createElement('button');qb.className='iconbtn';qb.id='owAsk';qb.type='button';qb.textContent='🤖 물어보기';qb.dataset.s='질문';qb.onclick=askOpen;$('#mgOut').parentNode.insertBefore(qb,$('#mgOut'))}   // 소유주 PIN 바꾸기
     if(OWNER){OWN.rooms=rows('객실').map(function(r){return {h:r.v[1],r:String(r.v[2])}}).sort(function(a,b){return a.h.localeCompare(b.h)||(Number(a.r)||0)-(Number(b.r)||0)});OWN.hotels=OWN.rooms.map(function(o){return o.h}).filter(function(h,i,a){return a.indexOf(h)===i});OWN.hotel=OWN.hotels[0]||'';OWN.room=(OWN.rooms[0]||{}).r||'';document.body.classList.add('owner-mode');
       [OWN.hotels.length<2?'qHotel':'','qView','sKind'].filter(String).forEach(function(id){var f=$('#'+id).closest('.f');if(f){f.hidden=true;f.style.display='none'}});$('#qView').value='card';$('#sKind').value='room';$('#resStatus').innerHTML='';}
     if(LIVE){st.textContent=ROLE==='manager'?'매니저 · '+hotels().join(', '):OWNER?OWN.room+'호'+(OWN.rooms.length>1?' 외 '+(OWN.rooms.length-1)+'실':''):'구글시트 연결됨'}

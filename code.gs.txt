@@ -1625,7 +1625,8 @@ function myPhoto(cred, date, hotel, room, item, dataUrl) {   // 구글 드라이
 function ocrImage(pin, dataUrl) {
   checkPin_(pin);
   var m = String(dataUrl || '').match(/^data:(image\/[\w+.-]+);base64,(.+)$/); if (!m) throw new Error('사진 파일이 아닙니다.');
-  if (aiOn_('ocr')) return aiOcr_(m[1], m[2]);   // Claude가 사진을 바로 읽음 (드라이브 권한 필요 없음)
+  if (aiOn_('ocr')) { try { return aiOcr_(m[1], m[2]); } catch (e) { }   // Claude가 사진을 바로 읽음 (드라이브 권한 필요 없음)
+  }                                                                        // 크레딧이 떨어지거나 키가 없으면 아래 드라이브 OCR로 그대로 넘어감
   var token = ScriptApp.getOAuthToken(), bd = 'ocr' + Date.now();
   var meta = JSON.stringify({ name: '예약캡처_OCR_' + Date.now(), mimeType: 'application/vnd.google-apps.document' });
   var body = Utilities.newBlob('--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta + '\r\n--' + bd + '\r\nContent-Type: ' + m[1] + '\r\n\r\n').getBytes()
@@ -3716,7 +3717,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-18.615a5f43';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-18.d1bb5513';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
