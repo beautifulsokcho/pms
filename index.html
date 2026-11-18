@@ -181,7 +181,7 @@ tr.dirty td{background:var(--hold-soft)}
 #cList.many{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#cList{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 #recentList{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:760px){#recentList{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #resList .cd.vac:not(.adj){cursor:pointer}#resList .cd.vac:not(.adj):hover{outline:2px solid var(--accent);outline-offset:-2px}#resList .cd.vac:not(.adj):hover .vl::after{content:' + 새 예약';color:var(--accent);font-weight:600}
-.rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 2px 8px}.rechead .recent-h{margin:0}.rechead .btn{padding:5px 10px;font-size:13px}#recAuto.miss{background:var(--warn);color:#fff;border-color:var(--warn)}.chip.miss{background:#fde8e8;color:#b42318;border:1px solid #f3b4b4}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
+.rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 2px 8px}.rechead .recent-h{margin:0}.rechead .btn{padding:5px 10px;font-size:13px}#recAuto.miss{background:var(--warn);color:#fff;border-color:var(--warn)}.chip.miss{background:#fde8e8;color:#b42318;border:1px solid #f3b4b4}.rtpick{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.rtpick .btn{padding:5px 10px;font-size:13px}.ownchk{display:block;margin:6px 0 0;font-size:14px}.intg td.slab{white-space:normal;word-break:keep-all;min-width:0;max-width:150px;line-height:1.3}.prtcal{display:none}@media print{.scrcal{display:none!important}.prtcal{display:block!important}}.report .acct{margin:10px 0 0;font-size:14px;font-weight:600}.adjtag{color:#b45309;font-weight:700}.rbar .adjtag{color:inherit;text-decoration:underline}body.owner-mode #sBatch{display:none!important}.intg th{white-space:normal;word-break:keep-all;min-width:60px;vertical-align:bottom;line-height:1.25}.intg td{white-space:nowrap;padding:4px 6px}.intg tr.sum td{font-weight:700;background:var(--sunk)}.intg tr.ext td{background:var(--surface)}.intg tr.ext1 td{border-top:2px solid var(--ink,#333)}
 .intg .stk{position:sticky;z-index:1;background:var(--surface)}.intg th.stk{z-index:2;background:var(--sunk)}.intg tr.sum td.stk{background:var(--sunk)}.intg .stk2{box-shadow:2px 0 0 var(--line)}
 @media print{.intg{font-size:9px}.intg td,.intg th{padding:2px 3px}}.report .cedit{width:110px;text-align:right;padding:3px 6px;font:inherit;border:1px dashed var(--line);background:transparent;color:inherit}.report .cedit:focus{border-style:solid;border-color:var(--accent)}.report .cprint{display:none}.report .hint{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
 @media print{.report .cedit{display:none}.report .cprint{display:inline}}.mtable input,.mtable select{min-width:0;width:100%;padding:6px 8px;box-sizing:border-box;display:block;position:relative}.mtable [data-c=newname]{margin-top:4px;min-width:150px}.mtable td{position:relative}.mtable td{vertical-align:middle}.mtable td:nth-child(1){min-width:150px}.mtable td:nth-child(2){min-width:140px}.mtable td:nth-child(3),.mtable td:nth-child(4){min-width:70px}.mtable td:nth-child(5){min-width:90px}.mtable td:nth-child(6){min-width:120px}.mtable .tag{font-size:12px;color:var(--muted);white-space:nowrap}.mtable td.vatc{min-width:150px}.mtable td[data-c=final]{min-width:80px;font-weight:600}.mtable tr.del td{opacity:.45;text-decoration:line-through}
@@ -508,7 +508,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19k';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1605,10 +1605,7 @@ function parseKakaoNol(t){
     var way=(b.find(function(x){return /자가\s*방문|도보\s*방문|픽업/.test(x)})||'').trim();
     var rl=b.find(function(x){return /\d{3,4}\s*호/.test(x)})||'',rn=(rl.match(/(\d{3,4})\s*호/)||[])[1];
     var pl=rl||b.find(function(x){return /스튜디오|디럭스|룸|코지/.test(x)})||'';   // 상품명 줄
-    if(rn){var f=findRoom(rn,bt);r.hotel=f.hotel;r.room=f.room;r.unknownRoom=!!f.unknown}
-    else if(pl){var ms=pl.split('(')[0].match(/\d{3,4}/g)||[],f2=null;   // '코지 1810(…)'처럼 번호 뒤에 '호'가 없는 상품명 — 실제로 있는 호실일 때만
-      for(var mi=ms.length-1;mi>=0&&!f2;mi--){var g=findRoom(ms[mi],bt);if(g.room&&!g.unknown)f2=g}
-      if(f2){r.hotel=f2.hotel;r.room=f2.room}else r.roomHint=pl}
+    nolRoomTo(r,pl,bt);   // 'NNN호' → 호실 / '코지 1810(…)' → 있는 호실일 때만 / '코지 01' → 객실타입의 허수 객실 배정
     var info=pl.replace(/\(.*$/,'').trim();
     r.note=[info,no?'놀 예약번호 '+no:'',way].filter(Boolean).join(' / ');
     return r;
@@ -1814,6 +1811,23 @@ function rtFree(hotel,type,ci,co,plat){   // 그 기간에 비는 같은 타입 
   return rtAll().filter(function(x){return x.hotel===hotel&&x.type===type&&(plat==='놀'?x.nol!=='N':plat==='놀호텔'?x.nolh!=='N':true)})
     .sort(function(a,b){return a.ord-b.ord})
     .filter(function(x){return !overlaps({hotel:hotel,room:x.room,ci:ci,co:co}).length})}
+function rtSuggest(x){   // 호실을 골라야 하는 카드: 숙박기간에 비는 같은 타입 객실 추천 + 남은 방 경고
+  if(!x.ci||!x.co)return null;
+  if(['놀','놀호텔'].indexOf(String(x.plat||''))<0)return null;   // 떠나요는 상품명 기억(객실 Z열)을 씀
+  var all=rtAll();if(!all.length)return null;
+  var hotel=x.hotel||defHotel(),types=[];
+  all.forEach(function(t){if(t.hotel===hotel&&t.type&&types.indexOf(t.type)<0)types.push(t.type)});
+  if(!types.length)return null;
+  var hint=String(x.roomHint||'').replace(/\s+/g,''),best='',bs=0;
+  types.forEach(function(t){var sc=t.split(/\s+/).filter(function(w){return w.length>=2&&hint.indexOf(w)>=0}).length;if(sc>bs){bs=sc;best=t}});
+  if(!best)return null;
+  var pl=x.plat||'',free=rtFree(hotel,best,x.ci,x.co,pl).map(function(y){return y.room});
+  var total=all.filter(function(y){return y.hotel===hotel&&y.type===best&&(pl==='놀'?y.nol!=='N':pl==='놀호텔'?y.nolh!=='N':true)}).length;
+  var other=pl==='놀'?'놀호텔':pl==='놀호텔'?'놀':'다른 플랫폼';
+  var warn=!free.length?best+' 빈 방 없음 — '+other+' 방막기 확인 필요':
+           free.length===1?'남은 방 1개 — 다 차면 '+other+' 방막기 확인':'';
+  return {hotel:hotel,type:best,free:free,total:total,warn:warn};
+}
 function nolRoomTo(r,pl,ctx){   // 놀 상품명 → 호실 ('705호(…)'는 705호, '코지 1810(…)'은 있는 호실일 때만, '코지 01'은 직접 고름)
   var rn=(String(pl).match(/(\d{3,4})\s*호/)||[])[1];
   if(rn){var f=findRoom(rn,ctx||pl);r.hotel=f.hotel;r.room=f.room;r.unknownRoom=!!f.unknown;return r}
@@ -2005,13 +2019,17 @@ function renderPaste(){
       '<button class="btn'+(ok&&updIdx().length?'':' pri')+'" type="button" id="pSaveAll"'+(ok?'':' disabled')+'>'+ok+'건 모두 저장</button></span></div>'+
     PASTE.map(function(x,i){var iss=pasteIssues(x);
       if(x.pplGuess&&!x.cancel&&x.room&&x.hotel&&x.ci){var dpp=dupOf(x);if(dpp&&Number(dpp.v[R.ppl])>0){x.ppl=Number(dpp.v[R.ppl]);x.pplKeep=true}}   // 기존 예약이 있으면 그 인원 그대로 (문구·엑셀에는 인원이 없음, 고치면 그때만 반영)
-      var v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
+      var v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;
+      var rtS=needRoom?rtSuggest(x):null;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
       return '<div class="pitem'+(iss.length?' bad':'')+'" data-i="'+i+'"><div class="row"><span class="chip">'+esc(x.plat)+'</span>'+(x.rtWhy?'<span class="chip hold">'+esc(x.rtWhy)+'</span>':'')+(!x.cancel&&cxOf(x)?'<span class="chip hold">취소된 예약 되살림</span>':'')+(x.pets?'<span class="chip">반려견 '+x.pets+'</span>':'')+'<span class="ttl">'+esc((x.hotel||'')+' '+(x.room||'호실 ?'))+'</span>'+
         '<span class="num">'+(x.ci?md(x.ci):'?')+' → '+(x.co?md(x.co):'?')+(v[R.n]!==''?' · '+v[R.n]+'박':'')+'</span><span>'+esc(x.name||'')+'</span>'+
         iss.map(function(t){return '<span class="chip x">'+esc(t)+'</span>'}).join('')+'</div>'+
         '<div class="row">'+(needRoom?'<div class="f"><label>호텔</label><select data-p="hotel">'+opts(hotels(),x.hotel||defHotel())+'</select></div><div class="f"><label>호실</label><select data-p="room">'+opts(roomsOf(x.hotel||defHotel()),x.room,'선택')+'</select></div>'+(x.roomGuess&&x.room?'<button class="btn pri" type="button" data-p="okroom" style="align-self:flex-end">'+esc(x.room)+'호 맞음</button>':'')+
           (x.plat==='떠나요'&&x.roomHint?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="learn"'+(x.learn!==false?' checked':'')+'> 이 상품명을 이 호실로 기억</label>':''):
           '<button class="btn" type="button" data-p="chroom" style="align-self:flex-end;padding:6px 10px">호실 바꾸기</button>')+
+        (needRoom&&rtS?'<div class="f" style="flex:1 1 100%"><label>추천 · '+esc(rtS.type)+' ('+md(x.ci)+'~'+md(x.co)+')</label><div class="rtpick">'+
+          (rtS.free.length?rtS.free.map(function(rm){return '<button class="btn'+(rm===x.room?' pri':'')+'" type="button" data-p="rtpick" data-r="'+esc(rm)+'" data-h="'+esc(rtS.hotel)+'">'+esc(rm)+'호</button>'}).join(''):'<span class="chip x">빈 방 없음</span>')+
+          (rtS.warn?'<span class="chip x">'+esc(rtS.warn)+'</span>':'')+'</div></div>':'')+
         '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplKeep?' (기존)':x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
@@ -2136,6 +2154,8 @@ $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.close
   renderPaste()});
 $('#pasteOut').addEventListener('click',function(e){
   if(e.target.id==='pClear'){$('#pasteIn').value='';MAILIN=[];PASTE=[];renderPaste();return}   // 지우기: 메일 카드는 확인 완료로 안 바꿈 (다시 불러올 수 있음)
+  var rp=e.target.closest('[data-p=rtpick]');if(rp){var ri=+rp.closest('.pitem').dataset.i,rx=PASTE[ri];
+    rx.hotel=rp.dataset.h;rx.room=rp.dataset.r;rx.roomPick=true;rx.unknownRoom=false;rx.roomGuess=false;delete rx.rtWhy;renderPaste();return}
   var chr=e.target.closest('[data-p=chroom]');if(chr){PASTE[+chr.closest('.pitem').dataset.i].pick=true;renderPaste();return}
   var okr=e.target.closest('[data-p=okroom]');if(okr){PASTE[+okr.closest('.pitem').dataset.i].roomGuess=false;renderPaste();return}
   var b=e.target.closest('[data-p=form]');if(b){var i=+b.closest('.pitem').dataset.i,x=PASTE[i];
