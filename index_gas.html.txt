@@ -53,6 +53,15 @@ main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16p
   nav.mob-tabs button span{font-size:clamp(14px,4.2vw,17px);line-height:1.1;font-family:var(--f-display);font-weight:700}
   main{padding-bottom:calc(var(--tabh) + 24px + env(safe-area-inset-bottom,0px))}
 }
+.occbar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;margin:0 0 6px;scrollbar-width:thin}
+.occbar .ob{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface);cursor:pointer;color:inherit;font:inherit;line-height:1.2}
+.occbar .ob b{font-size:13px}
+.occbar .ob small{font-size:11px;color:var(--muted)}
+.occbar .ob.l80{border-color:var(--hold);background:var(--hold-soft)}
+.occbar .ob.l90{border-color:var(--warn);background:var(--warn-soft)}
+.occbar .ob.l99{border-color:#b42318;background:#fde8e8;color:#111}
+.occbar .ob.l99 small,.occbar .ob.l90 small{color:inherit;opacity:.8}
+.occbar .obh{flex:0 0 auto;align-self:center;font-size:12px;color:var(--muted);padding-right:2px;white-space:nowrap}
 .recbar .mo{flex:0 0 auto}
 .recbar #recDate{font-size:13px;padding:5px 6px;max-width:134px}
 .recbar .mpick .btn{padding:5px 9px}
@@ -333,6 +342,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <h2>새 예약</h2>
       <p>호텔을 한 번 고르면 다음 입력과 다음 접속 때도 그 호텔이 그대로 선택됩니다.</p>
     </div>
+    <div class="occbar no-print" id="occNew" hidden></div>
     <div class="pastebox no-print">
       <label for="pasteIn">예약 문구 붙여넣기 · ABNB · 놀 · 놀호텔</label>
       <textarea id="pasteIn" rows="3" placeholder="플랫폼 앱의 예약 내용을 복사해 여기에 붙여넣으면 자동으로 인식합니다. 여러 건도 한 번에 됩니다."></textarea>
@@ -361,6 +371,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <button class="btn pri" id="newRes" type="button" style="margin-left:auto">새 예약</button>
       <p>호실·날짜·고객으로 찾고, 카드나 목록의 줄을 누르면 바로 수정합니다.</p>
     </div>
+    <div class="occbar no-print" id="occRes" hidden></div>
     <div id="resStatus" class="rstatus"></div>
     <div class="bar barline">
       <div class="f"><label for="qHotel">호텔</label><select id="qHotel"></select></div>
@@ -485,7 +496,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -962,7 +973,8 @@ function autoMiss(v){var m=[];   // 자동등록 예약에서 비어 있거나 �
 function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록(알림·카톡·메일) 예약
   return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&/자동등록/.test(String(v[R.note]||''))&&String(v[R.co])>=lim})
     .sort(function(a,b){var am=autoMiss(a.v).length?0:1,bm=autoMiss(b.v).length?0:1;return am-bm||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
-function renderRecent(){
+function renderRecent(){try{occDraw()}catch(e){}
+
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
   var nb2=$('#recNote');if(nb2)nb2.hidden=!regs.length||!!ROLE;
   ab.hidden=!regs.length;ab.textContent='🔔 알림 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
@@ -1140,7 +1152,7 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
     return '<div class="sbox"><h3>'+esc(h)+' <small><b>'+rooms.filter(function(x){return !isSubRoom(x)}).length+'</b>실 · '+sum+'</small></h3><div class="sgrid">'+cards+'</div></div>'}).join('');
   $('#resStatus').innerHTML='<div class="shead"><b>객실현황</b><div class="mpick"><button class="btn" type="button" data-sd="-1" aria-label="전날">‹</button><button class="btn'+(d===now?'':' pri')+'" type="button" data-sd="0">오늘 <span class="num">'+md(d)+'</span></button><button class="btn" type="button" data-sd="1" aria-label="다음날">›</button></div><input type="date" class="sdate" aria-label="날짜 고르기" value="'+d+'"><span class="note">카드를 누르면 그 예약을 엽니다</span></div>'+(html||'<div class="empty">객실이 없습니다.</div>');
 }
-function renderRes(){
+function renderRes(){try{occDraw()}catch(e){}
   if(OWNER&&!OWN.calDone&&OWN.room){OWN.calDone=true;if([].some.call($('#qHotel').options,function(x){return x.value===OWN.hotel}))$('#qHotel').value=OWN.hotel;$('#qRoom').value=OWN.room;if(typeof fillQRooms==='function')fillQRooms()}   // 소유주: 처음부터 본인 객실 달력
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
@@ -2353,6 +2365,56 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
       (LIVE?'':printBtn('sPrint'))+'</div>';
 }
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
+// ───────── 예약율 띠: 날짜별 예약율을 새 예약·예약검색 위에 (계산 · 누르면 그날 입실목록) ─────────
+function occDays(hotel,days){
+  var rs=rows('객실').filter(function(r){var v=r.v;return v[1]===hotel&&String(v[2]).trim()!==''&&!isSubRoom(v[2])&&String(v[13]||'').trim().toUpperCase()!=='N'});
+  var res=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===hotel&&v[R.ci]&&v[R.co]&&!v[R.cancel]&&!isSubst(v)});
+  var out=[],d=ymd(new Date());
+  for(var i=0;i<(days||45);i++){
+    var n=0,b=0,seen={};
+    rs.forEach(function(r){var s2=ymd2(r.v[14]),e=ymd2(r.v[15]);if((!s2||s2<=d)&&(!e||e>=d))n++});
+    res.forEach(function(r){var v=r.v,c1=ymd2(v[R.ci]),c2=ymd2(v[R.co]),rm=String(v[R.room]);if(c1<=d&&d<c2&&!seen[rm]){seen[rm]=1;b++}});
+    var pct=n?Math.round(b*1000/n)/10:0,left=Math.max(0,n-b);
+    var lab=left===0&&n?'만실':left===1&&n?'만실-1':pct>=90?'만실 임박':pct>=80?'예약율 '+pct+'%':'';
+    var cls=left===0&&n?'l99':left===1||pct>=90?'l90':'l80';
+    if(lab)out.push({d:d,rooms:n,booked:b,left:left,pct:pct,lab:lab,cls:cls});
+    d=addDays(d,1);
+  }
+  return out;
+}
+function ymd2(v){return v instanceof Date?ymd(v):String(v==null?'':v).slice(0,10)}
+function occDraw(){['occNew','occRes'].forEach(function(id){
+  var box=$('#'+id);if(!box)return;
+  if(OWNER||!hotels().length){box.hidden=true;return}
+  var h=id==='occRes'?($('#qHotel').value||defHotel()):defHotel();
+  var L=[];try{L=occDays(h,45)}catch(e){L=[]}
+  if(!L.length){box.hidden=true;box.innerHTML='';return}
+  box.hidden=false;
+  box.innerHTML='<span class="obh">'+esc(h)+' 예약율</span>'+L.map(function(x){
+    return '<button type="button" class="ob '+x.cls+'" data-d="'+esc(x.d)+'" data-h="'+esc(h)+'" title="'+esc(x.d+' · '+x.booked+'/'+x.rooms+'실 · 남은 방 '+x.left)+'"><b>'+esc(md(x.d))+'</b><small>'+esc(x.lab)+'</small></button>'}).join('');
+  box.querySelectorAll('[data-d]').forEach(function(bt){bt.onclick=function(){occOpen(bt.dataset.h,bt.dataset.d)}});
+})}
+function occOpen(h,d){   // 그 날짜 입실목록 (그날 묵는 예약도 함께)
+  var inn=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===h&&!v[R.cancel]&&!isSubst(v)&&ymd2(v[R.ci])===d})
+      .sort(function(a,b){return (Number(a.v[R.room])||0)-(Number(b.v[R.room])||0)});
+  var stay=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===h&&!v[R.cancel]&&!isSubst(v)&&ymd2(v[R.ci])<d&&d<ymd2(v[R.co])})
+      .sort(function(a,b){return (Number(a.v[R.room])||0)-(Number(b.v[R.room])||0)});
+  var o=(occDays(h,45).filter(function(x){return x.d===d})[0])||{rooms:0,booked:0,left:0,pct:0,lab:''};
+  var line=function(r){var v=r.v;return '<tr data-r="'+r.r+'"><td class="nw"><b>'+esc(roomLab(v))+'</b></td><td class="nw">'+esc(v[R.name]||'(이름 없음)')+'</td><td class="nw">'+esc(md(v[R.ci]))+' → '+esc(md(v[R.co]))+'</td><td class="n">'+esc(v[R.n])+'박</td><td class="n">'+esc(v[R.ppl])+'명</td><td class="nw">'+esc(v[R.plat]||'')+'</td><td>'+esc(v[R.memo]||'')+'</td></tr>'};
+  var tbl=function(L){return '<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>고객</th><th>기간</th><th>박</th><th>인원</th><th>플랫폼</th><th>메모</th></tr></thead><tbody>'+L.map(line).join('')+'</tbody></table></div>'};
+  modal('<h3>'+esc(h)+' '+esc(md(d))+' · '+esc(o.lab||'예약율 '+o.pct+'%')+'</h3>'+
+    '<p class="note">예약 <b>'+o.booked+'</b> / 객실 '+o.rooms+'실 · 가동 '+o.pct+'% · <b>남은 방 '+o.left+'실</b></p>'+
+    '<h4 class="cwh">이 날 입실 ('+inn.length+'건)</h4>'+(inn.length?tbl(inn):'<div class="empty">이 날 입실하는 예약이 없습니다.</div>')+
+    (stay.length?'<h4 class="cwh" style="margin-top:10px">이어서 묵는 예약 ('+stay.length+'건)</h4>'+tbl(stay):'')+
+    '<div class="actions"><button class="btn" type="button" id="occGoRes">예약검색에서 보기</button><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+  $('#modalRoot').querySelectorAll('tr[data-r]').forEach(function(tr){tr.style.cursor='pointer';
+    tr.onclick=function(){var r=rows('예약').find(function(x){return x.r===+tr.dataset.r});if(r){closeModal();resForm(r)}}});
+  $('#occGoRes').onclick=function(){closeModal();show('res');
+    $('#qHotel').value=h;if(typeof fillQRooms==='function')fillQRooms();
+    $('#qBase').value='ci';$('#qMonth').value='';$('#qFrom').value=d;$('#qTo').value=d;$('#qCx').value='';
+    ['qHotel','qBase','qMonth','qFrom','qTo','qCx'].forEach(function(id){var el=$('#'+id);if(el)el.dispatchEvent(new Event('input',{bubbles:true}))});
+    renderRes()};
+}
 function chkTable(title,note,rows,cols){
   modal('<h3>'+title+'</h3><p class="note">'+note+'</p>'+
     (rows.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr>'+cols.map(function(c){return '<th>'+esc(c[0])+'</th>'}).join('')+'</tr></thead><tbody>'+

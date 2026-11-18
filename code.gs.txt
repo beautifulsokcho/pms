@@ -2110,6 +2110,15 @@ function inboxSheet_() {
   if (!sh) { sh = ss.insertSheet('문자함'); sh.getRange(1, 1, 1, 10).setValues([['ID', '시각', '구분', '번호', '내용', '호텔', '호실', '고객명', '읽음', '비고']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('D:D').setNumberFormat('@'); }
   return sh;
 }
+// 반려견 관련 글 지우기 — 소유주 화면용 ('/'·'·'로 나뉜 토막 중 반려견 이야기만 뺌)
+var PET_RE_ = /반려견|애견|강아지|댕댕이|고양이|냥이|펫\b|puppy|dog|pet\b/i;
+function petHide_(s) {
+  var t = String(s == null ? '' : s); if (!t || !PET_RE_.test(t)) return t;
+  var parts = t.split(/\s*(?:\/|·|\||\n)\s*/).filter(function (x) { return String(x).trim() !== ''; });
+  var keep = parts.filter(function (x) { return !PET_RE_.test(x); });
+  if (parts.length > 1 && keep.length !== parts.length) return keep.join(' / ');
+  return t.replace(new RegExp('[^.。!?\n]*(?:' + PET_RE_.source + ')[^.。!?\n]*[.。!?]?', 'gi'), ' ').replace(/\s{2,}/g, ' ').trim();
+}
 function telKey_(n) { n = String(n || '').replace(/\D/g, ''); if (n.indexOf('82') === 0 && n.length >= 11) n = '0' + n.slice(2); return n; }
 function guestOf_(num) {   // 연락처가 같은 예약 중 오늘과 가장 가까운 예약 → 호텔·호실·고객명
   var k = telKey_(num); if (k.length < 9) return null;
@@ -2408,6 +2417,9 @@ function getData(pin, names) {
     if (hc === undefined) { out[n] = { header: out[n].header, rows: [] }; return; }
     var rc = { '객실': 2, '예약': 2, '정산입력': 2 }[n];
     if (hc >= 0) out[n].rows = out[n].rows.filter(function (r) { return rc === undefined ? CTX_.hotels.indexOf(String(r.v[hc])) >= 0 : ownRoom_(r.v[hc], r.v[rc]); });
+    if (n === '예약') out[n].rows.forEach(function (r) {   // 소유주 화면에서는 반려견 이야기를 가림 (관리자 직접 운영 객실은 소유주가 보지 않음)
+      r.v[21] = petHide_(r.v[21]); r.v[22] = petHide_(r.v[22]);
+    });
     if (out[n].broken) out[n].broken = [];
   });
   if (CTX_.role === 'manager') Object.keys(out).forEach(function (n) {   // 맡은 호텔 것만, 다른 시트는 비움 (청소담당자 비밀번호·수당 등)
@@ -3714,7 +3726,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-18.0334f56d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-18.5f5af95b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
