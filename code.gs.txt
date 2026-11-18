@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, aiReply: aiReply, aiCheck: aiCheck, aiConfig: aiConfig, aiTest: aiTest };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, aiReply: aiReply, aiCheck: aiCheck, aiConfig: aiConfig, aiTest: aiTest, occCheck: occCheck, aiSmsDraft: aiSmsDraft, weekReport: weekReport, aiPhotoCheck: aiPhotoCheck, aiNote: aiNote, aiAsk: aiAsk, aiPrice: aiPrice };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -269,7 +269,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 81) return;
+  if (ver >= 82) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1333,6 +1333,12 @@ function ensureSchema_() {
     rv81.getRange('AZ2:AZ').setNumberFormat('@');
   }
   props.setProperty('SCHEMA', '81');
+  }
+  if (ver < 82) {   // v82: 만실 알림(매일 아침 7시 30분)·주간 요약(월요일 아침 8시) 트리거
+  [['occTick', function () { return ScriptApp.newTrigger('occTick').timeBased().atHour(7).nearMinute(30).everyDays(1).create(); }],
+   ['weekTick', function () { return ScriptApp.newTrigger('weekTick').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create(); }]]
+    .forEach(function (t) { try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === t[0]; })) t[1](); } catch (e) { } });
+  props.setProperty('SCHEMA', '82');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -3710,7 +3716,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-18.764642a2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-18.615a5f43';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4027,16 +4033,222 @@ function aiConfig(pin, cfg) {
   if (cfg) {
     if (cfg.key !== undefined) { var k = String(cfg.key || '').trim(); if (k === '') p.deleteProperty('AI_KEY'); else if (k.indexOf('…') < 0) p.setProperty('AI_KEY', k); }
     if (cfg.on !== undefined) p.setProperty('AI_OFF', cfg.on ? 'N' : 'Y');
-    ['noti', 'ocr', 'reply', 'check'].forEach(function (w) { if (cfg[w] !== undefined) p.setProperty('AI_OFF_' + w, cfg[w] ? 'N' : 'Y'); });
+    ['noti', 'ocr', 'reply', 'check', 'week', 'ask', 'note', 'price', 'photo'].forEach(function (w) { if (cfg[w] !== undefined) p.setProperty('AI_OFF_' + w, cfg[w] ? 'N' : 'Y'); });
   }
   var key = aiKey_(), u = aiUsage_(30);
   return { has: !!key, tail: key ? key.slice(-4) : '', on: p.getProperty('AI_OFF') !== 'Y',
     noti: p.getProperty('AI_OFF_noti') !== 'Y', ocr: p.getProperty('AI_OFF_ocr') !== 'Y',
     reply: p.getProperty('AI_OFF_reply') !== 'Y', check: p.getProperty('AI_OFF_check') !== 'Y',
+    week: p.getProperty('AI_OFF_week') !== 'Y', ask: p.getProperty('AI_OFF_ask') !== 'Y',
+    note: p.getProperty('AI_OFF_note') !== 'Y', price: p.getProperty('AI_OFF_price') !== 'Y', photo: p.getProperty('AI_OFF_photo') !== 'Y',
     n: u.n, cost: u.cost, month: u.month, models: AI_MODELS_ };
 }
 function aiTest(pin) {   // 키가 되는지 한 번 불러 봄
   checkPin_(pin); adminOnly_();
   var t = aiCall_('fast', '한 단어로만 답한다.', '연결 시험입니다. "좋음"이라고만 답해 주세요.', 20, '연결 시험');
   return { ok: true, text: t };
+}
+
+// ── 만실 주의·임박 (계산만 — Claude를 쓰지 않습니다) ─────────────────────────
+// 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박'
+function occScan_(hotel, from, to) {
+  var ss = SpreadsheetApp.getActive(), ob = ss.getSheetByName('객실');
+  var ov = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 16)).getValues();
+  var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N'; });
+  var rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
+  var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues().filter(function (v) {
+    return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])); }) : [];
+  var out = [], d = from, guard = 0;
+  while (d <= to && guard++ < 800) {
+    var n = 0, i;
+    for (i = 0; i < rooms.length; i++) { var s = mailYmd_(rooms[i][14]), e = mailYmd_(rooms[i][15]); if ((!s || s <= d) && (!e || e >= d)) n++; }
+    var b = 0, seen = {};
+    for (i = 0; i < res.length; i++) { var ci = mailYmd_(res[i][6]), co = mailYmd_(res[i][7]), rm = String(res[i][2]); if (ci <= d && d < co && !seen[rm]) { seen[rm] = 1; b++; } }
+    var pct = n ? Math.round(b * 1000 / n) / 10 : 0;
+    out.push({ d: d, rooms: n, booked: b, left: Math.max(0, n - b), pct: pct, level: pct >= 90 ? '만실 임박' : pct >= 80 ? '만실 주의' : '' });
+    d = notiAdd_(d, 1);
+  }
+  return out;
+}
+function occCheck(pin, hotel, days) {   // 화면: 앞으로 N일 중 80% 넘는 날만
+  checkPin_(pin); hotelOk_(hotel);
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), t1 = notiAdd_(t0, Math.min(Math.max(Number(days) || 60, 7), 180));
+  var all = occScan_(hotel, t0, t1);
+  return { hotel: hotel, from: t0, to: t1, rows: all.filter(function (x) { return x.level; }), all: all };
+}
+function occTick() {   // 매일 아침: 새로 80%·90%를 넘은 날만 문자함에 알림 (같은 날·같은 단계는 한 번만)
+  try {
+    var ss = SpreadsheetApp.getActive(), ht = ss.getSheetByName('호텔'), p = PropertiesService.getScriptProperties();
+    var hs = ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().map(function (x) { return String(x[0] || '').trim(); }).filter(String);
+    var done = {}; try { done = JSON.parse(p.getProperty('OCC_SENT') || '{}'); } catch (e) { }
+    var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), t1 = notiAdd_(t0, 60), add = [], keep = {};
+    hs.forEach(function (h) {
+      occScan_(h, t0, t1).forEach(function (x) {
+        if (!x.level) return;
+        var k = h + '|' + x.d + '|' + x.level; keep[k] = 1;
+        if (done[k]) return;
+        add.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' · ' + x.level + ' (' + x.booked + '/' + x.rooms + '실 ' + x.pct + '% · 남은 방 ' + x.left + ')');
+      });
+    });
+    p.setProperty('OCC_SENT', JSON.stringify(keep));   // 지난 날짜는 저절로 빠짐
+    if (!add.length) return { n: 0 };
+    inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+      '알림', '만실', ['[만실 알림] ' + add.length + '건'].concat(add.slice(0, 20)).join('\n'), '', '', '', '', '만실 주의']);
+    return { n: add.length };
+  } catch (e) { return { err: String(e && e.message || e) }; }
+}
+
+// ── 1. 문자 문구 초안 ───────────────────────────────────────────────────────
+function aiSmsDraft(pin, kind, hotel, plat, hint) {
+  checkPin_(pin); adminOnly_();
+  var ex = smsTemplates_().slice(0, 3).map(function (t) { return '· ' + t.kind + ': ' + String(t.text || '').slice(0, 300); }).join('\n');
+  var sys = '너는 속초 숙박업소의 손님 안내 문자 문구를 쓰는 도우미다. 존댓말, 군더더기 없이, 문자 1~2통 분량.\n' +
+    '쓸 수 있는 자동 바꿈말: {고객명} {호텔} {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}. 이 말들만 쓰고 다른 중괄호는 쓰지 않는다.\n' +
+    '이모지는 쓰지 않는다. 지어낸 규정·요금·시간은 넣지 않는다. 문구 본문만 출력한다.';
+  var body = '종류: ' + String(kind || '') + '\n호텔: ' + String(hotel || '') + '\n플랫폼: ' + String(plat || '전체') +
+    (hint ? '\n요청: ' + String(hint).slice(0, 500) : '') + (ex ? '\n\n--- 지금 쓰고 있는 문구 (말투 참고) ---\n' + ex : '');
+  return { text: aiCall_('mid', sys, body, 900, '문구 초안') };
+}
+
+// ── 2. 주간 요약 ────────────────────────────────────────────────────────────
+function weekStats_(hotel, from, to) {
+  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
+  var v = lr > 1 ? rv.getRange(2, 1, lr - 1, 46).getValues() : [], plat = {}, sale = 0, nights = 0, nres = 0, cx = 0, clean = 0;
+  v.forEach(function (x) {
+    if (x[1] !== hotel || !x[6]) return;
+    var ci = mailYmd_(x[6]);
+    if (x[23]) { if (mailYmd_(x[23]) >= from && mailYmd_(x[23]) <= to) cx++; return; }
+    if (ci < from || ci > to) return;
+    nres++; sale += Number(x[11]) || 0; nights += Number(x[8]) || 0; clean += Number(x[18]) || 0;
+    var p = String(x[10] || '기타'); plat[p] = (plat[p] || 0) + 1;
+  });
+  var occ = occScan_(hotel, from, to), avg = occ.length ? Math.round(occ.reduce(function (a, x) { return a + x.pct; }, 0) / occ.length * 10) / 10 : 0;
+  return { hotel: hotel, from: from, to: to, nres: nres, cx: cx, sale: Math.round(sale), nights: nights, clean: Math.round(clean), occ: avg,
+    plat: Object.keys(plat).map(function (k) { return k + ' ' + plat[k] + '건'; }).join(', '),
+    full: occ.filter(function (x) { return x.level; }).map(function (x) { return x.d.slice(5) + ' ' + x.level + '(' + x.pct + '%)'; }).slice(0, 10) };
+}
+function weekReport(pin, hotel, send) {
+  checkPin_(pin); adminOnly_();
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
+  var lastFrom = notiAdd_(t0, -7), lastTo = notiAdd_(t0, -1), nextTo = notiAdd_(t0, 13);
+  var a = weekStats_(hotel, lastFrom, lastTo), b = weekStats_(hotel, t0, nextTo);
+  var txt = '';
+  if (aiOn_('week')) {
+    var sys = '너는 숙박업소 관리자에게 주간 현황을 알려 주는 비서다. 존댓말, 문자 1통(250자 안팎), 숫자는 준 것만 쓴다.\n' +
+      '① 지난주 요약 ② 앞으로 2주 중 눈여겨볼 날 ③ 한 가지 할 일 제안. 이 순서로 짧게. 지어내지 않는다. 이모지 금지. 본문만 출력.';
+    try { txt = aiCall_('mid', sys, '[지난주 ' + lastFrom + '~' + lastTo + ']\n' + JSON.stringify(a) + '\n\n[앞으로 2주 ' + t0 + '~' + nextTo + ']\n' + JSON.stringify(b), 500, '주간 요약'); } catch (e) { txt = ''; }
+  }
+  if (!txt) txt = '[' + hotel + ' 주간] 지난주 예약 ' + a.nres + '건 · 매출 ' + a.sale.toLocaleString() + '원 · 평균 가동 ' + a.occ + '%' +
+    (b.full.length ? ' · 앞으로 2주 주의: ' + b.full.join(', ') : '');
+  if (send) { var to = PropertiesService.getScriptProperties().getProperty('SMS_PHONE') || ''; if (to) smsSendRaw_(to, txt, { col: 'reply' }); }
+  return { hotel: hotel, last: a, next: b, text: txt };
+}
+function weekTick() { try { var ht = SpreadsheetApp.getActive().getSheetByName('호텔');
+  ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().forEach(function (x) { var h = String(x[0] || '').trim(); if (!h) return;
+    try { var r = weekReport_(h); inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '알림', '주간', r, '', '', '', '', '주간 요약']); } catch (e) { } });
+  } catch (e) { } }
+function weekReport_(hotel) { var p = PropertiesService.getScriptProperties().getProperty('APP_PIN') || ''; return weekReport(p, hotel, false).text; }
+
+// ── 3. 청소 사진 점검 ───────────────────────────────────────────────────────
+function aiPhotoCheck(pin, date, hotel, room) {
+  checkPin_(pin); adminOnly_();
+  var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
+  if (lp < 2) throw new Error('올라온 사진이 없습니다.');
+  var urls = [], names = [];
+  pi.getRange(2, 1, lp - 1, 15).getValues().forEach(function (x) {
+    if (x[1] !== hotel || String(x[2]) !== String(room) || !x[3] || fmt_(x[3], false) !== date || !x[14]) return;
+    String(x[14]).split(/\s+/).filter(String).forEach(function (u) { if (urls.length < 4) { urls.push(u); names.push(String(x[4] || '')); } });
+  });
+  if (!urls.length) throw new Error('그 날짜·호실에 올라온 사진이 없습니다.');
+  var content = [];
+  urls.forEach(function (u) {
+    var m = u.match(/\/d\/([\w-]{20,})/) || u.match(/[?&]id=([\w-]{20,})/); if (!m) return;
+    try { var f = DriveApp.getFileById(m[1]), bl = f.getBlob(), mt = bl.getContentType();
+      if (!/^image\//.test(mt)) return;
+      content.push({ type: 'image', source: { type: 'base64', media_type: mt, data: Utilities.base64Encode(bl.getBytes()) } });
+    } catch (e) { }
+  });
+  if (!content.length) throw new Error('사진을 열지 못했습니다.');
+  content.push({ type: 'text', text: '항목: ' + names.join(', ') + '\n이 사진들이 그 항목을 제대로 보여 주는지, 눈에 띄는 문제가 있는지 봐 주세요.' });
+  var sys = '너는 숙박업소 청소 점검 보조다. 올라온 사진을 보고 짧게 알려 준다.\n' +
+    'JSON 한 개만 출력: {"ok":true 또는 false,"list":["한 줄씩 짚은 것"]}. 사진이 흐리거나 항목과 맞지 않으면 그것도 적는다. ' +
+    '추측은 "~로 보입니다"로 쓴다. 최대 5줄.';
+  var j = aiJson_(aiCall_('mid', sys, content, 700, '청소 사진 점검'));
+  return { date: date, hotel: hotel, room: String(room), n: content.length - 1, ok: !!(j && j.ok), list: (j && j.list) || [] };
+}
+
+// ── 4. 비고 정리 ───────────────────────────────────────────────────────────
+function aiNote(pin, rowsIn, save) {
+  checkPin_(pin); adminOnly_();
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), out = [], upd = [];
+  (rowsIn || []).slice(0, 20).forEach(function (r) {
+    var row = Number(r); if (!(row > 1)) return;
+    var v = sh.getRange(row, 1, 1, 46).getValues()[0]; if (!v[6]) return;
+    var note = String(v[21] || '').trim(); if (!note) return;
+    var sys = '너는 숙박 예약의 비고 글에서 쓸 정보를 뽑는 도구다. JSON 한 개만 출력한다.\n' +
+      '{"memo":"조기입실·늦은퇴실·요청사항만 짧게(없으면 \\"\\")","ppl":인원 숫자(모르면 0),"pets":반려견 마리수(모르면 0),"early":"조기입실 시각 HH:MM(없으면 \\"\\")","late":"늦은퇴실 시각 HH:MM(없으면 \\"\\")"}\n' +
+      '상품명·예약번호·방문방법·플랫폼 이름은 넣지 않는다. 글에 없는 것은 비우거나 0으로 둔다.';
+    var j = null; try { j = aiJson_(aiCall_('fast', sys, note.slice(0, 1500), 300, '비고 정리')); } catch (e) { }
+    if (!j) return;
+    var memo = String(j.memo || '').trim();
+    if (j.early) memo = (memo ? memo + ' · ' : '') + '조기입실 ' + j.early;
+    if (j.late) memo = (memo ? memo + ' · ' : '') + '늦은퇴실 ' + j.late;
+    var o = { r: row, room: String(v[2]), name: String(v[3] || ''), ci: mailYmd_(v[6]), note: note, memo: memo,
+      ppl: Number(j.ppl) || 0, pets: Number(j.pets) || 0, nowMemo: String(v[22] || ''), nowPpl: Number(v[9]) || 0, nowPets: Number(v[30]) || 0 };
+    o.change = (memo && memo !== o.nowMemo) || (o.ppl && o.ppl !== o.nowPpl) || (o.pets && o.pets !== o.nowPets);
+    out.push(o);
+    if (save && o.change) { var vv = {}; if (memo && memo !== o.nowMemo) vv[23] = memo;
+      if (o.ppl && o.ppl !== o.nowPpl) vv[10] = o.ppl; if (o.pets && o.pets !== o.nowPets) vv[31] = o.pets;
+      if (Object.keys(vv).length) upd.push({ r: row, v: vv }); }
+  });
+  if (upd.length) saveRowsRun_('예약', upd);
+  return { rows: out, saved: upd.length };
+}
+
+// ── 5. 소유주 질문 받기 (자기 호실 자료만) ──────────────────────────────────
+function aiAsk(cred, q) {
+  checkPin_(cred);
+  var ask = String(q || '').trim(); if (!ask) throw new Error('무엇이 궁금한지 적어 주세요.');
+  if (ask.length > 300) ask = ask.slice(0, 300);
+  if (!aiOn_('ask')) throw new Error('지금은 질문 기능이 꺼져 있습니다.');
+  var mine = [];   // 볼 수 있는 호실만
+  if (CTX_.role === 'owner') mine = (CTX_.rooms || []).map(function (x) { return x.h + '|' + String(x.r); });
+  else if (CTX_.role === 'manager' || !CTX_.role) mine = null;   // 매니저·관리자는 전체
+  else throw new Error('권한이 없습니다.');
+  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), lo = notiAdd_(t0, -120), hi = notiAdd_(t0, 180);
+  var lines = [], v = lr > 1 ? rv.getRange(2, 1, lr - 1, 46).getValues() : [];
+  v.forEach(function (x) {
+    if (!x[6]) return; var k = x[1] + '|' + String(x[2]); if (mine && mine.indexOf(k) < 0) return;
+    var ci = mailYmd_(x[6]); if (ci < lo || ci > hi) return;
+    lines.push([x[1], x[2], ci, mailYmd_(x[7]), x[8], x[9], x[10], Math.round(Number(x[11]) || 0), Math.round(Number(x[15]) || 0), x[23] ? '취소' : ''].join('|'));
+  });
+  if (lines.length > 600) lines = lines.slice(-600);
+  var sys = '너는 숙박 위탁관리 회사의 안내 담당이다. 아래 표에 있는 숫자만 보고 짧게(3문장 안) 답한다.\n' +
+    '표: 호텔|호실|입실일|퇴실일|박|인원|플랫폼|판매금액|입금금액|취소여부\n' +
+    '표에 없는 것은 "그 내용은 제가 가진 자료로는 알 수 없습니다"라고 답한다. 추측·약속·규정 설명은 하지 않는다. 존댓말. 이모지 금지.\n' +
+    '오늘은 ' + t0 + '이다.';
+  return { text: aiCall_('mid', sys, '--- 자료 ---\n' + lines.join('\n') + '\n\n--- 질문 ---\n' + ask, 600, '소유주 질문'), n: lines.length };
+}
+
+// ── 6. 가격 제안 ───────────────────────────────────────────────────────────
+function aiPrice(pin, hotel, days) {
+  checkPin_(pin); adminOnly_();
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), n = Math.min(Math.max(Number(days) || 45, 7), 120);
+  var occ = occScan_(hotel, t0, notiAdd_(t0, n));
+  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
+  var v = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues() : [], last = {};
+  v.forEach(function (x) {   // 지난해 같은 날 판매가 평균
+    if (x[1] !== hotel || !x[6] || x[23]) return; var ci = mailYmd_(x[6]); if (!ci) return;
+    var key = ci.slice(5); (last[key] = last[key] || []).push(Number(x[11]) || 0);
+  });
+  var wd = ['일', '월', '화', '수', '목', '금', '토'];
+  var body = occ.map(function (x) {
+    var ago = last[x.d.slice(5)] || [], avg = ago.length ? Math.round(ago.reduce(function (a, b) { return a + b; }, 0) / ago.length) : 0;
+    return x.d + '(' + wd[new Date(x.d).getDay()] + ') 가동 ' + x.pct + '% 남은방 ' + x.left + '/' + x.rooms + ' 과거평균가 ' + avg;
+  }).join('\n');
+  var sys = '너는 숙박 요금 담당이다. 아래 날짜별 가동률·남은 방·과거 평균 판매가만 보고 값을 올리거나 내릴 만한 날을 고른다.\n' +
+    'JSON 한 개만: {"list":[{"date":"YYYY-MM-DD","move":"올림|내림","why":"한 줄 이유","level":"높음|보통|낮음"}]}. 최대 10건, 근거가 약하면 level을 낮음으로. 없으면 {"list":[]}.';
+  var j = aiJson_(aiCall_('deep', sys, body.slice(0, 40000), 1200, '가격 제안'));
+  return { hotel: hotel, from: t0, days: n, list: (j && j.list) || [] };
 }

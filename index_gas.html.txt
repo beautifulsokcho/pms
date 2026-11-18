@@ -2676,7 +2676,7 @@ function smsOffBarHide(){var d=$('#smsOffBar');if(d)d.remove()}
 // Claude API 설정: 키는 구글 서버(스크립트 속성)에만 저장, 화면에는 끝 4자리만
 function aiPanel(){var box=$('#aiBox');if(!box)return;
   var draw=function(st){
-    box.innerHTML='<p class="note">키 '+(st.has?'<b>넣음 (…'+esc(st.tail)+')</b>':'<span class="err">아직 없음</span>')+' · 최근 30일 '+(st.n||0)+'번 · $'+(st.cost||0).toFixed(2)+' · 이번 달 $'+(st.month||0).toFixed(2)+' <span class="note">(크레딧은 매달 새로 채워지고 남은 것은 넘어가지 않습니다)</span></p>'+
+    box.innerHTML='<p class="note">키 '+(st.has?'<b>넣음 (…'+esc(st.tail)+')</b>':'<span class="err">아직 없음</span>')+' · 최근 30일 '+(st.n||0)+'번 · $'+((st.cost||0)<1?(st.cost||0).toFixed(4):(st.cost||0).toFixed(2))+' · 이번 달 $'+((st.month||0)<1?(st.month||0).toFixed(4):(st.month||0).toFixed(2))+' <span class="note">(크레딧은 매달 새로 채워지고 남은 것은 넘어가지 않습니다)</span></p>'+
       '<div class="form"><div class="f full"><label for="aiKey">API 키 <span class="note">(platform.claude.com → API keys · 넣고 저장하면 화면에는 끝 4자리만 남습니다)</span></label><input id="aiKey" type="password" autocomplete="off" placeholder="'+(st.has?'…'+esc(st.tail)+' (바꿀 때만 새로 넣으세요)':'sk-ant-...')+'"></div></div>'+
       '<label class="chk"><input type="checkbox" id="aiOn"'+(st.on?' checked':'')+'> Claude 기능 쓰기</label>'+
       '<div class="aichk"><label class="chk"><input type="checkbox" id="aiNoti"'+(st.noti?' checked':'')+'> 알림 읽기 보조 <span class="note">(규칙이 못 읽은 예약 알림만)</span></label>'+
