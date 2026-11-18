@@ -3592,6 +3592,7 @@ function nolScan_(alertOnly, withDone) {
 function notiLog_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('알림처리');
   if (!sh) { sh = ss.insertSheet('알림처리'); sh.getRange(1, 1, 1, 10).setValues([['알림키', '처리 시각', '알림 시각', '종류', '결과', '호텔', '호실', '고객', '예약번호', '알림 글']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('A:A').setNumberFormat('@'); }
+  if (sh.getRange('I2').getNumberFormat() !== '@') sh.getRange('I:I').setNumberFormat('@');   // 예약번호가 2.6E+15로 보이지 않게
   return sh;
 }
 function notiDone_(sh) {
@@ -3769,7 +3770,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.dadf5cf9';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.bc83009e';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
