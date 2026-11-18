@@ -342,7 +342,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
-      <div class="f s"><label for="recRange">범위</label><select id="recRange"><option value="day">고른 날짜</option><option value="all">전체 (최근 200건)</option></select></div>
+      <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
       <div class="f s"><label for="recCx">취소</label><select id="recCx"><option value="in">취소 포함</option><option value="">취소 제외</option><option value="only">취소만</option></select></div>
       <div class="f s"><label for="recView">보기</label><select id="recView"><option value="card">카드형</option><option value="table">목록형</option></select></div>
       <div class="f s"><label for="recSort">정렬순서</label><select id="recSort"><option value="regd">등록일시 최신순</option><option value="rega">등록일시 오래된순</option><option value="room">호실순</option><option value="roomd">호실 역순</option></select></div>
@@ -479,7 +479,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-18c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -967,10 +967,11 @@ function renderRecent(){
       return m.length?c.replace('<div class="dates','<div class="l1">'+m.map(function(x){return '<span class="chip miss">'+x+'</span>'}).join('')+'</div><div class="dates'):c}).join(''):'<div class="empty">자동등록된 예약이 없습니다.</div>';
     return}
   var h=defHotel(),all=rows('예약').filter(function(r){return r.v[R.hotel]===h});
-  var day=recDay(all),rng=$('#recRange').value,cx=$('#recCx').value,list=all.slice();
+  var day=$('#recDate').value,to=$('#recTo').value||day,rng=day?'day':'all',cx=$('#recCx').value,list=all.slice();
+  if(day&&to&&to<day){var t0=day;day=to;to=t0}
   if(cx==='only')list=list.filter(function(r){return !!r.v[R.cancel]});           // 취소만
   else if(!cx)list=list.filter(function(r){return !r.v[R.cancel]});               // 취소 뺀 예약 ('in'이면 모두)
-  if(rng!=='all'&&day)list=list.filter(function(r){return regDay(r.v)===day});
+  if(day)list=list.filter(function(r){var g=regDay(r.v);return g&&g>=day&&g<=to});
   var pl=$('#recPlat')?$('#recPlat').value:'';
   if(pl)list=list.filter(function(r){return String(r.v[R.plat]||'')===pl});
   var so=$('#recSort')?$('#recSort').value:'regd';
@@ -981,8 +982,9 @@ function renderRecent(){
   else if(so==='roomd')list.sort(function(a,b){return byRoom(b,a)});
   else list.sort(function(a,b){return byReg(b,a)});   // 등록일시 최신순 (기본)
   if(rng==='all')list=list.slice(0,200);
-  $('#recentH').textContent=h+(cx==='only'?' 취소 예약':'')+(rng==='all'?' · 최근 입력':' · 등록 '+(day?md(day):''))+' ('+list.length+'건)';
-  recDraw(list,(cx==='only'?'취소된 예약이 없습니다.':rng==='all'?esc(h)+'에 입력한 예약이 아직 없습니다.':md(day)+'에 등록한 예약이 없습니다.'));
+  var per=!day?' · 최근 입력':' · 등록 '+md(day)+(to&&to!==day?' ~ '+md(to):'');
+  $('#recentH').textContent=h+(cx==='only'?' 취소 예약':'')+per+' ('+list.length+'건)';
+  recDraw(list,(cx==='only'?'취소된 예약이 없습니다.':!day?esc(h)+'에 입력한 예약이 아직 없습니다.':md(day)+(to&&to!==day?' ~ '+md(to):'')+'에 등록한 예약이 없습니다.'));
 }
 function recDraw(list,emptyMsg){
   var el=$('#recentList');
@@ -1005,10 +1007,13 @@ function recDay(all){var d=$('#recDate').value;
 $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
 $('#recAll').onclick=function(){REC_MODE='recent';renderRecent()};
 $('#recPlat').innerHTML=opts(platforms(),'','전체');
-['recDate','recRange','recView','recCx','recSort','recPlat'].forEach(function(id){var keep=id==='recRange'||id==='recView'||id==='recSort',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소·플랫폼 고름은 기억하지 않음 (열 때마다 기본값)
+['recDate','recTo','recView','recCx','recSort','recPlat'].forEach(function(id){var keep=id==='recView'||id==='recSort',v=keep?store(id):null;if(v)$('#'+id).value=v;   // 날짜·취소·플랫폼 고름은 기억하지 않음 (열 때마다 기본값)
   $('#'+id).addEventListener('change',function(){if(keep)store(id,this.value);REC_MODE='recent';renderRecent()})});
-['recPrev','recNext'].forEach(function(id,i){$('#'+id).addEventListener('click',function(){
-  $('#recDate').value=addDays($('#recDate').value||ymd(new Date()),i?1:-1);$('#recRange').value='day';store('recRange','day');REC_MODE='recent';renderRecent()})});
+if(!$('#recDate').value)$('#recDate').value=ymd(new Date());   // 처음에는 오늘 등록분 (날짜를 비우면 전체)
+['recPrev','recNext'].forEach(function(id,i){$('#'+id).addEventListener('click',function(){   // 시작·끝을 같은 날수만큼 함께 옮김
+  var f0=$('#recDate').value||ymd(new Date()),t0=$('#recTo').value;
+  $('#recDate').value=addDays(f0,i?1:-1);if(t0)$('#recTo').value=addDays(t0,i?1:-1);
+  REC_MODE='recent';renderRecent()})});
 // ───────── 호실 달력 보기: 예약된 밤·공실을 한눈에, 판매율·공실율 ─────────
 function calMonth(){var cur=$('#qMonth').value;return /^\d{4}-\d{2}$/.test(cur)?cur:(($('#qFrom').value||ymd(new Date())).slice(0,7))}
 function renderCal(){
@@ -2809,7 +2814,7 @@ function calInit(){
 }
 
 // ───────── 문자함: 발송 폰에 온 손님 문자·전화 보기 · 답장 (관리자) ─────────
-var IBX={unread:-1,warn:0,t:null,sort:store('ibxSort')||'desc',data:null};   // 문자함 보는 순서 (최신순/오래된순)
+var IBX={unread:-1,warn:0,t:null,sort:store('ibxSort')||'desc',kind:'all',data:null};   // 문자함 보는 순서 (최신순/오래된순)
 // ── 당일예약 문자: 때가 되면 '보낼까요?' 묻고 보류·수정·발송 ──
 var ASK={on:false,quiet:0};
 function askTick(force){
@@ -2914,13 +2919,25 @@ function inboxInit(){var b=$('#inboxBtn');b.hidden=false;b.onclick=function(){if
   if(!IBX.vis){IBX.vis=1;document.addEventListener('visibilitychange',function(){if(!document.hidden&&IBX.tick)IBX.tick()})}IBX.tick=tick2}
 function inboxNotify(k,w){var msg=w?'자동등록 실패 '+w+'건 — 문자함에서 확인하세요':'새 문의 '+k+'건이 왔습니다';toast((w?'⚠ ':'✉ ')+msg);
   try{if(window.Notification&&Notification.permission==='granted'){if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(function(rg){rg.showNotification('객실관리 문자함',{body:msg,tag:'inbox'})}).catch(function(){new Notification('객실관리 문자함',{body:msg})});else new Notification('객실관리 문자함',{body:msg})}}catch(e){}}
-function inboxOpen(sel){modal('<h3>문자함</h3><div id="ibx"><div class="empty">불러오는 중…</div></div><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+function inboxOpen(sel,cached){
+  if(!(cached&&IBX.data&&$('#ibx')))modal('<h3>문자함</h3><div id="ibx"><div class="empty">불러오는 중…</div></div><div class="actions"><button class="btn" type="button" id="ibxClose">닫기</button></div>');
+  if(cached&&IBX.data){inboxDraw(IBX.data,sel);   // 이미 받아 둔 내용으로 바로 그림 (서버를 다시 읽지 않음)
+    if(sel){(IBX.data.rows||[]).forEach(function(r){if(String(r.num)===String(sel))r.read=true});
+      call('smsInbox',{read:sel}).then(function(){inboxCount()}).catch(function(){})}
+    return}
   call('smsInbox',{}).then(function(d){IBX.data=d;inboxDraw(d,sel);   // 읽음 처리 전에 받아 와서 '새 문자'를 표시
     if(sel)call('smsInbox',{read:sel}).then(function(){inboxCount()}).catch(function(){})})
     .catch(function(e){$('#ibx').innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}
 function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,w=r.warn||0,bd=$('#inboxN');if(bd){bd.hidden=!n;bd.textContent=n;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w}).catch(function(){})}
-function ibxSortBar(){return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select></div>'}
-function ibxSortBind(sel){var s2=$('#ibxSort');if(!s2)return;s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)}}
+function ibxSortBar(list){var k=IBX.kind||'all',o=function(v,t){return '<option value="'+v+'"'+(k===v?' selected':'')+'>'+t+'</option>'};
+  return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select>'+
+    (list?'<label for="ibxKind" class="note">보기</label><select id="ibxKind">'+o('all','전체')+o('in','받은 문자')+o('out','보낸 문자')+o('warn','자동등록 경고')+'</select><button class="btn" type="button" id="ibxReload" title="서버에서 다시 읽기">새로고침</button>':'')+'</div>'}
+function ibxPass(r){var k=IBX.kind||'all';return k==='all'?true:k==='warn'?r.kind==='알림':k==='out'?r.kind==='보냄':k==='in'?r.kind!=='보냄'&&r.kind!=='알림':true}
+function ibxSortBind(sel){var s2=$('#ibxSort');if(s2)s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)};
+  var k2=$('#ibxKind');if(k2)k2.onchange=function(){IBX.kind=this.value;if(IBX.data)inboxDraw(IBX.data,sel)};
+  var rl=$('#ibxReload');if(rl)rl.onclick=function(){rl.disabled=true;rl.textContent='읽는 중…';inboxOpen(sel)};
+  var cl=$('#ibxClose');if(cl){cl.textContent=sel?'‹ 목록으로':'닫기';   // 개별 문자에서 닫기 = 목록으로 되돌아가기
+    cl.onclick=sel?function(){inboxOpen(null,true)}:function(){closeModal()}}}
 function insDraw(r){
   var box=$('#insOut');if(!box)return;var rows=r.rows||[];
   if(!rows.length){box.innerHTML='<div class="empty">보낼 사람이 없습니다. 전화번호와 사용여부를 확인하세요.</div>';return}
@@ -2972,11 +2989,11 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
   rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(r.kind!=='보냄'&&!r.read)t.unread++});
   var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':'⚠ 자동등록 경고'};
   var dir=IBX.sort==='asc'?-1:1;
-  if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).sort(function(a,b){return (a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1)*dir});
-    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar():'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button><button class="btn" type="button" id="ibxNol" title="놀 예약달력과 우리 장부를 맞춰 봅니다">놀 달력 대조</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var l=t.list[t.list.length-1];
+  if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).filter(function(t){return t.list.some(ibxPass)}).sort(function(a,b){return (a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1)*dir});
+    box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자가 여기에 모입니다. 안 읽은 문자는 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar(true):'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button><button class="btn" type="button" id="ibxNol" title="놀 예약달력과 우리 장부를 맞춰 봅니다">놀 달력 대조</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var fl=t.list.filter(ibxPass),l=fl[fl.length-1]||t.list[t.list.length-1];
       return '<button type="button" class="ithr'+(t.unread?' unread':'')+'" data-num="'+esc(t.num)+'"><b>'+who(t)+(t.unread?' · 새 '+t.unread:'')+'</b><br><span class="note">'+esc(l.at)+' · '+esc(l.kind==='받음'?'':l.kind+' ')+esc(String(l.text).slice(0,60))+'</span></button>'}).join('')+'</div>':'<div class="empty">아직 받은 문자가 없습니다.</div>');
     ibxSortBind();
-    box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num)}});
+    box.querySelectorAll('[data-num]').forEach(function(b){b.onclick=function(){inboxOpen(b.dataset.num,true)}});
     var nb2=$('#ibxNol');if(nb2)nb2.onclick=function(){nb2.disabled=true;nb2.textContent='대조 중…';
       nolRun(false);setTimeout(function(){nb2.disabled=false;nb2.textContent='놀 달력 대조'},800)};
     var rb=$('#ibxRoom');if(rb)rb.onclick=function(){rb.disabled=true;rb.textContent='점검 중…';
@@ -2993,7 +3010,7 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
     (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomsms://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
   var mm=$('#ibxMsgs');mm.scrollTop=IBX.sort==='asc'?mm.scrollHeight:0;   // 오래된순이면 맨 아래(최근), 최신순이면 맨 위
   ibxSortBind(sel);
-  $('#ibxBack').onclick=function(){inboxOpen()};
+  $('#ibxBack').onclick=function(){inboxOpen(null,true)};
   if(sys){IBX.unread=-1;inboxCount();return}
   $('#ibxBlock').onclick=function(){var b=this;if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='이 번호 문자를 앞으로 저장하지 않을까요? (한 번 더 누르기)';return}
     b.disabled=true;call('smsBlock',sel,true,$('#ibxPurge').checked).then(function(r){toast(sel+' 번호는 앞으로 문자함에 저장하지 않습니다'+(r&&r.deleted?' · 지난 문자 '+r.deleted+'줄 지움':''));inboxOpen()}).catch(function(e){b.disabled=false;toast(errText(e))})};
