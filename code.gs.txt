@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 83) return;
+  if (ver >= 84) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1363,6 +1363,10 @@ function ensureSchema_() {
       if (add83.length) rt83.getRange(2, 1, add83.length, 8).setValues(add83);
     }
     props.setProperty('SCHEMA', '83');
+  }
+  if (ver < 84) {   // v84: 객실타입 날짜별 빈 방 점검 (매일 아침 7시 40분)
+    try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === 'rtTick'; })) ScriptApp.newTrigger('rtTick').timeBased().atHour(7).nearMinute(40).everyDays(1).create(); } catch (e) { }
+    props.setProperty('SCHEMA', '84');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -3857,7 +3861,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.b6d2340d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.96bcab91';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4057,6 +4061,58 @@ function occCheck(pin, hotel, days) {   // 화면: 앞으로 N일 중 80% 넘는
   var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), t1 = notiAdd_(t0, Math.min(Math.max(Number(days) || 60, 7), 180));
   var all = occScan_(hotel, t0, t1);
   return { hotel: hotel, from: t0, to: t1, rows: all.filter(function (x) { return x.level; }), all: all };
+}
+// ── 객실타입 날짜별 빈 방 점검: 코지처럼 방이 몇 개 없는 타입이 다 차면 다른 플랫폼 방막기가 중요함
+function rtScan_(hotel, from, to) {
+  var all = rtRows_().filter(function (x) { return x.hotel === hotel && x.type && (x.nol !== 'N' || x.nolh !== 'N'); });
+  if (!all.length) return [];
+  var types = []; all.forEach(function (x) { if (types.indexOf(x.type) < 0) types.push(x.type); });
+  var rv = SpreadsheetApp.getActive().getSheetByName('예약'), lr = rv ? rv.getLastRow() : 1;
+  var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues().filter(function (v) { return v[1] === hotel && v[6] && v[7] && !v[23]; }) : [];
+  var out = [];
+  types.forEach(function (t) {
+    var rooms = all.filter(function (x) { return x.type === t; }).map(function (x) { return x.room; });
+    var d = from, guard = 0;
+    while (d <= to && guard++ < 400) {
+      var busy = {};
+      for (var i = 0; i < res.length; i++) { var ci = mailYmd_(res[i][6]), co = mailYmd_(res[i][7]); if (ci <= d && d < co) busy[String(res[i][2])] = 1; }
+      var free = rooms.filter(function (rm) { return !busy[rm]; });
+      if (!free.length || (rooms.length > 1 && free.length === 1))
+        out.push({ type: t, d: d, rooms: rooms.length, free: free.length, left: free.join('·'), level: free.length ? '남은 방 1개' : '빈 방 없음' });
+      d = notiAdd_(d, 1);
+    }
+  });
+  return out;
+}
+function rtTick() {   // 매일 아침: 새로 '빈 방 없음'·'남은 방 1개'가 된 날만 문자함에 알림
+  try {
+    var ss = SpreadsheetApp.getActive(), ht = ss.getSheetByName('호텔'), p = PropertiesService.getScriptProperties();
+    var hs = ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().map(function (x) { return String(x[0] || '').trim(); }).filter(String);
+    var done = {}; try { done = JSON.parse(p.getProperty('RT_SENT') || '{}'); } catch (e) { }
+    var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), t1 = notiAdd_(t0, 60), add = [], keep = {};
+    hs.forEach(function (h) {
+      rtScan_(h, t0, t1).forEach(function (x) {
+        var k = h + '|' + x.type + '|' + x.d + '|' + x.level; keep[k] = 1;
+        if (done[k]) return;
+        add.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' · ' + x.type + ' · ' + x.level + ' (' + x.rooms + '실 중 ' + x.free + '실' + (x.left ? ' · ' + x.left + '호' : '') + ')'
+          + (x.free ? '' : ' → 놀·놀호텔 방막기 확인'));
+      });
+    });
+    p.setProperty('RT_SENT', JSON.stringify(keep));
+    if (!add.length) return { n: 0 };
+    inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+      '알림', '객실타입', ['[객실타입 빈 방] ' + add.length + '건'].concat(add.slice(0, 30)).join('\n'), '', '', '', '', '객실타입 점검']);
+    return { n: add.length };
+  } catch (e) { return { err: String(e && e.message || e) }; }
+}
+function rtCheck(pin, hotel, days) {   // 화면에서 바로 보기
+  checkPin_(pin);
+  var t0 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'), t1 = notiAdd_(t0, Math.min(Math.max(Number(days) || 30, 1), 90));
+  var hs = hotel ? [String(hotel)] : [];
+  if (!hs.length) { var ht = SpreadsheetApp.getActive().getSheetByName('호텔'); hs = ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().map(function (x) { return String(x[0] || '').trim(); }).filter(String); }
+  var out = [];
+  hs.forEach(function (h) { rtScan_(h, t0, t1).forEach(function (x) { x.hotel = h; out.push(x); }); });
+  return { rows: out, from: t0, to: t1 };
 }
 function occTick() {   // 매일 아침: 새로 80%·90%를 넘은 날만 문자함에 알림 (같은 날·같은 단계는 한 번만)
   try {
