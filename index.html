@@ -508,7 +508,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -976,11 +976,11 @@ function defHotel(){var h=store('hotel'),hs=hotels();return hs.indexOf(h)>=0?h:(
 // 어느 메뉴에서든 호텔을 고르면 모든 메뉴(새 예약·예약검색·객실정산·청소배정·관리)가 그 호텔로
 function setHotel(h){if(!h||h==='*')return;store('hotel',h);store('qHotel',h);store('aHotel',h)}
 var REC_MODE='recent';   // 최근 입력 / 알림·메일 자동등록만 보기
-function autoMiss(v){var m=[];   // 자동등록 예약에서 비어 있거나 가려진 정보
+function autoMiss(v){var m=[],pl=String(v[R.plat]||'ABNB'),own=pl==='개인예약';   // 자동등록 예약에서 비어 있거나 가려진 정보
   if(!String(v[R.name]||'').trim())m.push('이름 없음');else if(/\*/.test(String(v[R.name])))m.push('이름 가려짐');
-  if(String(v[R.plat]||'ABNB')!=='ABNB'&&!String(v[R.tel]||'').trim())m.push('연락처 없음');   // 에어비앤비는 연락처를 주지 않음
-  if(v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');
-  if(!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
+  if(pl!=='ABNB'&&!own&&!String(v[R.tel]||'').trim())m.push('연락처 없음');   // 에어비앤비는 손님 연락처를 주지 않고, 개인예약은 본인·지인 사용
+  if(!own&&v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');   // 개인예약은 매출 없음·청소만
+  if(!own&&!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
 function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록(알림·카톡·메일) 예약
   return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&(/자동등록/.test(String(v[R.note]||''))||needBlk(v))&&String(v[R.co])>=lim})   // 알림·메일 자동등록 + 엑셀로 새로 넣어 방막기 확인이 남은 예약
