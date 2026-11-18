@@ -39,7 +39,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -2074,6 +2074,49 @@ function gwPullRun_(token, st) {
     return { msgs: out, fast: fast, phone: ph.phone, phones: ph.phones };
   } finally { lock.releaseLock(); }
 }
+// ── 손님 연락처를 발송 폰 주소록에 저장 (객실문자 앱 v1.11)
+// 이름 규칙: '고객명 플랫폼 호실(숫자만) 입실일(yyMMdd) N박'  예) Yeseul Kim 떠나요 1423 261120 2박
+var CT_BACK_ = 30, CT_FWD_ = 120;   // 입실일 기준 지난 N일 ~ 앞으로 N일
+var CT_HASH_DEF_ = '01042254041,01077357990';   // 이 번호로 보내는 폰(듀얼넘버 폰)이면 저장할 번호 끝에 '#'
+function ctTel_(s) {   // 저장할 수 있는 번호만 (가려진 번호·너무 짧은 번호 제외)
+  s = String(s == null ? '' : s); if (s.indexOf('*') >= 0) return '';
+  var d = s.replace(/[^0-9]/g, '');
+  if (d.slice(0, 2) === '82' && d.length >= 10) d = '0' + d.slice(2);
+  return d.length >= 9 && d.length <= 12 && d.charAt(0) === '0' ? d : '';
+}
+function ctName_(v) {
+  var nm = String(v[3] == null ? '' : v[3]).trim(), plat = String(v[10] || 'ABNB').trim();
+  var room = String(v[2] == null ? '' : v[2]).replace(/[^0-9]/g, '');
+  var ci = fmt_(v[6], false), day = ci ? ci.slice(2).replace(/-/g, '') : '', n = Number(v[8]) || 0;
+  return [nm, plat, room, day, n ? n + '박' : ''].filter(String).join(' ').replace(/\s{2,}/g, ' ').trim();
+}
+function ctHash_(p) {   // 지금 발송 번호가 듀얼넘버 폰이면 true
+  var cur = String(p.getProperty('SMS_PHONE') || '').replace(/\D/g, '');
+  var list = String(p.getProperty('GW_CT_HASH') || CT_HASH_DEF_).split(/\s*,\s*/).map(function (x) { return x.replace(/\D/g, ''); }).filter(String);
+  return !!cur && list.indexOf(cur) >= 0;
+}
+function gwContacts(token, st) {
+  gwAuth_(token);
+  var p = PropertiesService.getScriptProperties();
+  if (String(p.getProperty('GW_CT_ON') || 'Y') !== 'Y') return { items: [], off: true, hash: false };
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh ? sh.getLastRow() : 1;
+  var hash = ctHash_(p);
+  if (lr < 2) return { items: [], hash: hash, phone: p.getProperty('SMS_PHONE') || '' };
+  var now = new Date(), tz = tz_();
+  var lo = Utilities.formatDate(new Date(+now - CT_BACK_ * 864e5), tz, 'yyyy-MM-dd');
+  var hi = Utilities.formatDate(new Date(+now + CT_FWD_ * 864e5), tz, 'yyyy-MM-dd');
+  var out = [], seen = {};
+  sh.getRange(2, 1, lr - 1, 24).getValues().forEach(function (v) {
+    var ci = fmt_(v[6], false); if (!ci || ci < lo || ci > hi || v[23]) return;   // 취소된 예약 제외
+    var tel = ctTel_(v[4]); if (!tel) return;
+    var name = ctName_(v); if (!name) return;
+    var key = String(v[0] || '').trim() || (String(v[1]) + '|' + String(v[2]) + '|' + ci);
+    if (seen[key]) return; seen[key] = 1;
+    out.push({ key: key, name: name, tel: hash ? tel + '#' : tel, raw: tel,
+      note: '객실관리 ' + String(v[1] || '') + ' ' + String(v[2] || '') + ' ' + ci + (v[7] ? '~' + fmt_(v[7], false) : '') });
+  });
+  return { items: out, hash: hash, phone: p.getProperty('SMS_PHONE') || '', n: out.length };
+}
 function gwPhone(token, n, dev) {   // 객실문자 앱에서 발송 번호 바꾸기 (목록에 있는 번호만) → 이 폰이 발송 폰이 되고 다른 폰 앱은 대기
   gwAuth_(token); var p = PropertiesService.getScriptProperties(), d = String(n || '').replace(/\D/g, '');
   var hit = smsPhones_(p).filter(function (x) { return x.n === d; })[0]; if (!hit) throw new Error('목록에 없는 번호입니다 (객실관리 문자 설정에서 먼저 추가)');
@@ -3726,7 +3769,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-18.5f5af95b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.dadf5cf9';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

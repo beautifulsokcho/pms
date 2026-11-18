@@ -347,6 +347,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <label for="pasteIn">예약 문구 붙여넣기 · ABNB · 놀 · 놀호텔</label>
       <textarea id="pasteIn" rows="3" placeholder="플랫폼 앱의 예약 내용을 복사해 여기에 붙여넣으면 자동으로 인식합니다. 여러 건도 한 번에 됩니다."></textarea>
       <div class="pocr" id="mailRow" hidden><button class="btn" type="button" id="mailBtn">📥 확인 필요 예약</button><button class="btn" type="button" id="mailRunBtn">메일 지금 읽기</button><span class="note" id="mailMsg">에어비앤비·놀호텔 메일은 10분마다 자동 처리 · 호실을 몰라 자동등록이 안 된 메일·놀 알림 예약을 여기서 불러와 호실을 고릅니다</span></div>
+      <div class="pocr" id="xlsRow"><label class="btn" id="xlsBtn">📗 놀 예약목록 엑셀 올리기<input type="file" id="xlsIn" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden></label><span class="note" id="xlsMsg">놀 파트너센터에서 받은 예약목록 파일(.xlsx)을 고르면 폰 안에서 암호를 풀어 읽습니다. 기존 예약은 [기존 반영], 없는 예약은 [저장]으로 등록하고, 호실이 안 적힌 상품(코지 01 등)은 직접 고릅니다.</span></div>
       <div class="pocr"><label class="btn" id="ocrBtn">📷 캡처 사진으로 넣기<input type="file" id="ocrIn" accept="image/*" multiple hidden></label><span class="note" id="ocrMsg">에어비앤비·놀 앱 예약 화면을 캡처한 사진을 고르면 글자를 읽어 위 칸에 넣습니다.</span></div>
       <div id="pasteOut"></div>
     </div>
@@ -496,7 +497,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-18h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1600,6 +1601,231 @@ function parseKakaoNol(t){
     return r;
   }).filter(function(r){return r.ci&&(r.name||r.note)});
 }
+// ───────── 암호가 걸린 엑셀(.xlsx) 풀기 — 브라우저에서만 돌아갑니다 (서버로 파일을 보내지 않습니다) ─────────
+// 마이크로소프트 Agile 암호화(SHA1 + AES-128-CBC)를 그대로 풀어 안의 zip을 꺼냅니다.
+function xu8(n){return new Uint8Array(n)}
+function xRd16(d,o){return d[o]|d[o+1]<<8}
+function xRd32(d,o){return (d[o]|d[o+1]<<8|d[o+2]<<16|d[o+3]<<24)>>>0}
+function xRd64(d,o){return xRd32(d,o)+xRd32(d,o+4)*4294967296}
+// ── CFB(OLE) 파일에서 스트림 꺼내기
+function cfbRead(buf){
+  var d=new Uint8Array(buf);
+  if(!(d[0]===0xD0&&d[1]===0xCF&&d[2]===0x11&&d[3]===0xE0))return null;
+  var ssz=1<<xRd16(d,30),mssz=1<<xRd16(d,32);
+  var dirStart=xRd32(d,48),miniStart=xRd32(d,60),difStart=xRd32(d,68),ndif=xRd32(d,72);
+  var sec=function(n){return d.subarray(512+n*ssz,512+(n+1)*ssz)};
+  var fatSecs=[],i;
+  for(i=0;i<109;i++){var v=xRd32(d,76+4*i);if(v<0xFFFFFFFA)fatSecs.push(v)}
+  var nx=difStart,guard=0;
+  while(nx<0xFFFFFFFA&&ndif>0&&guard++<10000){var s=sec(nx);
+    for(i=0;i<ssz/4-1;i++){var w=xRd32(s,4*i);if(w<0xFFFFFFFA)fatSecs.push(w)}
+    nx=xRd32(s,ssz-4);ndif--}
+  var fat=[];
+  fatSecs.forEach(function(fs){var s=sec(fs);for(var k=0;k<ssz/4;k++)fat.push(xRd32(s,4*k))});
+  var chain=function(st){var o=[],n=st,g=0;while(n<0xFFFFFFFA&&g++<2000000){o.push(n);n=n<fat.length?fat[n]:0xFFFFFFFE}return o};
+  var cat=function(list,sz){var o=xu8(list.length*sz),p=0;list.forEach(function(n){o.set(sec(n),p);p+=sz});return o};
+  var dir=cat(chain(dirStart),ssz),ents=[];
+  for(i=0;i<dir.length/128;i++){
+    var e=dir.subarray(128*i,128*(i+1)),nlen=xRd16(e,64),nm='';
+    for(var j=0;j+1<Math.max(nlen-2,0);j+=2)nm+=String.fromCharCode(e[j]|e[j+1]<<8);
+    ents.push({name:nm,type:e[66],start:xRd32(e,116),size:xRd64(e,120)});
+  }
+  var root=ents[0],mini=root.start<0xFFFFFFFA?cat(chain(root.start),ssz):xu8(0),minifat=[];
+  chain(miniStart).forEach(function(n){var s=sec(n);for(var k=0;k<ssz/4;k++)minifat.push(xRd32(s,4*k))});
+  var out={};
+  ents.forEach(function(e){
+    if(e.type!==2||!e.name)return;
+    if(e.size>=4096){var b=cat(chain(e.start),ssz);out[e.name]=b.subarray(0,e.size);return}
+    var o=xu8(Math.ceil(e.size/mssz)*mssz),p=0,n=e.start,g=0;
+    while(n<0xFFFFFFFA&&g++<200000&&p<o.length){o.set(mini.subarray(n*mssz,(n+1)*mssz),p);p+=mssz;n=n<minifat.length?minifat[n]:0xFFFFFFFE}
+    out[e.name]=o.subarray(0,e.size);
+  });
+  return out;
+}
+// ── SHA-1 (한 번에 돌려야 해서 직접 구현)
+function sha1(bytes){
+  var ml=bytes.length,withOne=ml+1,pad=(56-withOne%64+64)%64,total=withOne+pad+8;
+  var m=xu8(total);m.set(bytes);m[ml]=0x80;
+  var hi=Math.floor(ml*8/4294967296),lo=(ml*8)>>>0;
+  m[total-8]=hi>>>24&255;m[total-7]=hi>>>16&255;m[total-6]=hi>>>8&255;m[total-5]=hi&255;
+  m[total-4]=lo>>>24&255;m[total-3]=lo>>>16&255;m[total-2]=lo>>>8&255;m[total-1]=lo&255;
+  var h0=0x67452301,h1=0xEFCDAB89,h2=0x98BADCFE,h3=0x10325476,h4=0xC3D2E1F0,w=new Int32Array(80);
+  for(var o=0;o<total;o+=64){
+    var i;
+    for(i=0;i<16;i++)w[i]=(m[o+4*i]<<24|m[o+4*i+1]<<16|m[o+4*i+2]<<8|m[o+4*i+3])|0;
+    for(i=16;i<80;i++){var n=w[i-3]^w[i-8]^w[i-14]^w[i-16];w[i]=(n<<1|n>>>31)|0}
+    var a=h0,b=h1,c=h2,dd=h3,e=h4,f,k;
+    for(i=0;i<80;i++){
+      if(i<20){f=(b&c)|(~b&dd);k=0x5A827999}
+      else if(i<40){f=b^c^dd;k=0x6ED9EBA1}
+      else if(i<60){f=(b&c)|(b&dd)|(c&dd);k=0x8F1BBCDC}
+      else{f=b^c^dd;k=0xCA62C1D6}
+      var t=(((a<<5|a>>>27)+f|0)+((e+k|0)+w[i]|0))|0;
+      e=dd;dd=c;c=(b<<30|b>>>2)|0;b=a;a=t;
+    }
+    h0=h0+a|0;h1=h1+b|0;h2=h2+c|0;h3=h3+dd|0;h4=h4+e|0;
+  }
+  var r=xu8(20),hs=[h0,h1,h2,h3,h4];
+  for(var q=0;q<5;q++){r[4*q]=hs[q]>>>24&255;r[4*q+1]=hs[q]>>>16&255;r[4*q+2]=hs[q]>>>8&255;r[4*q+3]=hs[q]&255}
+  return r;
+}
+// ── AES 복호 (128/256비트, ECB 한 블록) + CBC
+var AES_SB=null,AES_SI=null,AES_RC=null;
+function aesInit(){
+  if(AES_SB)return;
+  AES_SB=xu8(256);AES_SI=xu8(256);
+  var p=1,q=1;
+  do{
+    p=p^(p<<1)^(p&0x80?0x11B:0);p&=255;
+    q^=q<<1;q^=q<<2;q^=q<<4;q&=255;if(q&0x80)q^=0x09;
+    var x=(q^((q<<1|q>>>7)&255)^((q<<2|q>>>6)&255)^((q<<3|q>>>5)&255)^((q<<4|q>>>4)&255)^0x63)&255;
+    AES_SB[p]=x;AES_SI[x]=p;
+  }while(p!==1);
+  AES_SB[0]=0x63;AES_SI[0x63]=0;
+  AES_RC=[0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36,0x6C,0xD8,0xAB,0x4D];
+}
+function gxt(a){return ((a<<1)^(a&0x80?0x1B:0))&255}
+function gmul(a,b){var r=0;while(b){if(b&1)r^=a;a=gxt(a);b>>=1}return r&255}
+function aesKey(key){
+  aesInit();
+  var nk=key.length/4,nr=nk+6,w=[],i;
+  for(i=0;i<nk;i++)w.push([key[4*i],key[4*i+1],key[4*i+2],key[4*i+3]]);
+  for(i=nk;i<4*(nr+1);i++){
+    var t=w[i-1].slice();
+    if(i%nk===0){t.push(t.shift());t=t.map(function(x){return AES_SB[x]});t[0]^=AES_RC[i/nk-1]}
+    else if(nk>6&&i%nk===4)t=t.map(function(x){return AES_SB[x]});
+    w.push(t.map(function(x,k){return w[i-nk][k]^x}));
+  }
+  return {w:w,nr:nr};
+}
+function aesDecBlock(ks,blk){
+  var s=blk.slice(),nr=ks.nr,w=ks.w,i,r;
+  var ark=function(round){for(i=0;i<16;i++)s[i]^=w[round*4+(i>>2)][i&3]};
+  ark(nr);
+  for(r=nr-1;r>=0;r--){
+    var t=s.slice();   // InvShiftRows
+    for(i=0;i<16;i++){var c=i>>2,b=i&3;t[((c+b)%4)*4+b]=s[i]}
+    for(i=0;i<16;i++)t[i]=AES_SI[t[i]];   // InvSubBytes
+    s=t;ark(r);
+    if(r>0){var o=s.slice();   // InvMixColumns
+      for(i=0;i<4;i++){var a0=o[4*i],a1=o[4*i+1],a2=o[4*i+2],a3=o[4*i+3];
+        s[4*i]=gmul(a0,14)^gmul(a1,11)^gmul(a2,13)^gmul(a3,9);
+        s[4*i+1]=gmul(a0,9)^gmul(a1,14)^gmul(a2,11)^gmul(a3,13);
+        s[4*i+2]=gmul(a0,13)^gmul(a1,9)^gmul(a2,14)^gmul(a3,11);
+        s[4*i+3]=gmul(a0,11)^gmul(a1,13)^gmul(a2,9)^gmul(a3,14);}
+    }
+  }
+  return s;
+}
+function aesCbcDec(key,iv,data){
+  var ks=aesKey(key),out=xu8(data.length),prev=Array.prototype.slice.call(iv),i,j;
+  for(i=0;i+16<=data.length;i+=16){
+    var blk=Array.prototype.slice.call(data.subarray(i,i+16));
+    var dec=aesDecBlock(ks,blk);
+    for(j=0;j<16;j++)out[i+j]=dec[j]^prev[j];
+    prev=blk;
+  }
+  return out;
+}
+// ── Agile 암호 풀기
+function xb64(s){var bin=typeof atob==='function'?atob(s):Buffer.from(s,'base64').toString('binary');var o=xu8(bin.length);for(var i=0;i<bin.length;i++)o[i]=bin.charCodeAt(i);return o}
+function xcat(a,b){var o=xu8(a.length+b.length);o.set(a);o.set(b,a.length);return o}
+function xfit(b,n){if(b.length>=n)return b.subarray(0,n);var o=xu8(n);o.set(b);for(var i=b.length;i<n;i++)o[i]=0x36;return o}
+function xle32(n){return new Uint8Array([n&255,n>>>8&255,n>>>16&255,n>>>24&255])}
+var XB_KEY=new Uint8Array([0x14,0x6e,0x0b,0xe7,0xab,0xac,0xd0,0xd6]);
+var XB_VIN=new Uint8Array([0xfe,0xa7,0xd2,0x76,0x3b,0x4b,0x9e,0x79]);
+var XB_VVL=new Uint8Array([0xd7,0xaa,0x0f,0x6d,0x30,0x61,0x34,0x4e]);
+function xlsxUnlock(buf,pw){
+  var st=cfbRead(buf);
+  if(!st||!st.EncryptionInfo||!st.EncryptedPackage)return null;
+  var xml='';for(var i=8;i<st.EncryptionInfo.length;i++)xml+=String.fromCharCode(st.EncryptionInfo[i]);
+  var kdM=xml.match(/<keyData\b[^>]*\/>/),keM=xml.match(/<p:encryptedKey\b[^>]*\/>/);
+  if(!kdM||!keM)throw new Error('이 파일의 암호 방식은 아직 풀 수 없습니다.');
+  var g=function(s,k){var m=s.match(new RegExp(k+'="([^"]+)"'));return m?m[1]:''};
+  if(g(keM[0],'hashAlgorithm').toUpperCase()!=='SHA1')throw new Error('이 파일의 암호 방식(해시 '+g(keM[0],'hashAlgorithm')+')은 아직 풀 수 없습니다.');
+  var spin=+g(keM[0],'spinCount')||100000,ksz=(+g(keM[0],'keyBits')||128)/8,bsz=+g(keM[0],'blockSize')||16;
+  var salt=xb64(g(keM[0],'saltValue'));
+  var pwb=xu8(pw.length*2);for(i=0;i<pw.length;i++){var c=pw.charCodeAt(i);pwb[2*i]=c&255;pwb[2*i+1]=c>>>8&255}
+  var h=sha1(xcat(salt,pwb));
+  for(i=0;i<spin;i++)h=sha1(xcat(xle32(i),h));
+  var mk=function(blk){return xfit(sha1(xcat(h,blk)),ksz)};
+  var vin=aesCbcDec(mk(XB_VIN),xfit(salt,bsz),xb64(g(keM[0],'encryptedVerifierHashInput'))).subarray(0,16);
+  var vvl=aesCbcDec(mk(XB_VVL),xfit(salt,bsz),xb64(g(keM[0],'encryptedVerifierHashValue')));
+  var want=sha1(vin),ok=true;
+  for(i=0;i<want.length;i++)if(want[i]!==vvl[i])ok=false;
+  if(!ok)throw new Error('WRONGPW');
+  var secret=aesCbcDec(mk(XB_KEY),xfit(salt,bsz),xb64(g(keM[0],'encryptedKeyValue'))).subarray(0,ksz);
+  var ksalt=xb64(g(kdM[0],'saltValue')),kbsz=+g(kdM[0],'blockSize')||16;
+  var pkg=st.EncryptedPackage,total=xRd64(pkg,0),body=pkg.subarray(8),out=xu8(body.length);
+  for(i=0;i*4096<body.length;i++){
+    var iv=xfit(sha1(xcat(ksalt,xle32(i))),kbsz);
+    out.set(aesCbcDec(secret,iv,body.subarray(i*4096,Math.min((i+1)*4096,body.length))),i*4096);
+  }
+  return out.subarray(0,total);
+}
+// ───────── 놀 예약목록 엑셀(.xlsx) → 붙여넣기 카드 ─────────
+function xlsUnesc(s){return String(s).replace(/&#x([0-9a-fA-F]+);/g,function(m,h){return String.fromCharCode(parseInt(h,16))}).replace(/&#(\d+);/g,function(m,d){return String.fromCharCode(+d)})
+  .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&')}
+function xlsCol(ref){var s=String(ref).match(/^[A-Z]+/);if(!s)return 0;var n=0,t=s[0];for(var i=0;i<t.length;i++)n=n*26+(t.charCodeAt(i)-64);return n-1}
+function xlsSst(xml){var a=[],re=/<si\b[^>]*>([\s\S]*?)<\/si>/g,m;   // 공유 문자열
+  while((m=re.exec(xml||''))){var t='',rt=/<t[^>]*>([\s\S]*?)<\/t>/g,q;while((q=rt.exec(m[1])))t+=xlsUnesc(q[1]);a.push(t)}return a}
+function xlsSheet(xml,sst){   // 시트 XML → 2차원 배열 (숫자는 숫자, 글자는 글자)
+  var out=[],reR=/<row\b([^>]*)>([\s\S]*?)<\/row>/g,mr;
+  while((mr=reR.exec(xml))){
+    var ri=+((mr[1].match(/\sr="(\d+)"/)||[])[1]||out.length+1),row=[];
+    var reC=/<c\b([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g,mc;
+    while((mc=reC.exec(mr[2]))){
+      var at=mc[1],body=mc[3]||'',ci=xlsCol((at.match(/\sr="([A-Z]+\d+)"/)||[])[1]||''),ty=(at.match(/\st="(\w+)"/)||[])[1]||'n',v;
+      if(ty==='inlineStr'){v='';var rt=/<t[^>]*>([\s\S]*?)<\/t>/g,q;while((q=rt.exec(body)))v+=xlsUnesc(q[1])}
+      else{var vm=body.match(/<v[^>]*>([\s\S]*?)<\/v>/);v=vm?xlsUnesc(vm[1]):'';
+        if(ty==='s')v=sst[+v]||'';else if(ty!=='str'&&ty!=='e'&&v!=='')v=isFinite(v)?Number(v):v}
+      row[ci]=v}
+    out[ri-1]=row}
+  for(var i=0;i<out.length;i++)if(!out[i])out[i]=[];
+  return out}
+function pad2(n){return String(n).padStart(2,'0')}
+function xlsDate(v){   // 엑셀 날짜(일련번호 또는 글자) → 'YYYY-MM-DD'
+  if(v===''||v==null)return '';
+  if(typeof v==='number'){if(v<20000||v>80000)return '';var d=new Date(Math.round((v-25569)*86400000));
+    return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate())}
+  var m=String(v).match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);return m?m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]):''}
+function telFmt(s){var d=String(s==null?'':s).replace(/[^0-9*]/g,'');
+  return d.length===12?d.slice(0,4)+'-'+d.slice(4,8)+'-'+d.slice(8):d.length===11?d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7):d.length===10?d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6):d}
+function nolRoomTo(r,pl,ctx){   // 놀 상품명 → 호실 ('705호(…)'는 705호, '코지 1810(…)'은 있는 호실일 때만, '코지 01'은 직접 고름)
+  var rn=(String(pl).match(/(\d{3,4})\s*호/)||[])[1];
+  if(rn){var f=findRoom(rn,ctx||pl);r.hotel=f.hotel;r.room=f.room;r.unknownRoom=!!f.unknown;return r}
+  var ms=String(pl).split('(')[0].match(/\d{3,4}/g)||[],f2=null;
+  for(var mi=ms.length-1;mi>=0&&!f2;mi--){var g=findRoom(ms[mi],ctx||pl);if(g.room&&!g.unknown)f2=g}
+  if(f2){r.hotel=f2.hotel;r.room=f2.room}else if(String(pl).trim())r.roomHint=String(pl).trim();
+  return r}
+function nolXlsItems(grid){   // 놀 예약목록 시트 → 붙여넣기 카드 (판매가까지만 씀)
+  var hi=-1,hd=null;
+  for(var i=0;i<Math.min(grid.length,8)&&hi<0;i++){var h=grid[i].map(function(x){return String(x==null?'':x).replace(/\s/g,'')});
+    if(h.indexOf('입실일')>=0&&h.indexOf('객실명')>=0){hi=i;hd=h}}
+  if(hi<0)return [];
+  var ix=function(){for(var k=0;k<arguments.length;k++){var j=hd.indexOf(arguments[k]);if(j>=0)return j}return -1};
+  var cNo=ix('예약번호'),cNm=ix('예약자'),cTel=ix('예약자연락처'),cCi=ix('입실일'),cCo=ix('퇴실일'),
+      cRm=ix('객실명'),cBk=ix('예약일시'),cCx=ix('예약취소일시'),cSt=ix('예약상태'),cSl=ix('판매가/위약금','판매가');
+  var raw=[];
+  grid.slice(hi+1).forEach(function(v){
+    var no=String(v[cNo]==null?'':v[cNo]).replace(/[^0-9A-Za-z]/g,''),ci=xlsDate(v[cCi]);
+    if(!ci||!no)return;
+    var st=String(v[cSt]==null?'':v[cSt]).trim(),prod=String(v[cRm]==null?'':v[cRm]).trim();
+    var x={plat:'놀',name:String(v[cNm]==null?'':v[cNm]).trim(),tel:telFmt(v[cTel]),ci:ci,co:xlsDate(v[cCo]),
+      ppl:2,pplGuess:true,xls:true,xlsNo:no,src:['놀 예약목록 엑셀',prod||'',st||''].filter(Boolean)};
+    if(cBk>=0){var bk=xlsDate(v[cBk]);if(bk)x.booked=bk}
+    if(/취소/.test(st)){x.cancel=true;x.cxDate=xlsDate(v[cCx])||ymd(new Date());x.cxWhy='취소 ('+st+')'}
+    else{var s=Number(v[cSl]);if(cSl>=0&&isFinite(s)&&s>0)x.sale=Math.round(s)}
+    var info=prod.replace(/\(.*$/,'').trim();
+    x.note=[info,'놀 예약번호 '+no].filter(Boolean).join(' / ');
+    raw.push({x:x,prod:prod})});
+  raw.forEach(function(q){nolRoomTo(q.x,q.prod,'')});   // 1차: 호실 번호만으로
+  var cnt={};raw.forEach(function(q){if(q.x.hotel)cnt[q.x.hotel]=(cnt[q.x.hotel]||0)+1});
+  var main=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]})[0]||'';
+  if(main)raw.forEach(function(q){if(!q.x.room||q.x.unknownRoom){var y={};nolRoomTo(y,q.prod,main);   // 2차: 같은 파일의 주된 호텔로 다시
+    if(y.room&&!y.unknownRoom){q.x.hotel=y.hotel;q.x.room=y.room;q.x.unknownRoom=!!y.unknownRoom;delete q.x.roomHint}else if(!q.x.hotel)q.x.hotel=main}
+    else if(!q.x.hotel)q.x.hotel=main});
+  return raw.map(function(q){return q.x})}
 // ───────── 같은 호실 겹침 검사 ─────────
 function overlaps(x,selfR){
   if(!x.hotel||!x.room||!x.ci||!x.co||isSubRoom(x.room))return [];   // 대체객실은 겹침 무시
@@ -1727,6 +1953,15 @@ function updItem(y){var d0=dupOf(y),vals={};
     var yno=resNo(y.note);if(yno&&!resNoV(d0.v))vals[51]=yno;   // 예약번호가 비어 있으면 채움 (51열)
     var yn=toResRow(y)[R.note];if(yn&&(String(d0.v[R.note]||'').indexOf(yn)<0||(y.lno&&lnoOf(d0.v[R.note])!==String(y.lno).toUpperCase())))vals[22]=(d0.v[R.note]?d0.v[R.note]+' / ':'')+(y.lno&&String(d0.v[R.note]||'').indexOf(yn)>=0?'· '+y.lno:yn);   // 숙소 번호(· 07)가 없으면 꼭 붙임
   return {r:d0.r,v:vals}}
+function cxIdx(){var a=[];PASTE.forEach(function(x,i){if(x.cancel&&dupOf(x))a.push(i)});return a}   // 취소 문구인데 살아 있는 예약이 있는 카드
+function cxAllAsk(list){   // 엑셀처럼 여러 건이 한꺼번에 올 때: 한 번에 취소
+  return new Promise(function(res){var root=$('#confirmRoot');
+    root.innerHTML='<div class="modal-bg" style="z-index:40"><div class="modal" role="alertdialog" aria-modal="true"><h3>예약 '+list.length+'건을 취소할까요?</h3>'+
+      '<div class="conf-list">'+list.map(function(x){var v=dupOf(x).v;return '<div><b>'+esc(v[R.hotel])+' '+esc(v[R.room])+'호 '+md(v[R.ci])+' → '+md(v[R.co])+'</b> · '+esc(v[R.plat]||'ABNB')+' · '+esc(v[R.name]||'(이름 없음)')+' · 취소일 '+md(x.cxDate||ymd(new Date()))+'</div>'}).join('')+'</div>'+
+      '<p class="note">취소된 예약은 정산·청소배정에서 빠지고, 예약 검색에서 "취소 포함"을 켜면 볼 수 있습니다. 하나씩 확인하려면 돌아가서 카드의 [기존 예약 취소]를 누르세요.</p>'+
+      '<div class="actions"><button class="btn" type="button" id="cxaNo">돌아가기</button><button class="btn warn" type="button" id="cxaYes">'+list.length+'건 모두 취소</button></div></div></div>';
+    var done=function(v){root.innerHTML='';res(v)};
+    $('#cxaNo').onclick=function(){done(false)};$('#cxaYes').onclick=function(){done(true)}})}
 function updIdx(){var a=[];PASTE.forEach(function(x,i){if(!x.cancel&&x.room&&x.hotel&&x.ci&&dupOf(x))a.push(i)});return a}
 function renderPaste(){
   try{mailGone()}catch(e){}
@@ -1736,17 +1971,19 @@ function renderPaste(){
   var pvs=PASTE.map(function(x){var y=Object.assign({},x);delete y.noClean;return toResRow(y)}),exist=rows('예약').map(function(r){return r.v});
   PASTE.forEach(function(x,i){x.ncNext=contNext(pvs[i],pvs.concat(exist));if(x.ncSet===undefined)x.noClean=!!x.ncNext;x.ncPrev=contPrevRows(pvs[i]).length});   // 같은 손님 연속예약이면 앞 예약 청소안함
   box.innerHTML='<div class="pbar"><span class="count">'+PASTE.length+'건 인식 · 저장 가능 '+ok+'건'+(updIdx().length?' · 기존 반영 '+updIdx().length+'건':'')+'</span><span style="display:flex;gap:8px;flex-wrap:wrap">'+
-      '<button class="btn" type="button" id="pClear">지우기</button>'+(updIdx().length>1?'<button class="btn" type="button" id="pUpdAll">'+updIdx().length+'건 모두 기존 예약에 반영</button>':'')+
+      '<button class="btn" type="button" id="pClear">지우기</button>'+(cxIdx().length>1?'<button class="btn warn" type="button" id="pCxAll">취소 '+cxIdx().length+'건 모두 반영</button>':'')+(updIdx().length>1?'<button class="btn" type="button" id="pUpdAll">'+updIdx().length+'건 모두 기존 예약에 반영</button>':'')+
       (ok&&updIdx().length?'<button class="btn pri" type="button" id="pAllAll">모두 저장 (새 '+ok+'건 · 반영 '+updIdx().length+'건)</button>':'')+
       '<button class="btn'+(ok&&updIdx().length?'':' pri')+'" type="button" id="pSaveAll"'+(ok?'':' disabled')+'>'+ok+'건 모두 저장</button></span></div>'+
-    PASTE.map(function(x,i){var iss=pasteIssues(x),v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
+    PASTE.map(function(x,i){var iss=pasteIssues(x);
+      if(x.pplGuess&&!x.cancel&&x.room&&x.hotel&&x.ci){var dpp=dupOf(x);if(dpp&&Number(dpp.v[R.ppl])>0){x.ppl=Number(dpp.v[R.ppl]);x.pplKeep=true}}   // 기존 예약이 있으면 그 인원 그대로 (문구·엑셀에는 인원이 없음, 고치면 그때만 반영)
+      var v=toResRow(x);if(!x.room||x.unknownRoom||!x.hotel||x.roomGuess)x.pick=true;var needRoom=!!x.pick;   // 한 번 호실을 고르게 했으면 계속 보여 줌 (바꿀 수 있게)
       return '<div class="pitem'+(iss.length?' bad':'')+'" data-i="'+i+'"><div class="row"><span class="chip">'+esc(x.plat)+'</span>'+(!x.cancel&&cxOf(x)?'<span class="chip hold">취소된 예약 되살림</span>':'')+(x.pets?'<span class="chip">반려견 '+x.pets+'</span>':'')+'<span class="ttl">'+esc((x.hotel||'')+' '+(x.room||'호실 ?'))+'</span>'+
         '<span class="num">'+(x.ci?md(x.ci):'?')+' → '+(x.co?md(x.co):'?')+(v[R.n]!==''?' · '+v[R.n]+'박':'')+'</span><span>'+esc(x.name||'')+'</span>'+
         iss.map(function(t){return '<span class="chip x">'+esc(t)+'</span>'}).join('')+'</div>'+
         '<div class="row">'+(needRoom?'<div class="f"><label>호텔</label><select data-p="hotel">'+opts(hotels(),x.hotel||defHotel())+'</select></div><div class="f"><label>호실</label><select data-p="room">'+opts(roomsOf(x.hotel||defHotel()),x.room,'선택')+'</select></div>'+(x.roomGuess&&x.room?'<button class="btn pri" type="button" data-p="okroom" style="align-self:flex-end">'+esc(x.room)+'호 맞음</button>':'')+
           (x.plat==='떠나요'&&x.roomHint?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="learn"'+(x.learn!==false?' checked':'')+'> 이 상품명을 이 호실로 기억</label>':''):
           '<button class="btn" type="button" data-p="chroom" style="align-self:flex-end;padding:6px 10px">호실 바꾸기</button>')+
-        '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
+        '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplKeep?' (기존)':x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
         (x.ncPrev?'<span class="note" style="align-self:flex-end">앞 예약도 같은 손님 → 저장 시 앞 예약 <b>청소안함</b></span>':'')+
         '<span class="note">'+(x.code?'예약코드 '+esc(x.code)+' · ':'')+(isOwnAcct(x)?'<b>'+ownLab(x.hotel)+'</b> · 판매·입금 0'+(x.payout!==undefined?' (수령 '+won(x.payout)+')':'')+(x.own&&!/본\s*인/.test(x.note||'')?' · 리스팅 소유자 '+esc(x.host):'')+' · ':x.payout!==undefined?'수령 '+won(x.payout)+' (판매 '+won(v[R.sale])+' 환산) · ':x.sale!==undefined?'판매 '+won(x.sale)+' → 입금 '+won(v[R.fin])+' · ':'')+'수건 '+(v[R.towel]===''?'-':v[R.towel]+'장')+' · 청소비 '+(won(v[R.cfin])||'-')+'</span>'+
@@ -1773,7 +2010,8 @@ function ocrShrink(file){return new Promise(function(ok,no){var rd=new FileReade
 var MAILIN=[];   // 불러온 메일 카드: 저장(카드가 사라짐)되면 서버에 '확인 완료' 알림
 function mailGone(){var g=MAILIN.filter(function(x){return PASTE.indexOf(x)<0});if(!g.length)return;MAILIN=MAILIN.filter(function(x){return PASTE.indexOf(x)>=0});
   call('mailDone',g.map(function(x){return x.mailRow})).then(function(){var b=$('#mailBtn');if(b)call('mailPending').then(function(L){b.textContent='📥 확인 필요 예약'+(L&&L.length?' ('+L.length+')':'');b.classList.toggle('pri',!!(L&&L.length))})}).catch(function(){})}
-function mailInit(){var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){row.hidden=true;return}row.hidden=false;
+function mailInit(){var xr=$('#xlsRow');if(xr)xr.hidden=!!ROLE;   // 엑셀 올리기는 관리자만
+  var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){row.hidden=true;return}row.hidden=false;
   var cnt=function(){call('mailPending').then(function(L){$('#mailBtn').textContent='📥 확인 필요 예약'+(L&&L.length?' ('+L.length+')':'');$('#mailBtn').classList.toggle('pri',!!(L&&L.length))}).catch(function(){})};
   cnt();
   $('#mailBtn').onclick=function(){var b=this;b.disabled=true;call('mailPending').then(function(L){b.disabled=false;
@@ -1790,6 +2028,51 @@ function mailInit(){var row=$('#mailRow');if(!row)return;if(DEMO||!LIVE||ROLE){r
       $('#mailMsg').textContent='새 메일 '+it.length+'통 · 반영 '+did.length+'건'+(did.length?' ('+did.map(function(x){return (x.room||'')+' '+(x.name||'')+' '+x.result}).join(', ')+')':'')+(need.length?' · 확인 필요 '+need.length+'건':'');
       if(did.length)load(['예약']).then(function(){renderRecent();renderRes()});cnt()})
     .catch(function(e){b.disabled=false;b.textContent='메일 지금 읽기';toast(errText(e))})}}
+// ───────── 놀 예약목록 엑셀 올리기 ─────────
+var XLS_PW='dkdl8125!';
+function xlsGrid(buf,pw){   // 파일 → 시트 2차원 배열 (암호가 걸려 있으면 폰 안에서 풀어서 읽습니다)
+  var b=new Uint8Array(buf),data=b;
+  if(b[0]===0xD0&&b[1]===0xCF&&b[2]===0x11&&b[3]===0xE0){data=xlsxUnlock(b,pw||XLS_PW);if(!data)throw new Error('엑셀 안에서 내용을 찾지 못했습니다')}
+  else if(!(b[0]===0x50&&b[1]===0x4B))throw new Error('엑셀(.xlsx) 파일이 아닙니다');
+  return loadScript(JSZIP).then(function(){return JSZip.loadAsync(data)}).then(function(z){
+    var sh=z.file('xl/worksheets/sheet1.xml')||(z.file(/worksheets\/[^\/]+\.xml$/)||[])[0];
+    if(!sh)throw new Error('엑셀 안에서 시트를 찾지 못했습니다');
+    var ss=z.file('xl/sharedStrings.xml');
+    return Promise.all([sh.async('string'),ss?ss.async('string'):Promise.resolve('')])})
+  .then(function(a){return xlsSheet(a[0],xlsSst(a[1]))})}
+function xlsAsk(f){   // 암호가 다르면 한 번 물어봄
+  return new Promise(function(ok){var p=null;try{p=window.prompt('"'+f.name+'" 문서 비밀번호를 입력하세요','')}catch(e){}ok(p)})}
+function xlsFile(f,pw){
+  return new Promise(function(ok,no){var rd=new FileReader();rd.onerror=function(){no(new Error('파일을 읽지 못했습니다'))};
+    rd.onload=function(){ok(rd.result)};rd.readAsArrayBuffer(f)})
+  .then(function(buf){
+    var go=function(p){try{return xlsGrid(buf,p)}catch(e){return Promise.reject(e)}};
+    return go(pw).catch(function(e){
+      if(!/WRONGPW/.test(String(e&&e.message||e)))throw e;
+      return xlsAsk(f).then(function(p){if(!p)throw new Error('문서 비밀번호가 필요합니다');return go(p)})})})}
+function xlsFiles(fs){
+  var msg=$('#xlsMsg'),lab=$('#xlsBtn');if(!fs.length)return;
+  if(DEMO){msg.textContent='예시 데이터에서는 엑셀 올리기를 쓸 수 없습니다. 구글시트에 연결된 앱에서 쓰세요.';return}
+  lab.classList.add('busy');var k=0,add=0,skip=0,bad=[];
+  var next=function(){if(k>=fs.length)return Promise.resolve();var f=fs[k++];msg.textContent='엑셀 읽는 중… ('+k+'/'+fs.length+') '+f.name;
+    return xlsFile(f).then(function(g){
+      var items=nolXlsItems(g);
+      if(!items.length){bad.push(f.name+': 예약을 찾지 못함');return}
+      items.forEach(function(x){
+        if(PASTE.some(function(y){return y.xlsNo&&y.xlsNo===x.xlsNo})){skip++;return}            // 같은 파일을 두 번 올려도 카드가 겹치지 않게
+        if(!x.room){var b=rows('예약').find(function(r){return !r.v[R.cancel]&&r.v[R.room]&&resNosV(r.v).indexOf(x.xlsNo)>=0});   // 전에 호실을 배정해 둔 예약이면 그 호실로
+          if(b){x.hotel=b.v[R.hotel];x.room=String(b.v[R.room]);delete x.roomHint}}
+        if(!x.room)x.pick=true;
+        if(x.cancel)x.asked=true;   // 한 건씩 묻지 않고 카드의 [기존 예약 취소]·[취소 N건 모두 반영]으로
+        PASTE.push(x);add++});
+    }).catch(function(e){bad.push(f.name+': '+errText(e))}).then(next)};
+  next().then(function(){renderPaste();
+    var nw=PASTE.filter(function(x){return x.xls&&!x.cancel&&!pasteIssues(x).length}).length,up=updIdx().length,pk=PASTE.filter(function(x){return x.xls&&!x.room}).length;
+    msg.textContent=(add?'예약 '+add+'건을 읽었습니다 · 기존 반영 '+up+'건 · 새 예약 '+nw+'건'+(pk?' · 호실 직접 고를 것 '+pk+'건':'')+(skip?' · 이미 올린 '+skip+'건은 건너뜀':''):'새로 읽은 예약이 없습니다')+(bad.length?' / '+bad.join(' / '):'');
+    if(add)pasteCancelAsk();
+    if(add)$('#pasteOut').scrollIntoView({behavior:'smooth',block:'start'})})
+  .then(function(){lab.classList.remove('busy')})}
+$('#xlsIn').onchange=function(){var fs=[].slice.call(this.files||[]);this.value='';xlsFiles(fs)};
 $('#ocrIn').onchange=function(){var fs=[].slice.call(this.files||[]);this.value='';ocrFiles(fs)};
 $('#pasteIn').addEventListener('paste',function(e){var items=[].slice.call((e.clipboardData||{}).items||[]),fs=[];   // 카톡 캡처 그림을 복사해 바로 붙여넣기
   items.forEach(function(it){if(it.kind==='file'&&/^image\//.test(it.type)){var f=it.getAsFile();if(f)fs.push(f)}});
@@ -1804,7 +2087,7 @@ function ocrFiles(fs){var msg=$('#ocrMsg'),lab=$('#ocrBtn');if(!fs.length)return
     ta.value=(ta.value.trim()?ta.value.trim()+'\n\n':'')+add;ta.dispatchEvent(new Event('input'));
     msg.textContent='사진 '+fs.length+'장 글자를 넣었습니다. 아래 인식 결과를 확인하세요 (틀린 곳은 [폼에서 수정]).'})
   .catch(function(e){msg.textContent='사진 글자를 읽지 못했습니다: '+errText(e)}).then(function(){lab.classList.remove('busy')})}
-$('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value).concat(PASTE.filter(function(x){return x.mailRow}));renderPaste();
+$('#pasteIn').addEventListener('input',function(){clearTimeout(pasteT);pasteT=setTimeout(function(){PASTE=parsePasted($('#pasteIn').value).concat(PASTE.filter(function(x){return x.mailRow||x.xls}));renderPaste();
   if(PASTE.some(function(x){return !dupOf(x)&&overlaps(x).length}))alarm();
   pasteCancelAsk()},250)});
 function pasteCancelAsk(){   // 취소 문구: 살아 있는 예약이 있으면 바로 "취소할까요?" 묻기, 이미 취소돼 있으면 알림
@@ -1817,7 +2100,7 @@ $('#pasteOut').addEventListener('change',function(e){var el=e.target,it=el.close
   if(el.dataset.p==='hotel'){x.hotel=el.value;x.room='';x.unknownRoom=false}
   if(el.dataset.p==='room'){x.room=el.value;x.unknownRoom=false;x.roomGuess=false;x.roomPick=true;if(!x.hotel)x.hotel=it.querySelector('[data-p=hotel]').value;learnProduct(x)}
   if(el.dataset.p==='learn'){x.learn=el.checked;learnProduct(x)}
-  if(el.dataset.p==='ppl'){x.ppl=Number(el.value)||'';x.pplGuess=false}
+  if(el.dataset.p==='ppl'){x.ppl=Number(el.value)||'';x.pplGuess=false;x.pplKeep=false}
   if(el.dataset.p==='noclean'){x.noClean=el.checked;x.ncSet=true}
   renderPaste()});
 $('#pasteOut').addEventListener('click',function(e){
@@ -1839,6 +2122,15 @@ $('#pasteOut').addEventListener('click',function(e){
     (ov.length?conflictAsk({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co,name:y.name},ov):Promise.resolve(true)).then(function(ok){if(!ok){u.disabled=false;return}
     call('saveRows','예약',[it].concat(cancelItems(ov))).then(function(d){S['예약']=d;PASTE.splice(k,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
       toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다'+(mv?' (호실 옮김)':''))}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
+  if(e.target.id==='pCxAll'){var cb=e.target,cl=cxIdx().map(function(i){return PASTE[i]});if(!cl.length)return;
+    cxAllAsk(cl).then(function(ok){if(!ok)return;cb.disabled=true;var t=ymd(new Date());
+      var its=cl.map(function(x){var r=dupOf(x),dt=x.cxDate||t;
+        return {r:r.r,v:{24:dt,22:(r.v[R.note]?r.v[R.note]+' / ':'')+'취소 '+dt+(x.cxWhy?' ('+String(x.cxWhy).replace(/^취소\s*\(?/,'').replace(/\)$/,'')+')':'')}}});
+      call('saveRows','예약',its).then(function(d){S['예약']=d;PASTE=PASTE.filter(function(x){return cl.indexOf(x)<0});
+        if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();if($('#cList').innerHTML)renderClean();
+        toast('예약 '+its.length+'건을 취소했습니다')})
+        .catch(function(err){cb.disabled=false;toast('취소하지 못했습니다: '+(err&&err.message||err))})});
+    return}
   if(e.target.id==='pUpdAll'||e.target.id==='pSaveAll'||e.target.id==='pAllAll'){
     var mode=e.target.id,btn=e.target;
     var upd=(mode!=='pSaveAll')?updIdx().map(function(i){return PASTE[i]}):[];
@@ -2208,7 +2500,7 @@ function printPages(el){var root=document.createElement('div');root.id='printRoo
 // 정산서 쪽(달력·요약·일자별)을 그림(PNG)으로: 쪽마다 한 장
 var H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
 var JSPDF='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-function loadScript(u){return new Promise(function(ok,no){if(u===H2C?window.html2canvas:u===JSZIP?window.JSZip:(window.jspdf&&window.jspdf.jsPDF))return ok();var sc=document.createElement('script');sc.src=u;sc.onload=ok;sc.onerror=function(){no(new Error('그림 저장 도구를 불러오지 못했습니다'))};document.head.appendChild(sc)})}
+function loadScript(u){return new Promise(function(ok,no){if(u===H2C?window.html2canvas:u===JSZIP?window.JSZip:(window.jspdf&&window.jspdf.jsPDF))return ok();var sc=document.createElement('script');sc.src=u;sc.onload=ok;sc.onerror=function(){no(new Error('도구를 불러오지 못했습니다 — 인터넷 연결을 확인해 주세요'))};document.head.appendChild(sc)})}
 function snapPages(el,scale){   // 정산서(.pg 3쪽)를 화면 밖에 인쇄 모양으로 만들어 쪽마다 canvas
   var root=document.createElement('div');root.className='repsnap snapmode';root.style.cssText='position:fixed;left:-30000px;top:0;width:auto;padding:0';
   var c=el.cloneNode(true);c.removeAttribute('id');c.querySelectorAll('[id]').forEach(function(x){x.removeAttribute('id')});
