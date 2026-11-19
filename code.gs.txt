@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -2283,6 +2283,36 @@ function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.r
   var from = Math.max(2, lr - (Number(opt.n) || 250) + 1), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
   return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
+function telShow_(n) { var d = telKey_(n); return d.length === 11 ? d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7) : d.length === 10 ? d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6) : String(n || ''); }
+function ownerFwdText_(hotel, room, name, num, kind, text, at) {   // 소유주에게 전달할 문구
+  var head = '[' + hotel + ' ' + room + '호] ' + (kind === '받음' ? '손님 문자' : '손님 ' + kind);
+  return head + '\n' + (String(name || '').trim() ? String(name).trim() + ' · ' : '') + telShow_(num)
+    + (at ? ' · ' + String(at).slice(5, 16) : '') + (kind === '받음' && String(text || '').trim() ? '\n' + String(text).trim().slice(0, 900) : '');
+}
+function smsFwdOwner(pin, id, text, send) {   // 관리자: 문자함의 손님 문자를 그 호실 소유주 번호로 전달 (send 없으면 미리보기)
+  checkPin_(pin); adminOnly_();
+  var sh = inboxSheet_(), lr = sh.getLastRow(); if (lr < 2) throw new Error('문자함이 비어 있습니다.');
+  var top = Math.max(2, lr - 400 + 1), vals = sh.getRange(top, 1, lr - top + 1, 10).getValues(), i = -1;
+  for (var k = vals.length - 1; k >= 0; k--) if (String(vals[k][0]) === String(id)) { i = k; break; }
+  if (i < 0) throw new Error('그 문자를 찾지 못했습니다. 문자함을 새로고침해 주세요.');
+  var v = vals[i], row = top + i, num = String(v[3] || ''), hotel = String(v[5] || ''), room = String(v[6] == null ? '' : v[6]).trim(), name = String(v[7] || '');
+  var at = v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16);
+  if (!hotel || !room) { var g = guestOf_(num); if (g) { hotel = String(g.hotel || ''); room = String(g.room || ''); name = name || g.name; } }
+  if (!hotel || !room) throw new Error('이 번호로 된 예약을 찾지 못해 어느 호실 소유주인지 알 수 없습니다.');
+  var to = ownerTel_(hotel, room);
+  if (!to) throw new Error(hotel + ' ' + room + '호 소유주 전화번호가 없습니다. 관리 → 객실에서 넣어 주세요.');
+  var body = String(text || '').trim() || ownerFwdText_(hotel, room, name, num, String(v[2] || '받음'), String(v[4] || ''), at);
+  var past = /소유주전달/.test(String(v[9] || ''));
+  if (!send) return { ok: true, to: telShow_(to), hotel: hotel, room: room, name: name, text: body, done: past };
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) throw new Error('문자 발송이 꺼져 있습니다. 관리 → 문자 설정을 확인하세요.');
+  var lid = Utilities.getUuid().slice(0, 8), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
+  smsLogSheet_().appendRow([lid, stamp, 'ibx:' + id, hotel, room, name, '소유주전달', telKey_(to), '대기', '', '']);
+  var sr;
+  try { sr = smsSendRaw_(to, body, { col: 'log:' + lid }); if (!(sr && sr.queued)) smsLogSet_(lid, '발송', ''); }
+  catch (e) { smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100)); throw e; }
+  sh.getRange(row, 10).setValue((String(v[9] || '') ? String(v[9]) + ' · ' : '') + '소유주전달 ' + stamp.slice(5));
+  return { ok: true, to: telShow_(to), hotel: hotel, room: room, text: body, sent: true, queued: !!(sr && sr.queued) };
+}
 function smsReply(pin, to, text) {   // 관리자: 문자함에서 답장 → 발송 폰 대기열
   checkPin_(pin); adminOnly_();
   text = String(text || '').trim(); if (!text) throw new Error('보낼 내용을 쓰세요.');
@@ -3882,7 +3912,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.26053660';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.45b06d2c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
