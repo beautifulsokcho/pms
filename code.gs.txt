@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -2505,6 +2505,12 @@ function addResIfMissing_(rv, list) {
 }
 
 // ── 여러 시트를 한 번에 읽기 (빈 행 제외)
+function resStamp_() { try { PropertiesService.getScriptProperties().setProperty('RES_AT', String(Date.now())); } catch (e) { } }
+function resVer(pin) {   // 예약이 바뀌었는지만 싸게 확인 (1분마다 예약 전체를 받지 않게)
+  checkPin_(pin);
+  var p = PropertiesService.getScriptProperties(), sh = SpreadsheetApp.getActive().getSheetByName('예약');
+  return { n: sh ? sh.getLastRow() : 0, at: p.getProperty('RES_AT') || '' };
+}
 function getData(pin, names, opt) {
   checkPin_(pin);
   var out = getDataRun_(names, opt);
@@ -2553,13 +2559,16 @@ function getDataRun_(names, opt) {
     var rows = [];
     for (var i = 1; i < vals.length; i++) {
       if (vals[i][def.key - 1] === '' || vals[i][def.key - 1] === null) continue;
-      rows.push({ r: i + 1, v: vals[i].map(function (x, j) { return fmt_(x, months.indexOf(j + 1) >= 0); }) });
+      var vv = vals[i].map(function (x, j) { return fmt_(x, months.indexOf(j + 1) >= 0); });
+      while (vv.length && (vv[vv.length - 1] === '' || vv[vv.length - 1] === null)) vv.pop();   // 끝의 빈 칸은 빼고 보냄 (앱이 다시 채움)
+      rows.push({ r: i + 1, v: vv });
     }
     if (n === '예약' && resFrom) {   // 입실일·퇴실일·취소일 중 하나라도 기준 뒤면 보냄 (지난 예약은 필요할 때 전체로 다시 받음)
       var all = rows.length;
       rows = rows.filter(function (q) { return String(q.v[6] || '') >= resFrom || String(q.v[7] || '') >= resFrom || String(q.v[23] || '') >= resFrom; });
-      out[n] = { header: header, rows: rows, partial: true, from: resFrom, all: all };
+      out[n] = { header: header, rows: rows, partial: true, from: resFrom, all: all, cols: def.cols };
     } else out[n] = { header: header, rows: rows };
+    out[n].cols = def.cols;
     if (n === '예약') {   // 입실일이 비어 앱에 안 보이는 예약(예약ID나 예약코드는 있음) — 화면에 알려서 고치게
       var broken = [];
       for (var b = 1; b < vals.length; b++) { var w = vals[b]; if ((w[6] === '' || w[6] === null) && (w[0] || w[27])) broken.push({ r: b + 1, id: w[0], hotel: w[1], room: String(w[2]), name: w[3], code: w[27], co: fmt_(w[7]) }); }
@@ -2644,6 +2653,7 @@ function saveRowsRun_(name, items) {
     });
     SpreadsheetApp.flush();
     if (name === '달력연결') sortCal_(sh);
+    if (name === '예약') resStamp_();
     if (name === '예약') {   // 예약은 입실일·퇴실일이 실제로 들어갔는지 확인 → 비면 한 번 더 쓰고, 그래도 비면 오류. 저장기록 시트에 남김
       var logs = [], stampL = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), bad = [];
       savedRows.forEach(function (r, k) {
@@ -3313,6 +3323,7 @@ function blockOk(cred, r) {
   else if (CTX_.role !== 'admin') throw new Error('권한이 없습니다.');   // CTX_.role은 관리자도 'admin'이라 비어 있지 않음
   var c = sh.getRange(row, 52); c.setNumberFormat('@');
   c.setValue('확인 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + (CTX_.name ? ' ' + CTX_.name : ''));
+  resStamp_();
   return { ok: true, row: row, val: c.getValue() };
 }
 function hello(cred, info) {   // 앱이 열릴 때 한 번 — 누가 언제 들어왔는지, 앱으로 쓰는지
@@ -3870,7 +3881,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.18621b6b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.c0ce3d40';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

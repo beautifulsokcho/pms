@@ -501,7 +501,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19w';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19x';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -765,7 +765,9 @@ function setupScreen(msg){
         $('#suErr').textContent=t.indexOf('PIN_WRONG')>=0?'PIN이 맞지 않습니다.':t.indexOf('PIN_UNSET')>=0?'Apps Script에 APP_PIN이 설정되지 않았습니다.':
           t.indexOf('PIN_LOCK')>=0?'PIN을 여러 번 틀려 10분간 잠겼습니다.':'연결하지 못했습니다. 주소와 배포 설정(액세스 권한: 모든 사용자)을 확인하세요.'})};
 }
-function load(names,opt){return call('getData',names,opt||null).then(function(d){Object.keys(d).forEach(function(k){S[k]=d[k]});SAVE_AT=Date.now()})}
+function padRows(d){Object.keys(d).forEach(function(k){var c=d[k]&&d[k].cols;if(!c||!d[k].rows)return;
+  d[k].rows.forEach(function(r){var v=r.v;while(v.length<c)v.push('')})})}   // 서버가 끝의 빈 칸을 빼고 보내므로 여기서 다시 채움
+function load(names,opt){return call('getData',names,opt||null).then(function(d){padRows(d);Object.keys(d).forEach(function(k){S[k]=d[k]});SAVE_AT=Date.now()})}
 // ── 첫 화면을 빨리 띄우기: 지난번에 받아 둔 것으로 먼저 그리고, 새 것은 뒤에서 받아 바꿔 끼움
 var RES_BACK=180,SAVE_AT=0,CACHE_MS=36*3600*1000;
 function cacheKey(){return 'dc1|'+APP_VER+'|'+(store('role')||'adm')+'|'+(store('mid')||store('cid')||'')}
@@ -785,7 +787,7 @@ function bootLoad(base){
   if(cacheApply(base)){
     bootBar(true);
     setTimeout(function(){var t0=Date.now();
-      call('getData',base,opt).then(function(d){
+      call('getData',base,opt).then(function(d){padRows(d);
         Object.keys(d).forEach(function(k){if(k!=='예약'||SAVE_AT<t0)S[k]=d[k]});   // 받는 사이에 저장했으면 예약은 그대로 둠
         SAVE_AT=Date.now();cacheSave();bootBar(false);
         try{refreshLists()}catch(e){}
@@ -3632,7 +3634,13 @@ function resPoll(){
   var ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;   // 입력 중이면 건너뜀
   if($('#pasteIn')&&$('#pasteIn').value.trim())return;
   RPOLL.busy=true;var was=RPOLL.sig||resSig(),n0=rows('예약').length;
-  load(['예약']).then(function(){
+  var opt=RESALL?null:{resFrom:addDays(ymd(new Date()),-RES_BACK)};
+  Promise.resolve().then(function(){return call('resVer')}).then(function(v){                                   // 바뀌었는지만 먼저 싸게 확인 (1분마다 예약 전체를 받지 않게)
+    var ver=String(v&&v.n)+'|'+String(v&&v.at);
+    if(RPOLL.ver===ver){RPOLL.busy=false;return null}
+    RPOLL.ver=ver;return load(['예약'],opt)
+  }).catch(function(){return load(['예약'],opt)}).then(function(r){
+    if(r===null)return;
     if(resSig()===was){RPOLL.sig=was;return}
     RPOLL.sig=resSig();
     var add=rows('예약').length-n0;
