@@ -356,7 +356,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
       <div id="pasteOut"></div>
     </div>
     <div class="newbox" id="newBox"></div>
-    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
+    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recOpen" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
@@ -501,7 +501,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -801,7 +801,7 @@ function bootLoad(base){
 addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')cacheSave()});
 
 // ───────── 열 번호 (0부터) ─────────
-var R={smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,no:50,block:51,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
+var R={open:52,smsA:44,smsB:45,ownCl:46,dLock:47,cmove:48,regAt:49,no:50,block:51,id:0,hotel:1,room:2,name:3,tel:4,booked:5,ci:6,co:7,n:8,ppl:9,plat:10,sale:11,rate:12,dep:13,depM:14,fin:15,cf:16,cfM:17,cfin:18,grp:19,valid:20,note:21,memo:22,cancel:23,towel:25,water:26,code:27,cal:28,excl:29,pets:30,xpp:31,xpet:32,sSale:33,sDep:34,sClean:35,own:36,towelM:37,waterM:38,pn:39,cleanY:40,ownAmt:41,subFor:42,noClean:43};
 var P1='전반(1-15일)',P2='후반(16-말일)';
 // 등록시각(예약 50열) — 예전 예약에는 없으므로 예약일로 대신함
 function regAt(v){var s=String(v[R.regAt]==null?'':v[R.regAt]).trim();if(s)return s.replace('T',' ');var b=dOnly(v[R.booked]);return b?b+' 00:00:00':''}
@@ -986,7 +986,7 @@ function blkOff(h){var x=rows('호텔').find(function(r){return r.v[1]===h});ret
 function blkNeed(h,ci){return dOnly(ci)>=ymd(new Date())&&!blkOff(h)}   // 입실일이 오늘 이후이고, 방막기 확인을 쓰는 호텔일 때만
 function needBlk(v){return String(v[R.block]||'').indexOf('확인필요')===0&&!v[R.cancel]&&blkNeed(v[R.hotel],v[R.ci])}   // 자동등록 예약 · 아직 방막기 확인 전 (지난 예약·안 쓰는 호텔은 빼고)
 function cardHtml(r,reg){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인 필요</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인 필요</span>':'')+(needOpen(v)?'<span class="chip blk">방풀기 확인 필요</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
@@ -1011,6 +1011,11 @@ function autoMiss(v){var m=[],pl=String(v[R.plat]||'ABNB'),own=pl==='개인예�
   if(!own&&!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
 function autoSrc(v){return /자동등록/.test(String(v[R.note]||''))||String(v[R.block]||'').trim()!==''}   // 알림·메일·엑셀로 들어온 예약 (방막기 칸에 확인필요/확인 기록이 있으면 그것도)
+function needOpen(v){   // 취소된 예약 · 아직 방풀기 확인 전 (오늘부터 취소된 것, 묵을 날이 남은 것, 방막기를 쓰는 호텔만)
+  return String(v[R.open]||'').indexOf('확인필요')===0&&!!v[R.cancel]&&dOnly(v[R.co])>=ymd(new Date())&&!blkOff(v[R.hotel])}
+function openRegs(){   // 방풀기 확인이 필요한 취소 예약 (최근 취소 먼저)
+  return rows('예약').filter(function(r){return needOpen(r.v)})
+    .sort(function(a,b){return String(dOnly(b.v[R.cancel])).localeCompare(String(dOnly(a.v[R.cancel])))||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
 function autoRegs(){var lim=addDays(ymd(new Date()),-14);   // 최근 2주~앞으로의 자동등록 예약 중 '아직 볼 것이 남은' 것만
   return rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&String(v[R.co])>=lim&&autoSrc(v)&&(needBlk(v)||autoMiss(v).length)})   // 방막기 확인을 누르고 정보도 다 차면 목록·건수에서 빠짐이 남은 예약
     .sort(function(a,b){var am=autoMiss(a.v).length?0:1,bm=autoMiss(b.v).length?0:1;return am-bm||String(a.v[R.ci]).localeCompare(String(b.v[R.ci]))})}
@@ -1019,6 +1024,15 @@ function renderRecent(){try{occDraw()}catch(e){}
 
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
   var nb2=$('#recNote');if(nb2)nb2.hidden=!regs.length||!!ROLE;
+  var ob=$('#recOpen'),ops=openRegs();   // 취소되어 방을 다시 풀어야 하는 예약
+  if(ob){ob.hidden=!ops.length;ob.textContent='🔓 방풀기 확인 '+ops.length+'건';ob.classList.add('miss')}
+  if(REC_MODE==='open'&&!ops.length)REC_MODE='recent';
+  if(REC_MODE==='open'){
+    $('#recAll').hidden=false;$('#recBar').hidden=true;
+    $('#recentH').textContent='방풀기 확인 · 취소된 예약 ('+ops.length+'건)';
+    $('#recentList').className='list';
+    $('#recentList').innerHTML=ops.map(function(r){return cardHtml(r)}).join('');
+    return}
   ab.hidden=!regs.length;ab.textContent='🔔 확인할 자동등록 '+regs.length+'건'+(nm?' · 정보 부족 '+nm+'건':'')+(nb?' · 방막기 확인 '+nb+'건':'');ab.classList.toggle('miss',!!(nm||nb));
   if(REC_MODE==='auto'&&!regs.length)REC_MODE='recent';
   al.hidden=REC_MODE!=='auto';$('#recBar').hidden=REC_MODE==='auto';
@@ -1056,7 +1070,7 @@ function recDraw(list,emptyMsg){
 }
 function lineHtml(r){var v=r.v;   // 목록형: 예약 1건을 두 줄로 — 아래로 계속 이어 보여 줌
   return '<button type="button" class="rline'+(v[R.cancel]?' cx':'')+'" data-r="'+r.r+'">'+
-    '<div class="a"><b>'+esc(roomLab(v))+'</b><span class="num">'+md(v[R.ci])+' → '+md(v[R.co])+'</span><span>'+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인</span>':'')+
+    '<div class="a"><b>'+esc(roomLab(v))+'</b><span class="num">'+md(v[R.ci])+' → '+md(v[R.co])+'</span><span>'+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인</span>':'')+(needOpen(v)?'<span class="chip blk">방풀기 확인</span>':'')+
       (v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':'')+'</div>'+
     '<div class="b"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">판매 '+(won(shownSale(v))||'-')+' · 입금 '+(won(shownFin(v))||'-')+'</span>'+
       (regLab(v)?'<span class="num">등록 '+regLab(v)+'</span>':'')+(/자동등록/.test(String(v[R.note]||''))?'<span>🔔 자동</span>':'')+'</div></button>'}
@@ -1067,6 +1081,7 @@ function recDay(all){var d=$('#recDate').value;
     d=t;$('#recDate').value=d}
   return d}
 $('#recAuto').onclick=function(){REC_MODE='auto';renderRecent()};
+$('#recOpen').onclick=function(){REC_MODE='open';renderRecent()};
 $('#recNote').onclick=function(){var b=this,L=autoRegs().filter(function(r){return String(r.v[R.note]||'').trim()}).slice(0,20);
   if(!L.length){toast('정리할 비고가 없습니다');return}
   b.disabled=true;b.textContent='읽는 중…';
@@ -1317,11 +1332,18 @@ function resForm(row,inline,pre){
   // 자동등록된 예약: 다른 플랫폼에서 그 날짜를 막아 뒀는지 확인해야 이중 예약이 안 생김
   var needBlk=!!(row&&String(v[R.block]||'').indexOf('확인필요')>=0&&!v[R.cancel]);
   if(needBlk)html='<div class="blkwarn" id="'+P+'Blk"><b>⚠ 방막기 확인 필요</b><span>'+esc(String(v[R.plat]||''))+'에서 자동등록된 예약입니다. 다른 플랫폼에서 '+esc(md(v[R.ci]))+' ~ '+esc(md(v[R.co]))+' 방막기를 했는지 확인하세요.</span><button class="btn" type="button" id="'+P+'BlkOk">확인했습니다</button></div>'+html;
+  // 취소된 예약: 다른 플랫폼에서 막아 둔 날짜를 다시 풀어야 함
+  var needOpn=!!(row&&String(v[R.open]||'').indexOf('확인필요')>=0&&v[R.cancel]);
+  if(needOpn)html='<div class="blkwarn" id="'+P+'Opn"><b>🔓 방풀기 확인 필요</b><span>취소된 예약입니다. 다른 플랫폼에서 막아 둔 '+esc(md(v[R.ci]))+' ~ '+esc(md(v[R.co]))+' 날짜를 다시 열어 주세요.</span><button class="btn" type="button" id="'+P+'OpnOk">확인했습니다</button></div>'+html;
   if(inline)$('#newBox').innerHTML=html; else modal('<h3>'+(row?'예약 수정':'새 예약')+'</h3>'+html);
   if(needBlk&&g('BlkOk'))g('BlkOk').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='확인 중…';
     call('blockOk',row.r).then(function(x){var rr=rows('예약').find(function(z){return z.r===row.r});if(rr)rr.v[R.block]=(x&&x.val)||'확인';
       var bx=g('Blk');if(bx)bx.remove();toast('방막기 확인으로 표시했습니다');try{renderRecent();renderRes()}catch(e){}})
       .catch(function(e){b2.disabled=false;b2.textContent='확인했습니다';toast(errText(e))})};
+  if(needOpn&&g('OpnOk'))g('OpnOk').onclick=function(){var b3=this;b3.disabled=true;b3.textContent='확인 중…';
+    call('blockOk',row.r,'open').then(function(x){var rr=rows('예약').find(function(z){return z.r===row.r});if(rr)rr.v[R.open]=(x&&x.val)||'확인';
+      var ox=g('Opn');if(ox)ox.remove();toast('방풀기 확인으로 표시했습니다');try{renderRecent();renderRes()}catch(e){}})
+      .catch(function(e){b3.disabled=false;b3.textContent='확인했습니다';toast(errText(e))})};
   if(row&&!OWNER&&LIVE)(function(){var sb=g('SmsBox'),pv=g('SmsPv');   // 이 예약에 쓸 수 있는 문자 종류 → 문구 보기 → 바로 보내기 · 보낸 기록
     var load2=function(){call('smsSend',row.r,'').then(function(d){var ks=d.kinds||[];
       sb.innerHTML=(ks.length?'<div class="rpick"><select id="'+P+'SmsKind">'+opts(ks,ks[0])+'</select><button type="button" class="btn" id="'+P+'SmsPrev">문구 보기</button></div>':'<span class="note">이 예약(호텔·플랫폼)에 맞는 문자 문구가 없습니다. 관리 → 문자에서 만드세요.</span>')+

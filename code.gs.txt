@@ -11,7 +11,7 @@ var SHEETS = {
   '객실':     { cols: 36, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
-  '예약':     { cols: 52, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52], dates: [6,7,8,24,49], texts: [3,43,50,51,52] },
+  '예약':     { cols: 53, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52,53], dates: [6,7,8,24,49], texts: [3,43,50,51,52,53] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
   '수건규칙': { cols: 9,  key: 1, edit: [1,2,3,4,5,6,7,8,9] },
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 86) return;
+  if (ver >= 87) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1411,6 +1411,15 @@ function ensureSchema_() {
     }
     props.setProperty('SCHEMA', '86');
   }
+  if (ver < 87) {   // v87: 예약 53열 '방풀기 확인' — 예약이 취소되면 다른 플랫폼에서 막아 둔 날짜를 다시 풀어야 함
+    var rv87 = ss.getSheetByName('예약');
+    if (rv87) {
+      if (rv87.getMaxColumns() < 53) rv87.insertColumnsAfter(rv87.getMaxColumns(), 53 - rv87.getMaxColumns());
+      if (String(rv87.getRange(1, 53).getValue() || '') === '') rv87.getRange(1, 53).setValue('방풀기 확인\n(취소 시 확인필요)');
+      rv87.getRange('BA2:BA').setNumberFormat('@');
+    }
+    props.setProperty('SCHEMA', '87');
+  }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -2535,6 +2544,10 @@ function blkOffHotel_(h) {
   }
   return !!BLK_OFF_[String(h)];
 }
+function openNeed_(hotel, co, cxDate) {   // 방풀기 확인을 붙일 취소인가 — 오늘 취소된 것, 묵을 날이 아직 남은 것, 그 호텔이 쓰는 경우
+  var today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
+  return String(fmt_(cxDate, false) || '').slice(0, 10) >= today && String(fmt_(co, false) || '') >= today && !blkOffHotel_(hotel);
+}
 function blkNeed_(hotel, ci) {
   var today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
   return String(fmt_(ci, false) || '') >= today && !blkOffHotel_(hotel);
@@ -2739,6 +2752,11 @@ function saveRowsRun_(name, items) {
       if (name === '예약' && !it.r && it.v[52] === undefined && /자동등록/.test(String(it.v[22] == null ? '' : it.v[22])) && sh.getMaxColumns() >= 52 && !sh.getRange(r, 52).getValue()
           && blkNeed_(it.v[2] !== undefined ? it.v[2] : sh.getRange(r, 2).getValue(), it.v[7] !== undefined ? it.v[7] : sh.getRange(r, 7).getValue())) {
         var bc = sh.getRange(r, 52); bc.setNumberFormat('@'); bc.setValue('확인필요');
+      }
+      // 예약이 취소되면 '방풀기 확인' — 다른 플랫폼에서 막아 둔 날짜를 다시 풀어야 함 (오늘부터 취소된 건·아직 안 지난 날짜만)
+      if (name === '예약' && it.v[24] !== undefined && String(it.v[24] || '').trim() && sh.getMaxColumns() >= 53 && !String(sh.getRange(r, 53).getValue() || '').trim()
+          && openNeed_(sh.getRange(r, 2).getValue(), sh.getRange(r, 8).getValue(), it.v[24])) {
+        var oc = sh.getRange(r, 53); oc.setNumberFormat('@'); oc.setValue('확인필요');
       }
     });
     SpreadsheetApp.flush();
@@ -3418,14 +3436,16 @@ function blockOk(cred, r) {
   if (!(row > 1) || !sh) throw new Error('예약을 찾지 못했습니다.');
   if (cred && cred.cln) throw new Error('권한이 없습니다.');
   checkPin_(cred);
-  var v = sh.getRange(row, 1, 1, 52).getValues()[0];
+  var col = String(arguments[2] || '') === 'open' ? 53 : 52;   // 'open'이면 방풀기 확인, 아니면 방막기 확인
+  var v = sh.getRange(row, 1, 1, Math.max(52, col)).getValues()[0];
   if (!v[6]) throw new Error('예약을 찾지 못했습니다.');
   if (CTX_.role === 'owner') {
     var mine = (CTX_.rooms || []).some(function (x) { return String(x.h) === String(v[1]) && String(x.r) === String(v[2]); });
     if (!mine) throw new Error('내 호실 예약이 아닙니다.');
   } else if (CTX_.role === 'manager') hotelOk_(v[1]);
   else if (CTX_.role !== 'admin') throw new Error('권한이 없습니다.');   // CTX_.role은 관리자도 'admin'이라 비어 있지 않음
-  var c = sh.getRange(row, 52); c.setNumberFormat('@');
+  if (sh.getMaxColumns() < col) sh.insertColumnsAfter(sh.getMaxColumns(), col - sh.getMaxColumns());
+  var c = sh.getRange(row, col); c.setNumberFormat('@');
   c.setValue('확인 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + (CTX_.name ? ' ' + CTX_.name : ''));
   resStamp_();
   return { ok: true, row: row, val: c.getValue() };
@@ -3986,7 +4006,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.2a0e14d5';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.100e9a10';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
