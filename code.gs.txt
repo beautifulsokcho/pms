@@ -2302,7 +2302,11 @@ function gwInbox(token, items, dev) {
   if (rows.length) { sh.getRange(sh.getLastRow() + 1, 1, rows.length, 10).setValues(rows); p.setProperty('GW_LAST_IN', String(Date.now())); }
   return { ok: true, n: rows.length };
 }
-function inboxLog_(to, text, note) { inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '보냄', telKey_(to), text, '', '', '', 'Y', note || '']); }
+function inboxLog_(to, text, note) {   // 보낸 문자(자동 발송·답장)도 문자함에 남김 — 읽음 칸은 비워 두어 관리자가 확인할 때까지 숫자에 들어감
+  var g = guestOf_(to);
+  inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '보냄', telKey_(to), text,
+    g ? g.hotel : '', g ? g.room : '', g ? g.name : '', '', note || '']);
+}
 function smsBlocks_(p) { return String(p.getProperty('SMS_BLOCK') || '').split(',').map(telKey_).filter(String); }
 function smsBlock(pin, num, on, purge) {   // 관리자: 이 번호 문자를 문자함에 저장 안 함(on=true) / 다시 받기(false). purge면 이미 저장된 그 번호 줄도 지움
   checkPin_(pin); adminOnly_();
@@ -2325,13 +2329,13 @@ function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.r
   var sh = inboxSheet_(), lr = sh.getLastRow();
   if (opt.read && lr > 1) { var k = telKey_(opt.read), eq = k ? function (a) { return telKey_(a) === k; } : function (a) { return String(a) === String(opt.read); };   // 번호가 아닌 묶음('자동등록' 경고)은 글자 그대로 비교
     var col = sh.getRange(2, 3, lr - 1, 7).getValues(), rd = sh.getRange(2, 9, lr - 1, 1).getValues(), ch = false;
-    col.forEach(function (x, i) { if (eq(x[1]) && x[0] !== '보냄' && x[6] !== 'Y') { rd[i][0] = 'Y'; ch = true; } });
+    col.forEach(function (x, i) { if (eq(x[1]) && x[6] !== 'Y') { rd[i][0] = 'Y'; ch = true; } });   // 받은 문자·보낸 문자 모두 확인한 것으로
     if (ch) sh.getRange(2, 9, lr - 1, 1).setValues(rd);   // 한 줄씩 쓰면 느려서 한 번에 씀
     if (!opt.count) return { ok: true, n: lr - 1 };   // 읽음 처리만 할 때는 목록을 다시 보내지 않음
   }
-  if (opt.count) { if (lr < 2) return { unread: 0, warn: 0 };
-    var cv = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[0] !== '보냄' && x[6] !== 'Y'; });
-    return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length }; }
+  if (opt.count) { if (lr < 2) return { unread: 0, warn: 0, sent: 0 };
+    var cv0 = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[6] !== 'Y'; }), cv = cv0.filter(function (x) { return x[0] !== '보냄'; });
+    return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length, sent: cv0.length - cv.length }; }
   var from = Math.max(2, lr - (Number(opt.n) || 250) + 1), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
   return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
@@ -4006,7 +4010,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.100e9a10';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.39558999';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
