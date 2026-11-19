@@ -2272,12 +2272,16 @@ function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.r
   checkPin_(pin); adminOnly_(); opt = opt || {};
   var sh = inboxSheet_(), lr = sh.getLastRow();
   if (opt.read && lr > 1) { var k = telKey_(opt.read), eq = k ? function (a) { return telKey_(a) === k; } : function (a) { return String(a) === String(opt.read); };   // 번호가 아닌 묶음('자동등록' 경고)은 글자 그대로 비교
-    var col = sh.getRange(2, 3, lr - 1, 7).getValues(); col.forEach(function (x, i) { if (eq(x[1]) && x[0] !== '보냄' && x[6] !== 'Y') sh.getRange(i + 2, 9).setValue('Y'); }); }
+    var col = sh.getRange(2, 3, lr - 1, 7).getValues(), rd = sh.getRange(2, 9, lr - 1, 1).getValues(), ch = false;
+    col.forEach(function (x, i) { if (eq(x[1]) && x[0] !== '보냄' && x[6] !== 'Y') { rd[i][0] = 'Y'; ch = true; } });
+    if (ch) sh.getRange(2, 9, lr - 1, 1).setValues(rd);   // 한 줄씩 쓰면 느려서 한 번에 씀
+    if (!opt.count) return { ok: true, n: lr - 1 };   // 읽음 처리만 할 때는 목록을 다시 보내지 않음
+  }
   if (opt.count) { if (lr < 2) return { unread: 0, warn: 0 };
     var cv = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[0] !== '보냄' && x[6] !== 'Y'; });
     return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length }; }
-  var from = Math.max(2, lr - 399), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
-  return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
+  var from = Math.max(2, lr - (Number(opt.n) || 250) + 1), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
+  return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
 function smsReply(pin, to, text) {   // 관리자: 문자함에서 답장 → 발송 폰 대기열
   checkPin_(pin); adminOnly_();
@@ -2501,9 +2505,9 @@ function addResIfMissing_(rv, list) {
 }
 
 // ── 여러 시트를 한 번에 읽기 (빈 행 제외)
-function getData(pin, names) {
+function getData(pin, names, opt) {
   checkPin_(pin);
-  var out = getDataRun_(names);
+  var out = getDataRun_(names, opt);
   if (CTX_.role === 'cleanmgr') Object.keys(out).forEach(function (n) {   // 관리자 청소담당자: 현황판에 필요한 시트만, 고객 연락처·비밀번호·금액 정보는 지움
     if (CMGR_SHEETS_.indexOf(n) < 0) { out[n] = { header: out[n].header, rows: [] }; return; }
     if (n === '예약') out[n].rows.forEach(function (r) { r.v[4] = ''; [11, 13, 14, 15, 33, 34, 41].forEach(function (i) { r.v[i] = ''; }); });
@@ -2530,9 +2534,10 @@ function getData(pin, names) {
   });
   return out;
 }
-function getDataRun_(names) {
+function getDataRun_(names, opt) {
   ensureSchema_();
   var ss = SpreadsheetApp.getActive(), out = {};
+  var resFrom = opt && opt.resFrom ? String(opt.resFrom).slice(0, 10) : '';   // 예약은 이 날짜 뒤만 보냄 (폰 첫 화면을 가볍게)
   names.forEach(function (n) {
     if (n === '수당특별') {   // 수당설정의 특별 객실 표(14~23행): 호텔·호실·기본·추가·비고·추가 기준 인원·2단계 인원·2단계 요금
       var sd = ss.getSheetByName('수당설정'), rr = [];
@@ -2550,7 +2555,11 @@ function getDataRun_(names) {
       if (vals[i][def.key - 1] === '' || vals[i][def.key - 1] === null) continue;
       rows.push({ r: i + 1, v: vals[i].map(function (x, j) { return fmt_(x, months.indexOf(j + 1) >= 0); }) });
     }
-    out[n] = { header: header, rows: rows };
+    if (n === '예약' && resFrom) {   // 입실일·퇴실일·취소일 중 하나라도 기준 뒤면 보냄 (지난 예약은 필요할 때 전체로 다시 받음)
+      var all = rows.length;
+      rows = rows.filter(function (q) { return String(q.v[6] || '') >= resFrom || String(q.v[7] || '') >= resFrom || String(q.v[23] || '') >= resFrom; });
+      out[n] = { header: header, rows: rows, partial: true, from: resFrom, all: all };
+    } else out[n] = { header: header, rows: rows };
     if (n === '예약') {   // 입실일이 비어 앱에 안 보이는 예약(예약ID나 예약코드는 있음) — 화면에 알려서 고치게
       var broken = [];
       for (var b = 1; b < vals.length; b++) { var w = vals[b]; if ((w[6] === '' || w[6] === null) && (w[0] || w[27])) broken.push({ r: b + 1, id: w[0], hotel: w[1], room: String(w[2]), name: w[3], code: w[27], co: fmt_(w[7]) }); }
@@ -3861,7 +3870,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.8cc48a06';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.18621b6b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
