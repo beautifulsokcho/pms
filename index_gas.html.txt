@@ -501,7 +501,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19y';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19z';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -771,7 +771,7 @@ function load(names,opt){return call('getData',names,opt||null).then(function(d)
 // ── 첫 화면을 빨리 띄우기: 지난번에 받아 둔 것으로 먼저 그리고, 새 것은 뒤에서 받아 바꿔 끼움
 var RES_BACK=180,SAVE_AT=0,CACHE_MS=36*3600*1000;
 function cacheKey(){return 'dc1|'+APP_VER+'|'+(store('role')||'adm')+'|'+(store('mid')||store('cid')||'')}
-function cacheSave(){if(DEMO||!LIVE)return;try{localStorage.setItem(cacheKey(),JSON.stringify({at:Date.now(),v:S}))}catch(e){try{localStorage.removeItem(cacheKey())}catch(e2){}}}
+function cacheSave(){if(DEMO||!LIVE)return;try{var v={};Object.keys(S).forEach(function(k){if(k!=='청소실적')v[k]=S[k]});localStorage.setItem(cacheKey(),JSON.stringify({at:Date.now(),v:v}))}catch(e){try{localStorage.removeItem(cacheKey())}catch(e2){}}}   // 청소실적은 담지 않음 — 청소배정 화면에서 늘 새로 받음
 function cacheApply(base){if(DEMO||!LIVE)return false;
   try{var o=JSON.parse(localStorage.getItem(cacheKey())||'null');
     if(!o||!o.v||Date.now()-o.at>CACHE_MS)return false;
@@ -913,7 +913,7 @@ $('#deskTabs').innerHTML=tabHtml(false);$('#mobTabs').innerHTML=tabHtml(true);se
 function show(t){
   document.querySelectorAll('[data-tab]').forEach(function(s){s.hidden=s.id!=='v-'+t});
   document.querySelectorAll('nav.tabs button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.t===t)});
-  store('tab',t);syncHotel(t);try{tabFit()}catch(e){} if(t==='admin')adminOpen(); if(t==='clean'){openClean();renderClean()}
+  store('tab',t);syncHotel(t);try{tabFit()}catch(e){} if(t==='admin')adminOpen(); if(t==='clean'){openClean();renderClean();cleanLoad()}
 }
 document.querySelectorAll('nav.tabs').forEach(function(n){n.addEventListener('click',function(e){var b=e.target.closest('button');if(b)show(b.dataset.t)})});
 // ── 폰 조작: 하단 탭 높이 맞추기 · 뒤로가기 두 번에 종료 · 옆으로 넘겨 메뉴 이동
@@ -2452,6 +2452,15 @@ function snapClean(){var b=$('#cSnapBtn');b.disabled=true;toast('그림을 만�
     })
   }).catch(function(e){var r=document.getElementById('printRoot');if(r)r.remove();toast('그림을 만들지 못했습니다: '+(e&&e.message||e))}).then(function(){b.disabled=false})}
 $('#cPrintBtn').onclick=printClean;$('#cSnapBtn').onclick=snapClean;
+var CW_FRESH=false;   // 이 접속에서 청소실적(배정 기록)을 새로 받았는지
+function cleanLoad(){   // 청소배정 화면을 열 때 한 번: 저장해 둔 배정을 서버에서 받아 옴 (예전엔 첫 화면에서 같이 받았음)
+  if(CW_FRESH||DEMO||!LIVE)return Promise.resolve();
+  if(!S['청소실적'])$('#cList').innerHTML='<div class="empty">저장된 배정을 불러오는 중…</div>';
+  var dirty=false;try{dirty=cDirty()>0}catch(e){}   // 받기 전에 '고치던 중인지'를 봄 (받은 뒤에 보면 새 배정이 전부 변경으로 보임)
+  return load(['청소실적']).then(function(){CW_FRESH=true;
+    if(!dirty)dropPending($('#cDate').value);   // 고치던 중이 아니면 받아 온 배정으로 화면을 다시 맞춤
+    if(store('tab')==='clean')renderClean()})
+    .catch(function(e){if(!S['청소실적'])$('#cList').innerHTML='<div class="empty err">저장된 배정을 불러오지 못했습니다: '+esc(errText(e))+'</div>'})}
 function openClean(){$('#cDate').value=ymd(new Date());var h=defHotel();$('#cHotel').innerHTML=opts(hotels(),h,'전체');$('#cHotel').value=h;$('#cSort').value=cSortDefault(h)}   // 메뉴를 열면 오늘·새 예약 기본 호텔
 // ───────── 청소 현황판: 호텔 전체 객실 상황(재실·공실·청소·입실)을 한 표로 보면서 담당자 지정 ─────────
 var BST={'청소':'b-clean','입실':'b-in','재실':'b-stay','공실':'b-vac','자가':'b-self','소유주':'b-own'};
@@ -3739,7 +3748,7 @@ function softReload(){
   closeModal();pinWait=null;window.scrollTo(0,0);
   ROLE=store('role')||'';LOGIN_ROLE=store('loginRole')||'';
   PIN=ROLE==='manager'?{mgr:1,id:store('mid')||'',pw:store('mpw')||''}:ROLE==='owner'?{own:1,id:store('mid')||'',pw:store('mpw')||''}:(store('pin')||'');
-  OWNER=!DEMO&&ROLE==='owner';LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');OWN={hotel:'',room:'',rooms:[],hotels:[]};S={};CW_LOADED=false;CTAB='clean';CW_DAY='';
+  OWNER=!DEMO&&ROLE==='owner';LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');OWN={hotel:'',room:'',rooms:[],hotels:[]};S={};CW_LOADED=false;CW_FRESH=false;CTAB='clean';CW_DAY='';
   var vc=$('#v-clean');if(vc&&vc.parentNode!==$('#vCleaner').parentNode)$('#vCleaner').parentNode.insertBefore(vc,$('#vCleaner'));
   $('#vCleaner').innerHTML='';$('#vCleaner').hidden=true;document.body.classList.remove('owner-mode','cw-board');
   ['mgOut','adOut','owPin','owAsk'].forEach(function(id){var e=$('#'+id);if(e)e.remove()});
