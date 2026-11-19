@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 84) return;
+  if (ver >= 85) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1367,6 +1367,24 @@ function ensureSchema_() {
   if (ver < 84) {   // v84: 객실타입 날짜별 빈 방 점검 (매일 아침 7시 40분)
     try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === 'rtTick'; })) ScriptApp.newTrigger('rtTick').timeBased().atHour(7).nearMinute(40).everyDays(1).create(); } catch (e) { }
     props.setProperty('SCHEMA', '84');
+  }
+  if (ver < 85) {   // v85: 달력으로 들어온 예약에 등록시각·방막기 확인이 없던 것 채움 (달력확인 AC '달력에서 추가 시각' 기준)
+    var rv85 = ss.getSheetByName('예약'), lr85 = rv85 ? rv85.getLastRow() : 1;
+    if (rv85 && lr85 > 1 && rv85.getMaxColumns() >= 52) {
+      var n85 = lr85 - 1, today85 = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
+      var ac85 = rv85.getRange(2, 29, n85, 1).getValues(), ax85 = rv85.getRange(2, 50, n85, 1).getValues(),
+          az85 = rv85.getRange(2, 52, n85, 1).getValues(), co85 = rv85.getRange(2, 8, n85, 1).getValues(),
+          cx85 = rv85.getRange(2, 24, n85, 1).getValues(), c1 = 0, c2 = 0;
+      for (var i85 = 0; i85 < n85; i85++) {
+        var m85 = String(ac85[i85][0] || '').match(/달력에서 추가\s+(\d{4}-\d\d-\d\d \d\d:\d\d)/);
+        if (!m85) continue;
+        if (!String(ax85[i85][0] || '').trim()) { ax85[i85][0] = m85[1] + ':00'; c1++; }
+        if (!String(az85[i85][0] || '').trim() && !cx85[i85][0] && String(fmt_(co85[i85][0], false)) >= today85) { az85[i85][0] = '확인필요'; c2++; }
+      }
+      if (c1) { var r50 = rv85.getRange(2, 50, n85, 1); r50.setNumberFormat('@'); r50.setValues(ax85); }
+      if (c2) { var r52 = rv85.getRange(2, 52, n85, 1); r52.setNumberFormat('@'); r52.setValues(az85); }
+    }
+    props.setProperty('SCHEMA', '85');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -2949,6 +2967,14 @@ function syncAirbnb_() {
       rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function () { return ['에어비앤비 달력에서 추가 · 이름·인원 확인']; }));
       rv.getRange(r0, 28, fresh.length, 2).setValues(fresh.map(function (n) { return [n.e.code, '달력에서 추가 ' + stamp]; }));
       rv.getRange(r0, 37, fresh.length, 1).setValues(fresh.map(function (n) { return [n.e.own ? 'Y' : '']; }));
+      if (rv.getMaxColumns() >= 50) {   // 등록시각(50) — 이게 없으면 새 예약 '최근 입력'·예약검색 등록일 기준에 안 나옴
+        var regC = rv.getRange(r0, 50, fresh.length, 1), regS = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
+        regC.setNumberFormat('@'); regC.setValues(fresh.map(function () { return [regS]; }));
+      }
+      if (rv.getMaxColumns() >= 52) {   // 방막기 확인 — 달력으로 들어온 예약도 다른 플랫폼 막았는지 확인해야 함 (앞으로 묵을 건만)
+        var blkC = rv.getRange(r0, 52, fresh.length, 1);
+        blkC.setNumberFormat('@'); blkC.setValues(fresh.map(function (n) { return [n.e.co >= today ? '확인필요' : '']; }));
+      }
       added = fresh.length;
       applyOwnRooms_(rv);   // 본인계정 전용 객실: 판매·입금 0
     }
@@ -3064,13 +3090,17 @@ function mailAbnb_(subj, txt, when, ctx) {
   var row = mailFind_(ctx, function (v) { return String(v[27] || '').toUpperCase() === code; });
   if (!row && loc) row = mailFind_(ctx, function (v) { return !v[23] && String(v[1]) === loc.hotel && String(v[2]) === loc.room && mailYmd_(v[6]) === dates[0] && !v[27]; });
   var own = function (h, r) { return ctx.rooms.some(function (x) { return String(x[1]) === h && String(x[2]) === String(r) && String(x[22] || '').trim().toUpperCase() === 'Y'; }); };
-  var money = function (h, r, vals) { if (!pay) return; if (own(h, r)) { vals[37] = 'Y'; vals[12] = 0; vals[15] = 0; vals[42] = pay; } else { vals[15] = pay; vals[12] = Math.round(pay / (1 - ctx.abnbRate)); } };
+  var money = function (h, r, vals, v) {   // v가 있으면 그 예약이 이미 본인계정(37=Y, 본인달력에서 들어온 것)인지도 봄
+    if (!pay) return;
+    if (own(h, r) || (v && String(v[36] || '').trim().toUpperCase() === 'Y')) { vals[37] = 'Y'; vals[12] = 0; vals[15] = 0; vals[42] = pay; }
+    else { vals[15] = pay; vals[12] = Math.round(pay / (1 - ctx.abnbRate)); }
+  };
   if (row) {   // 달력 동기화로 먼저 들어온 예약 등 → 이름·인원·금액·코드 보완 (이미 있는 이름은 유지)
     var v = row.v, vals = {};
     if (!String(v[3] || '').trim() || /확인/.test(String(v[21] || ''))) vals[4] = name || v[3];
     if (Number(v[9]) !== ppl) vals[10] = ppl; if (!v[27]) vals[28] = code;
     if (v[6] && mailYmd_(v[6]) !== dates[0] && String(v[47] || '').trim().toUpperCase() !== 'Y') { vals[7] = dates[0]; vals[8] = dates[1]; }   // 날짜 고정 예약은 메일로도 날짜를 바꾸지 않음
-    if (pay && !(Number(v[14]) > 0) && !(Number(v[41]) > 0)) money(String(v[1]), v[2], vals);
+    if (pay && !(Number(v[14]) > 0) && !(Number(v[41]) > 0)) money(String(v[1]), v[2], vals, v);
     var nt = String(v[21] || ''); if (/이름·인원 확인/.test(nt)) vals[22] = nt.replace(/\s*\/?\s*이름·인원 확인/, '').trim() || title;
     if (v[23]) return { kind: 'ABNB 확정', result: '취소된 예약 (확인 필요)', hotel: v[1], room: v[2], name: name, item: item };
     if (!Object.keys(vals).length) return { kind: 'ABNB 확정', result: '이미 있음', hotel: v[1], room: v[2], name: name, note: code };
@@ -3912,7 +3942,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.45b06d2c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.7ca143a1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
