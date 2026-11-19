@@ -3861,7 +3861,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.96bcab91';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.8cc48a06';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4039,11 +4039,13 @@ function codeInfo(pin) { checkPin_(pin); adminOnly_(); codeLive_();   // 관리 
 // 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박'
 function occScan_(hotel, from, to) {
   var ss = SpreadsheetApp.getActive(), ob = ss.getSheetByName('객실');
-  var ov = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 16)).getValues();
-  var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N'; });
+  var ov = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 30)).getValues();
+  var selfUse = {};   // 자가 객실(객실 AD열)은 팔 수 없으니 예약율에서 뺌
+  ov.forEach(function (x) { if (x[1] === hotel && String(x[29] || '').trim().toUpperCase() === 'Y') selfUse[String(x[2]).trim()] = 1; });
+  var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N' && !selfUse[String(x[2]).trim()]; });
   var rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
   var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues().filter(function (v) {
-    return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])); }) : [];
+    return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])) && !selfUse[String(v[2]).trim()]; }) : [];
   var out = [], d = from, guard = 0;
   while (d <= to && guard++ < 800) {
     var n = 0, i;

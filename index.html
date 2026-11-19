@@ -512,7 +512,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19r';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19s';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2737,8 +2737,9 @@ function settleHtml(p,a,pid){   // 객실별 정산서 화면 HTML (보고서 �
 $('#sBatch').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}settleBatch()};
 // ───────── 예약율 띠: 날짜별 예약율을 새 예약·예약검색 위에 (계산 · 누르면 그날 입실목록) ─────────
 function occDays(hotel,days){
-  var rs=rows('객실').filter(function(r){var v=r.v;return v[1]===hotel&&String(v[2]).trim()!==''&&!isSubRoom(v[2])&&String(v[13]||'').trim().toUpperCase()!=='N'});
-  var res=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===hotel&&v[R.ci]&&v[R.co]&&!v[R.cancel]&&!isSubst(v)});
+  var rs=rows('객실').filter(function(r){var v=r.v;return v[1]===hotel&&String(v[2]).trim()!==''&&!isSubRoom(v[2])&&String(v[13]||'').trim().toUpperCase()!=='N'&&String(v[29]||'').trim().toUpperCase()!=='Y'});   // 자가 객실(공실이면 자가)은 팔 수 없으니 뺌
+  var self={};rs.length&&rows('객실').forEach(function(r){if(r.v[1]===hotel&&String(r.v[29]||'').trim().toUpperCase()==='Y')self[String(r.v[2]).trim()]=1});
+  var res=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===hotel&&v[R.ci]&&v[R.co]&&!v[R.cancel]&&!isSubst(v)&&!self[String(v[R.room]).trim()]});
   var out=[],d=ymd(new Date());
   for(var i=0;i<(days||45);i++){
     var n=0,b=0,seen={};
