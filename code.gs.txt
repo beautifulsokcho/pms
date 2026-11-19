@@ -3210,7 +3210,8 @@ function gwNoti(token, items) {
     lg.appendRow([key, stamp, Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'), (it.plat === '떠나요' ? '떠나요' : '놀') + (it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), it.name || '', it.resNo || '', String(txt).slice(0, 1000)]);
     if (key) done[key] = 1;
     if (r.warn) { try { notiWarn_(it, r, at); } catch (e) { } }   // 자동등록이 안 된 알림은 문자함에 경고로 남김 (관리자가 바로 보고 처리)
-    out.push({ key: key, ok: !r.warn, warn: !!r.warn, msg: r.result + (r.hotel ? ' · ' + r.hotel + ' ' + r.room : '') + (it.name ? ' ' + it.name : '') });
+    out.push({ key: key, ok: !r.warn, warn: !!r.warn, result: r.result, room: r.hotel ? r.hotel + ' ' + r.room : '', name: it.name || '',
+      msg: r.result + (r.hotel ? ' · ' + r.hotel + ' ' + r.room : '') + (it.name ? ' ' + it.name : '') });   // 폰 앱이 표로 보여 줄 수 있게 칸을 나눠서도 보냄
   });
   return { items: out };
 }
@@ -3881,7 +3882,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-19.c0ce3d40';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-19.26053660';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
