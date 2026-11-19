@@ -512,7 +512,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-19s';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-19t';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3536,8 +3536,11 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
 
 // ───────── 관리자: 소유주·매니저·청소담당자 화면으로 바로 보기 (이 탭에서만, 비밀번호 없이 관리자 PIN으로) ─────────
 function viewTargets(role){
-  if(role==='owner')return rows('객실').filter(function(r){return r.v[1]&&r.v[2]!==''&&r.v[13]!=='N'&&!isSubRoom(r.v[2])}).sort(function(a,b){return String(a.v[1]).localeCompare(String(b.v[1]))||String(a.v[2]).localeCompare(String(b.v[2]),'ko',{numeric:true})})
-    .map(function(r){return {id:r.v[1]+' '+r.v[2],lab:r.v[2]+'호',sub:r.v[1]+(r.v[5]?' · '+r.v[5]:'')}});
+  if(role==='owner'){var h0=defHotel(),ok=function(r){return r.v[1]&&r.v[2]!==''&&r.v[13]!=='N'&&!isSubRoom(r.v[2])};
+    var L=rows('객실').filter(function(r){return ok(r)&&r.v[1]===h0});
+    if(!L.length)L=rows('객실').filter(ok);   // 그 호텔에 객실이 없으면 전체
+    return L.sort(function(a,b){return String(a.v[1]).localeCompare(String(b.v[1]))||String(a.v[2]).localeCompare(String(b.v[2]),'ko',{numeric:true})})
+      .map(function(r){return {id:r.v[1]+' '+r.v[2],lab:r.v[2]+'호',sub:r.v[1]+(r.v[5]?' · '+r.v[5]:'')}});}
   if(role==='manager')return rows('매니저').filter(function(r){return r.v[0]&&r.v[2]&&String(r.v[4]).toUpperCase()!=='N'}).map(function(r){return {id:String(r.v[2]),lab:r.v[0],sub:r.v[1]}});
   return rows('청소담당자').filter(function(r){return r.v[0]&&r.v[16]&&r.v[10]!=='N'}).map(function(r){return {id:String(r.v[16]),lab:r.v[0],sub:'아이디 '+r.v[16]}});
 }
@@ -3546,7 +3549,7 @@ function vwWait(t){var w=$('#vwWait');if(!t){if(w)w.remove();return}if(!w){w=doc
 function viewPick(role){var ln=['객실','매니저','청소담당자'];
   modal('<h3>'+VNAME[role]+' 화면으로 보기</h3><p class="note">목록을 불러오는 중…</p>');
   load(ln).then(function(){var list=viewTargets(role);
-    modal('<h3>'+VNAME[role]+' 화면으로 보기</h3><p class="note">고른 사람의 화면이 이 탭에서 열립니다. 다른 탭·직원 화면에는 영향이 없습니다.</p><div class="vpick">'+
+    modal('<h3>'+VNAME[role]+' 화면으로 보기</h3><p class="note">'+(role==='owner'?'<b>'+esc(defHotel())+'</b> 객실만 보입니다 — 위에서 호텔을 바꾸면 그 호텔 객실이 나옵니다.<br>':'')+'고른 사람의 화면이 이 탭에서 열립니다. 다른 탭·직원 화면에는 영향이 없습니다.</p><div class="vpick">'+
       (list.length?list.map(function(t,i){return '<button type="button" data-vi="'+i+'"><b>'+esc(t.lab)+'</b><small>'+esc(t.sub||'')+'</small></button>'}).join(''):'<p class="note">목록이 없습니다.</p>')+'</div>'+
       '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
     document.querySelectorAll('[data-vi]').forEach(function(b){b.onclick=function(){var t=list[+b.dataset.vi];try{sessionStorage.setItem('viewList',JSON.stringify(list))}catch(e){}viewAs(role,t.id,VNAME[role]+' · '+t.lab)}})})
