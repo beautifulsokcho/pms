@@ -1743,8 +1743,15 @@ function ctApi_(method, url, body) {
   var o = { method: method, muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } };
   if (body) { o.contentType = 'application/json'; o.payload = JSON.stringify(body); }
   var r = UrlFetchApp.fetch(url, o), c = r.getResponseCode(), t = r.getContentText();
-  if (c === 403 || c === 401) throw new Error('주소록 권한이 없습니다 — 편집기에서 ctSetup()을 한 번 실행해 허용해 주세요 (' + c + ')');
-  if (c < 200 || c >= 300) throw new Error('주소록 ' + c + ': ' + t.slice(0, 160));
+  if (c === 403 || c === 401) {   // 까닭이 둘 — 권한을 아직 허용 안 했거나, People API가 꺼져 있거나
+    var why = ''; try { why = String(((JSON.parse(t) || {}).error || {}).message || ''); } catch (e) { }
+    if (/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(why) || /has not been used|SERVICE_DISABLED/i.test(t))
+      throw new Error('구글 People API(주소록)가 이 프로젝트에서 꺼져 있습니다. 구글이 알려 준 주소에서 켜 주세요:\n' + why.slice(0, 400));
+    if (/insufficient|scope|ACCESS_TOKEN_SCOPE/i.test(why) || !why)
+      throw new Error('주소록 권한이 아직 허용되지 않았습니다 — ①관리 화면에서 [업데이트 확인]을 눌러 권한 목록에 주소록이 들어가게 한 뒤 ②편집기에서 ctSetup()을 실행해 「허용」해 주세요. (' + c + (why ? ' · ' + why.slice(0, 160) : '') + ')');
+    throw new Error('주소록 ' + c + ': ' + why.slice(0, 300));
+  }
+  if (c < 200 || c >= 300) throw new Error('주소록 ' + c + ': ' + t.slice(0, 200));
   return t ? JSON.parse(t) : {};
 }
 function ctGroup_(hotel) {   // '<호텔> 고객관리' 그룹 (없으면 만들고 기억)
@@ -4248,7 +4255,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.c51e3d68';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.dab62243';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
