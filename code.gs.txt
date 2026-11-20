@@ -21,7 +21,8 @@ var SHEETS = {
   '매니저':   { cols: 7, key: 1, edit: [1,2,3,4,5,6,7], texts: [3,4] },
   '수당입력': { cols: 9,  key: 3, edit: [1,2,3,4,5,6,8,9], dates: [8], months: [1] },
   '문자':     { cols: 10, key: 8, edit: [1,2,3,4,5,6,7,8,9,10], texts: [7] },
-  '객실타입': { cols: 8, key: 3, edit: [1,2,3,4,5,6,7,8], texts: [3] }
+  '객실타입': { cols: 8, key: 3, edit: [1,2,3,4,5,6,7,8], texts: [3] },
+  '객실메모': { cols: 6, key: 3, edit: [1,2,3,4,5,6], dates: [1], texts: [3,4,5] }   // 날짜·호텔·호실·입실메모·퇴실메모·수정시각 (예약이 없는 객실에도 메모)
 };
 
 // ── 주소로 직접 열었을 때: Index 파일이 있으면 화면을, 없으면 안내 문구를 보여줌
@@ -146,7 +147,7 @@ function ownerPin(pin, newPin) {
 }
 function ownRoom_(h, room) { return (CTX_.rooms || []).some(function (o) { return o.h === String(h) && o.r === String(room); }); }
 function roomOk_(h, room) { if (CTX_.role !== 'owner') return; if (!ownRoom_(h, room)) throw new Error('소유주 본인 객실이 아닙니다'); }
-var CMGR_SHEETS_ = ['호텔', '객실', '예약', '청소담당자', '청소실적', '수건규칙', '플랫폼', '청소비요율', '수당특별'];   // 관리자 청소담당자가 읽는 시트
+var CMGR_SHEETS_ = ['호텔', '객실', '예약', '청소담당자', '청소실적', '수건규칙', '플랫폼', '청소비요율', '수당특별', '객실메모'];   // 관리자 청소담당자가 읽는 시트
 function adminOnly_() { if (CTX_.role !== 'admin') throw new Error('권한이 없습니다 (관리자 전용)'); }
 function hotelOk_(h) { if (CTX_.role === 'admin') return; if (CTX_.hotels.indexOf(String(h)) < 0) throw new Error('맡은 호텔이 아닙니다: ' + h); }
 var MGR_SHEETS_ = { '호텔': 1, '객실': 1, '예약': 1, '정산입력': 1, '청소비요율': 0, '수건규칙': 0, '플랫폼': -1, '정산항목': -1 };   // 매니저가 읽는 시트 (값 = 호텔 열 위치, -1은 전체)
@@ -270,7 +271,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 90) return;
+  if (ver >= 91) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1449,6 +1450,14 @@ function ensureSchema_() {
       rv90.getRange('BB2:BB').setNumberFormat('@');
     }
     props.setProperty('SCHEMA', '90');
+  }
+  if (ver < 91) {   // v91: '객실메모' 시트 — 예약이 없는 객실에도 현황판에서 메모를 적을 수 있게
+    if (!ss.getSheetByName('객실메모')) {
+      var mz = ss.insertSheet('객실메모');
+      mz.getRange(1, 1, 1, 6).setValues([['날짜', '호텔', '호실', '입실 메모', '퇴실 메모', '수정 시각']]).setFontWeight('bold');
+      mz.setFrozenRows(1); mz.getRange('C:E').setNumberFormat('@');
+    }
+    props.setProperty('SCHEMA', '91');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -4255,7 +4264,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.dab62243';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.4ee74dc1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
