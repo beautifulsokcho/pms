@@ -4094,7 +4094,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.eeed092b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.cf523e7d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4547,7 +4547,20 @@ function replyTpl(pin, num) {
 // 오늘 챙길 것만 한 통에 모읍니다: 청소 배정 · 확인 필요(방막기·방풀기·메일) ·
 // 오늘 입실·퇴실과 수건·물 · 문자함 안 읽은 글 · 만실 임박 · 정산 마감 주간 ·
 // 오늘 일정(구글 캘린더) · 안 읽은 메일. 할 일이 없는 날은 보내지 않습니다.
-var BRIEF_SETTLE_ = [8, 10];   // 정산 마감 주간 (매달 이 날짜 사이일 때만 안내)
+var BRIEF_SETTLE_ = [1, 10];   // 정산 마감 기간 (매달 이 날짜 사이일 때만 안내)
+var BRIEF_CAL_NAME_ = '객실관리';   // 오늘 일정은 이 이름의 달력 하나만 봅니다 (개인 일정과 섞이지 않게)
+function briefCal_(make) {   // '객실관리' 달력 — 없으면 make일 때만 새로 만듦
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('BRIEF_CAL_ID'), c = null;
+  if (id) { try { c = CalendarApp.getCalendarById(id); } catch (e) { c = null; } }
+  if (!c) c = CalendarApp.getCalendarsByName(BRIEF_CAL_NAME_)[0] || null;
+  if (!c && make) c = CalendarApp.createCalendar(BRIEF_CAL_NAME_, { summary: '객실관리 아침 브리핑에 들어가는 일정', color: CalendarApp.Color.BLUE });
+  if (c) p.setProperty('BRIEF_CAL_ID', c.getId());
+  return c;
+}
+function briefCalOn() {   // Apps Script 편집기에서 한 번 실행: 캘린더 권한 허용 + '객실관리' 달력 만들기
+  var c = briefCal_(true);
+  return c ? '달력 준비됨 · ' + c.getName() + ' · ' + c.getId() : '달력을 만들지 못했습니다';
+}
 function briefData_() {
   var ss = SpreadsheetApp.getActive(), tz = tz_(), now = new Date();
   var today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
@@ -4624,13 +4637,14 @@ function briefData_() {
   if (dom >= BRIEF_SETTLE_[0] && dom <= BRIEF_SETTLE_[1])
     d.settle = '정산 마감 ' + (dom >= BRIEF_SETTLE_[1] ? '오늘' : 'D-' + (BRIEF_SETTLE_[1] - dom)) + ' (매달 ' + BRIEF_SETTLE_[0] + '~' + BRIEF_SETTLE_[1] + '일)';
 
-  // ⑦ 오늘 일정 — 구글 캘린더
-  //    아직 넣지 않았습니다. 캘린더 서비스를 코드에 쓰면 Apps Script가 '캘린더' 권한을 새로 요구해서,
-  //    편집기에서 다시 허용하기 전까지 앱 전체가 권한 오류로 멈춥니다.
-  //    넣을 때는 ①편집기에서 briefCalOn()을 한 번 실행해 허용 → ②아래 줄을 살려 쓰는 순서로.
-  //    var cal = Calendar​App.getDefaultCalendar();   (붙여 쓸 것)
-  //    if (cal) cal.getEventsForDay(now).slice(0, 12).forEach(function (ev) {
-  //      d.cal.push((ev.isAllDayEvent() ? '종일' : Utilities.formatDate(ev.getStartTime(), tz, 'HH:mm')) + ' · ' + String(ev.getTitle() || '(제목 없음)').slice(0, 50)); });
+  // ⑦ 오늘 일정 — '객실관리' 달력만 (개인 일정 달력은 보지 않음)
+  try {
+    var cal = briefCal_(false);
+    if (!cal) d.calNo = true;
+    else cal.getEventsForDay(now).slice(0, 12).forEach(function (ev) {
+      d.cal.push((ev.isAllDayEvent() ? '종일' : Utilities.formatDate(ev.getStartTime(), tz, 'HH:mm')) + ' · ' + String(ev.getTitle() || '(제목 없음)').slice(0, 50));
+    });
+  } catch (e) { d.err.push('캘린더: ' + (e && e.message || e)); }
 
   // ⑧ 안 읽은 메일 — 자동 처리하는 예약 메일·광고는 빼고
   try {
@@ -4676,7 +4690,8 @@ function briefText_(d) {
   L.push('□ 오늘\n' + run.map(function (s) { return '  ' + s; }).join('\n'));
   if (d.ins.length) L.push(briefLine_('□ 입실', d.ins, 10));
   if (d.memo.length) L.push(briefLine_('□ 메모(조기입실·늦은퇴실)', d.memo, 10));
-  if (d.cal.length) L.push(briefLine_('□ 오늘 일정', d.cal, 12));
+  if (d.cal.length) L.push(briefLine_('□ 오늘 일정 (' + BRIEF_CAL_NAME_ + ' 달력)', d.cal, 12));
+  else if (d.calNo) L.push('□ 오늘 일정 — 「' + BRIEF_CAL_NAME_ + '」 달력이 없습니다 (편집기에서 briefCalOn 한 번 실행)');
   if (d.mailN) L.push(briefLine_('□ 안 읽은 메일', d.mail, 6) + (d.mailN > d.mail.length ? '\n  · …외 ' + (d.mailN - d.mail.length) + '건' : ''));
   if (d.full.length) L.push(briefLine_('□ 만실 주의 (2주)', d.full, 8));
   if (d.err.length) L.push('※ 못 읽은 것: ' + d.err.join(' / '));
