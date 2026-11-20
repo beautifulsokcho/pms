@@ -329,12 +329,17 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 #cActs{float:right;margin:4px 0 6px 8px;gap:6px}@media (max-width:600px){#cActs{float:none;justify-content:flex-end;margin:0 0 6px}#cCount{gap:5px 4px;font-size:12px}#cCount .kdate{font-size:14px;margin-right:2px}#cCount .kc{padding:3px 7px;border-width:1px}#cCount .kc b{font-size:13px;margin-left:1px}#cCount .kw{font-size:12px;padding:2px 7px}#cCount .kw b{font-size:13px}}
 /* 화면 폭: 보통 1120px · '넓게'면 모니터 폭을 다 씀 (기기마다 따로 기억) */
 :root{--pw:1120px}
-body.wide{--pw:min(2000px,100%)}
+body.wide{--pw:min(2600px,100%)}
 @media (min-width:761px){
   body.wide .tasks,body.wide #cList.many{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
   body.wide .list{grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
-  body.wide .pastebox,body.wide .newbox{max-width:1200px}   /* 입력 칸은 넓어져도 쓰기 불편해져 그대로 둠 — 표·카드만 넓게 */
 }
+/* 입력 칸·카드 배열이 '칸의 실제 폭'에 맞춰 바뀜 (창을 끌어 줄이면 바로 따라옴) */
+.newbox,#cList,.list,.tasks{container-type:inline-size}
+@container (min-width:1080px){.newbox .form{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:1080px){.newbox .form .hotel-pick select{max-width:520px}}   /* 호텔 고르는 칸만 화면 끝까지 늘어나지 않게 */
+@container (min-width:1520px){.newbox .form{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (min-width:1960px){.newbox .form{grid-template-columns:repeat(5,minmax(0,1fr))}}
 #wideBtn[hidden]{display:none!important}
 </style>
 
@@ -523,7 +528,7 @@ body.wide{--pw:min(2000px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
