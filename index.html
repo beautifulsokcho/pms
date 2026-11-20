@@ -39,7 +39,7 @@ h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
 button,input,select,textarea{font:inherit;color:inherit}
 .num,td.n{font-variant-numeric:tabular-nums}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
-.top-in{max-width:1120px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;
+.top-in{max-width:var(--pw);margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.01em}
 .brand small{display:block;font:500 11px var(--f-body);color:var(--muted);letter-spacing:.04em}
@@ -51,9 +51,9 @@ body.viewing #owPin,body.viewing #myPinBtn,body.viewing #inboxBtn,body.viewing #
 nav.tabs{display:flex;gap:4px}
 nav.tabs button{flex:1;border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500}
 nav.tabs button[aria-selected="true"]{color:var(--accent);background:var(--accent-soft);font-weight:700}
-.desk-tabs{max-width:1120px;margin:0 auto;padding-bottom:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.desk-tabs{max-width:var(--pw);margin:0 auto;padding-bottom:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 nav.mob-tabs{display:none}
-main{max-width:1120px;margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:var(--pw);margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 @media (max-width:760px){
   nav.desk-tabs{display:none}
   nav.mob-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
@@ -327,6 +327,15 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
   #printRoot .cd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 #cActs{float:right;margin:4px 0 6px 8px;gap:6px}@media (max-width:600px){#cActs{float:none;justify-content:flex-end;margin:0 0 6px}#cCount{gap:5px 4px;font-size:12px}#cCount .kdate{font-size:14px;margin-right:2px}#cCount .kc{padding:3px 7px;border-width:1px}#cCount .kc b{font-size:13px;margin-left:1px}#cCount .kw{font-size:12px;padding:2px 7px}#cCount .kw b{font-size:13px}}
+/* 화면 폭: 보통 1120px · '넓게'면 모니터 폭을 다 씀 (기기마다 따로 기억) */
+:root{--pw:1120px}
+body.wide{--pw:min(2000px,100%)}
+@media (min-width:761px){
+  body.wide .tasks,body.wide #cList.many{grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+  body.wide .list{grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+  body.wide .pastebox,body.wide .newbox{max-width:1200px}   /* 입력 칸은 넓어져도 쓰기 불편해져 그대로 둠 — 표·카드만 넓게 */
+}
+#wideBtn[hidden]{display:none!important}
 </style>
 
 </head>
@@ -340,6 +349,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
     <button class="iconbtn" id="inboxBtn" type="button" title="문자함" hidden>✉<b id="inboxN" class="ibadge" hidden></b></button>
     <button class="iconbtn" id="chatBtn" type="button" title="대화방 (소유주·청소담당자)" hidden>💬<b id="chatN" class="ibadge" hidden></b></button>
     <button class="iconbtn pri" id="verNew" type="button" hidden>새 화면 받기</button>
+    <button class="iconbtn" id="wideBtn" type="button" title="화면을 모니터 폭에 맞춰 넓게 씁니다" hidden>⇔ 넓게</button>
     <button class="iconbtn" id="reload" type="button" title="새로고침" data-s="↻">새로고침</button>
   </div>
   <div class="viewbar" id="viewBar" hidden></div>
@@ -513,7 +523,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3747,7 +3757,16 @@ function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='mana
         modal('<h3>배포 반영이 늦어집니다</h3><p>새 코드(<b>'+esc(r.ver)+'</b>)는 저장됐는데, 1분이 지나도 앱이 쓰는 배포는 <b>'+esc(i.ver)+'</b>입니다.</p><p>조금 더 기다렸다가 새로고침해 보시고, 그래도 그대로면 Apps Script에서 <b>배포 → 배포 관리 → 연필 → 버전 「새 버전」 → 배포</b>를 한 번 해 주세요.</p><div class="mrow"><button class="btn pri" id="mvNo2" type="button">알겠습니다</button></div>');$('#mvNo2').onclick=closeModal})};
       return chk(4)})
       .catch(function(e){b.disabled=false;$('#srvMsg').textContent='';toast(errText(e))})}}
+// ── 화면 폭: PC에서 [⇔ 넓게]를 누르면 모니터 폭을 다 씁니다 (기기마다 따로 기억)
+var WIDE_MIN=1200;
+function wideApply(){var on=store('wide')==='Y'&&window.innerWidth>=WIDE_MIN;document.body.classList.toggle('wide',on);
+  var b=$('#wideBtn');if(!b)return;b.hidden=window.innerWidth<WIDE_MIN;   // 좁은 화면에서는 뜻이 없어 숨김
+  b.textContent=on?'⇔ 보통 폭':'⇔ 넓게';b.classList.toggle('pri',on);b.setAttribute('aria-pressed',on?'true':'false')}
+function wideInit(){var b=$('#wideBtn');if(!b)return;
+  b.onclick=function(){store('wide',store('wide')==='Y'?'':'Y');wideApply()};
+  window.addEventListener('resize',wideApply);wideApply()}
 function boot(){
+  try{wideInit()}catch(e){}
   roleTitle();window.__booted=true;setTimeout(srvInit,1500);try{$('#status').title='화면 버전 '+APP_VER;$('#verNote').textContent='화면 버전 '+APP_VER;var bs=document.querySelector('.brand small');if(bs&&bs.textContent.indexOf('v')<0)bs.textContent+=' · v'+APP_VER.slice(5)}catch(e){}   // 화면 버전: 관리 화면 위·제목 아래 작은 글씨
   var st=$('#status');
   if(DEMO){st.textContent='예시 데이터';st.classList.add('demo')}
