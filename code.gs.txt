@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 88) return;
+  if (ver >= 89) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1436,6 +1436,10 @@ function ensureSchema_() {
       if (ch) sh.getRange(2, x[1], lr - 1, 1).setValues(v);
     });
     props.setProperty('SCHEMA', '88');
+  }
+  if (ver < 89) {   // v89: 아침 브리핑 트리거 — 매일 아침 8시 (호실 점검 7시·만실 7시 30분·객실타입 7시 40분 뒤)
+    try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === 'briefTick'; })) ScriptApp.newTrigger('briefTick').timeBased().atHour(8).nearMinute(0).everyDays(1).create(); } catch (e) { }
+    props.setProperty('SCHEMA', '89');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -4090,7 +4094,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.1b59b087';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.eeed092b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4537,4 +4541,180 @@ function replyTpl(pin, num) {
     try { list.push({ kind: k, text: smsFill_(t, row) }); } catch (e) { }
   });
   return { res: { row: hit, hotel: row[1], room: String(row[2]), name: String(row[3] || ''), ci: mailYmd_(row[6]), co: mailYmd_(row[7]) }, list: list };
+}
+
+// ── 아침 브리핑 ─────────────────────────────────────────────────────────────
+// 오늘 챙길 것만 한 통에 모읍니다: 청소 배정 · 확인 필요(방막기·방풀기·메일) ·
+// 오늘 입실·퇴실과 수건·물 · 문자함 안 읽은 글 · 만실 임박 · 정산 마감 주간 ·
+// 오늘 일정(구글 캘린더) · 안 읽은 메일. 할 일이 없는 날은 보내지 않습니다.
+var BRIEF_SETTLE_ = [8, 10];   // 정산 마감 주간 (매달 이 날짜 사이일 때만 안내)
+function briefData_() {
+  var ss = SpreadsheetApp.getActive(), tz = tz_(), now = new Date();
+  var today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  var d = { date: today, inN: 0, outN: 0, ppl: 0, towel: 0, water: 0, ins: [], memo: [],
+            cleanN: 0, cleanNo: [], cleanMiss: [], blk: [], open: [], pend: 0,
+            unread: 0, warn: 0, sent: 0, full: [], settle: '', cal: [], mail: [], mailN: 0, err: [] };
+  var outRoom = {};
+
+  // ① 예약 — 오늘 입실·퇴실 · 수건·물 · 메모(조기입실·늦은퇴실) · 방막기·방풀기 확인
+  try {
+    var rv = ss.getSheetByName('예약'), lr = rv ? rv.getLastRow() : 1;
+    var v = lr > 1 ? rv.getRange(2, 1, lr - 1, Math.min(53, rv.getMaxColumns())).getValues() : [];
+    v.forEach(function (x) {
+      if (!x[6]) return;
+      var ci = mailYmd_(x[6]), co = mailYmd_(x[7]), cx = x[23] ? mailYmd_(x[23]) : '';
+      if (!cx) {
+        if (ci === today) {
+          d.inN++; d.ppl += Number(x[9]) || 0; d.towel += Number(x[25]) || 0; d.water += Number(x[26]) || 0;
+          d.ins.push(x[1] + ' ' + x[2] + '호 · ' + (String(x[3] || '').trim() || '이름없음') + ' · ' + (Number(x[9]) || 0) + '인 ' + (Number(x[8]) || 0) + '박' + (x[10] ? ' · ' + x[10] : ''));
+        }
+        if (co === today) { d.outN++; if (!x[43]) outRoom[x[1] + '|' + String(x[2]).trim()] = x[1] + ' ' + String(x[2]).trim() + '호'; }
+        if ((ci === today || co === today) && String(x[22] || '').trim())
+          d.memo.push(x[1] + ' ' + x[2] + '호 ' + (ci === today ? '입실' : '퇴실') + ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 60));
+      }
+      if (String(x[51] || '').indexOf('확인필요') === 0) d.blk.push(x[1] + ' ' + x[2] + '호 · ' + ci.slice(5) + ' 입실');
+      if (String(x[52] || '').indexOf('확인필요') === 0) d.open.push(x[1] + ' ' + x[2] + '호 · ' + ci.slice(5) + '~' + co.slice(5) + ' 취소');
+    });
+  } catch (e) { d.err.push('예약: ' + (e && e.message || e)); }
+
+  // ② 청소 배정 — 오늘 배정표에서 담당자가 빈 줄 + 오늘 퇴실인데 배정표에 아예 없는 객실
+  try {
+    var cs = ss.getSheetByName('청소실적'), lc = cs ? cs.getLastRow() : 1;
+    var cv = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues().filter(function (x) { return x[2] && fmt_(x[0], false) === today; }) : [];
+    var have = {};
+    cv.forEach(function (x) {
+      have[x[2] + '|' + String(x[3]).trim()] = 1;
+      if (!String(x[1] || '').trim()) d.cleanNo.push(x[2] + ' ' + String(x[3]).trim() + '호');
+    });
+    d.cleanN = cv.length;
+    Object.keys(outRoom).forEach(function (k) { if (!have[k]) d.cleanMiss.push(outRoom[k]); });
+  } catch (e) { d.err.push('청소실적: ' + (e && e.message || e)); }
+
+  // ③ 메일·알림으로 들어왔지만 호실을 몰라 못 들어간 예약 (확인 필요 카드)
+  try {
+    var ml = mailLogSheet_(), ml_lr = ml.getLastRow();
+    if (ml_lr > 1) d.pend = ml.getRange(2, 5, ml_lr - 1, 1).getValues().filter(function (x) { return String(x[0]).indexOf('확인 필요') === 0; }).length;
+  } catch (e) { d.err.push('메일처리: ' + (e && e.message || e)); }
+
+  // ④ 문자함 — 안 읽은 손님 문자·알림·보낸 문자
+  try {
+    var ib = ss.getSheetByName('문자함'), ib_lr = ib ? ib.getLastRow() : 1;
+    if (ib_lr > 1) {
+      var iv = ib.getRange(2, 3, ib_lr - 1, 8).getValues().filter(function (x) { return x[6] !== 'Y' && x[7] !== '아침 브리핑'; });   // 어제 브리핑은 세지 않음
+      var got = iv.filter(function (x) { return x[0] !== '보냄'; });
+      d.unread = got.filter(function (x) { return x[0] !== '알림'; }).length;
+      d.warn = got.filter(function (x) { return x[0] === '알림'; }).length;
+      d.sent = iv.length - got.length;
+    }
+  } catch (e) { d.err.push('문자함: ' + (e && e.message || e)); }
+
+  // ⑤ 만실 임박 — 앞으로 2주
+  try {
+    var ht = ss.getSheetByName('호텔'), hl = ht ? ht.getLastRow() : 1;
+    var hs = hl > 1 ? ht.getRange(2, 2, hl - 1, 1).getValues().map(function (x) { return String(x[0] || '').trim(); }).filter(String) : [];
+    hs.forEach(function (h) {
+      occScan_(h, today, notiAdd_(today, 14)).forEach(function (x) {
+        if (x.level) d.full.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' ' + x.level + ' (' + x.pct + '% · 남은 방 ' + x.left + ')');
+      });
+    });
+  } catch (e) { d.err.push('만실: ' + (e && e.message || e)); }
+
+  // ⑥ 정산 마감 주간
+  var dom = now.getDate();
+  if (dom >= BRIEF_SETTLE_[0] && dom <= BRIEF_SETTLE_[1])
+    d.settle = '정산 마감 ' + (dom >= BRIEF_SETTLE_[1] ? '오늘' : 'D-' + (BRIEF_SETTLE_[1] - dom)) + ' (매달 ' + BRIEF_SETTLE_[0] + '~' + BRIEF_SETTLE_[1] + '일)';
+
+  // ⑦ 오늘 일정 — 구글 캘린더
+  //    아직 넣지 않았습니다. 캘린더 서비스를 코드에 쓰면 Apps Script가 '캘린더' 권한을 새로 요구해서,
+  //    편집기에서 다시 허용하기 전까지 앱 전체가 권한 오류로 멈춥니다.
+  //    넣을 때는 ①편집기에서 briefCalOn()을 한 번 실행해 허용 → ②아래 줄을 살려 쓰는 순서로.
+  //    var cal = Calendar​App.getDefaultCalendar();   (붙여 쓸 것)
+  //    if (cal) cal.getEventsForDay(now).slice(0, 12).forEach(function (ev) {
+  //      d.cal.push((ev.isAllDayEvent() ? '종일' : Utilities.formatDate(ev.getStartTime(), tz, 'HH:mm')) + ' · ' + String(ev.getTitle() || '(제목 없음)').slice(0, 50)); });
+
+  // ⑧ 안 읽은 메일 — 자동 처리하는 예약 메일·광고는 빼고
+  try {
+    var q = 'is:unread newer_than:2d -from:automated@airbnb.com -from:nol-universe.com'
+          + ' -label:에어비앤비 -label:놀호텔 -category:promotions -category:social -category:forums';
+    var th = GmailApp.search(q, 0, 30);
+    d.mailN = th.length;
+    th.slice(0, 6).forEach(function (t) {
+      var who = '';
+      try { var ms = t.getMessages(); who = String(ms[ms.length - 1].getFrom() || '').replace(/\s*<[^>]*>/, '').replace(/"/g, '').trim(); } catch (e2) { }
+      d.mail.push((who ? who.slice(0, 20) + ' · ' : '') + String(t.getFirstMessageSubject() || '(제목 없음)').slice(0, 50));
+    });
+  } catch (e) { d.err.push('메일: ' + (e && e.message || e)); }
+
+  // 보낼지 말지는 '처리하면 사라지는 것'만으로 셈 — 쌓여 있는 알림·만실은 보여만 줌
+  d.todo = d.cleanNo.length + d.cleanMiss.length + d.blk.length + d.open.length + d.pend
+         + d.unread + d.mailN + (d.settle ? 1 : 0);
+  return d;
+}
+function briefLine_(label, list, max) {   // '제목 n건' + 줄바꿈 목록 (너무 길면 '…외 n건')
+  if (!list.length) return '';
+  var m = max || 8, head = label + ' ' + list.length + '건';
+  return head + '\n' + list.slice(0, m).map(function (s) { return '  · ' + s; }).join('\n')
+    + (list.length > m ? '\n  · …외 ' + (list.length - m) + '건' : '');
+}
+function briefText_(d) {
+  var tz = tz_(), dt = Utilities.parseDate(d.date, tz, 'yyyy-MM-dd');
+  var wd = ['일', '월', '화', '수', '목', '금', '토'][dt.getDay()];
+  var L = ['[객실관리] ' + d.date.slice(5).replace('-', '/') + '(' + wd + ') 아침 브리핑'];
+
+  // 챙길 일 먼저
+  if (d.cleanNo.length) L.push(briefLine_('■ 청소 담당자 미배정', d.cleanNo));
+  if (d.cleanMiss.length) L.push(briefLine_('■ 오늘 퇴실인데 배정표에 없음', d.cleanMiss));
+  if (d.blk.length) L.push(briefLine_('■ 방막기 확인 필요', d.blk));
+  if (d.open.length) L.push(briefLine_('■ 방풀기 확인 필요', d.open));
+  if (d.pend) L.push('■ 호실을 못 고른 자동등록 ' + d.pend + '건 → 새 예약 [📧 메일 예약 확인]');
+  if (d.unread || d.warn) L.push('■ 문자함: 안 읽은 손님 문자 ' + d.unread + '건' + (d.warn ? ' · 알림 ' + d.warn + '건' : '') + (d.sent ? ' · 보낸 문자 ' + d.sent + '건' : ''));
+  if (d.settle) L.push('■ ' + d.settle);
+
+  // 오늘 돌아가는 일
+  var run = ['오늘 입실 ' + d.inN + '팀' + (d.ppl ? ' ' + d.ppl + '명' : '') + ' · 퇴실 ' + d.outN + '실' + (d.cleanN ? ' · 청소 배정 ' + d.cleanN + '실' : '')];
+  if (d.towel || d.water) run.push('세팅 합계: 수건 ' + d.towel + '장 · 물 ' + d.water + '개');
+  L.push('□ 오늘\n' + run.map(function (s) { return '  ' + s; }).join('\n'));
+  if (d.ins.length) L.push(briefLine_('□ 입실', d.ins, 10));
+  if (d.memo.length) L.push(briefLine_('□ 메모(조기입실·늦은퇴실)', d.memo, 10));
+  if (d.cal.length) L.push(briefLine_('□ 오늘 일정', d.cal, 12));
+  if (d.mailN) L.push(briefLine_('□ 안 읽은 메일', d.mail, 6) + (d.mailN > d.mail.length ? '\n  · …외 ' + (d.mailN - d.mail.length) + '건' : ''));
+  if (d.full.length) L.push(briefLine_('□ 만실 주의 (2주)', d.full, 8));
+  if (d.err.length) L.push('※ 못 읽은 것: ' + d.err.join(' / '));
+  return L.filter(String).join('\n\n');
+}
+function briefSubject_(d) {
+  var p = [];
+  if (d.cleanNo.length + d.cleanMiss.length) p.push('청소 미배정 ' + (d.cleanNo.length + d.cleanMiss.length));
+  if (d.blk.length) p.push('방막기 ' + d.blk.length);
+  if (d.open.length) p.push('방풀기 ' + d.open.length);
+  if (d.unread) p.push('문자 ' + d.unread);
+  if (d.mailN) p.push('메일 ' + d.mailN);
+  p.push('입실 ' + d.inN + '팀');
+  return '[객실관리] ' + d.date.slice(5).replace('-', '/') + ' 아침 브리핑 · ' + p.slice(0, 4).join(' · ');
+}
+function brief(pin) {   // 화면 [아침 브리핑]: 지금 바로 만들어 보여 줌 (보내지는 않음)
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  var d = briefData_();
+  return { date: d.date, todo: d.todo, text: briefText_(d), data: d };
+}
+function briefSend(pin) {   // 화면 [메일로 받기]: 지금 것을 메일로 보냄
+  checkPin_(pin); adminOnly_();
+  var d = briefData_(), to = Session.getEffectiveUser().getEmail();
+  MailApp.sendEmail(to, briefSubject_(d), briefText_(d));
+  return { ok: true, to: to, todo: d.todo };
+}
+function briefTick() {   // 매일 아침 트리거 — 챙길 일이 있는 날만 메일 + 문자함에 남김
+  try {
+    ensureSchema_();
+    var d = briefData_(), p = PropertiesService.getScriptProperties();
+    if (p.getProperty('BRIEF_OFF') === 'Y') return { off: true };
+    if (!d.todo) return { n: 0 };                      // 할 일이 없으면 보내지 않음
+    if (p.getProperty('BRIEF_AT') === d.date) return { dup: true };   // 하루 한 통
+    p.setProperty('BRIEF_AT', d.date);
+    var txt = briefText_(d);
+    try { MailApp.sendEmail(Session.getEffectiveUser().getEmail(), briefSubject_(d), txt); } catch (e) { }
+    inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+      '알림', '브리핑', txt, '', '', '', '', '아침 브리핑']);
+    return { n: 1, todo: d.todo };
+  } catch (e) { return { err: String(e && e.message || e) }; }
 }
