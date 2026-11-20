@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 87) return;
+  if (ver >= 88) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1420,6 +1420,23 @@ function ensureSchema_() {
     }
     props.setProperty('SCHEMA', '87');
   }
+  if (ver < 88) {   // v88: 번호 칸이 숫자로 저장돼 앞의 0이 날아간 것 되살림 (문자함 D열 · 문자대기 C열)
+    [['문자함', 4, 'D:D'], ['문자대기', 3, 'C:C']].forEach(function (x) {
+      var sh = ss.getSheetByName(x[0]); if (!sh) return;
+      sh.getRange(x[2]).setNumberFormat('@');   // 열 전체를 글자로 — 앞으로 들어오는 줄도 0이 안 날아감
+      var lr = sh.getLastRow(); if (lr < 2) return;
+      var v = sh.getRange(2, x[1], lr - 1, 1).getValues(), ch = 0;
+      v.forEach(function (a, i) {
+        var raw = a[0];
+        if (typeof raw !== 'number' && !/^[0-9]+$/.test(String(raw || ''))) return;   // '자동등록' 같은 글자 묶음은 그대로
+        var fixed = telKey_(raw) + (/#\s*$/.test(String(raw)) ? '#' : '');
+        if (fixed && fixed !== String(raw)) { v[i][0] = fixed; ch++; }
+        else v[i][0] = String(raw);
+      });
+      if (ch) sh.getRange(2, x[1], lr - 1, 1).setValues(v);
+    });
+    props.setProperty('SCHEMA', '88');
+  }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -1824,7 +1841,7 @@ function solapi_(method, path, body) {
 }
 function smsReady_(c) { return c.via === 'app' ? !!c.gwToken : c.via === 'phone' ? !!c.gwUser : !!c.key; }
 function smsSendRaw_(to, text, meta) {
-  var c = smsCfg_(), n = String(to || '').replace(/\D/g, '');
+  var c = smsCfg_(), n = telKey_(to);
   if (!/^0\d{8,11}$/.test(n)) throw new Error('받는 번호가 올바르지 않습니다: ' + (to || '없음'));
   var dual = /#\s*$/.test(String(to || '')) || PropertiesService.getScriptProperties().getProperty('SMS_DUAL') === 'Y';   // 듀얼넘버(넘버플러스): 받는 번호 끝에 # → 폰의 두 번째 번호로 발송
   if (c.via === 'app') { gwEnqueue_(n + (dual ? '#' : ''), text, meta || {}); return { queued: true }; }   // 객실문자 앱(대표님 폰)이 가져가서 보냄
@@ -2176,7 +2193,8 @@ function gwPullRun_(token, st) {
     for (var i = 0; i < vals.length && out.length < 10; i++) {
       var s = vals[i][4], took = gwTime_(vals[i][5] instanceof Date ? Utilities.formatDate(vals[i][5], tz_(), 'yyyy-MM-dd HH:mm:ss') : vals[i][5]);
       if (s === '대기' || (s === '전송중' && took && now - took > 10 * 60000)) {
-        out.push({ id: String(vals[i][0]), to: String(vals[i][2]), text: String(vals[i][3]) });
+        var rawTo = String(vals[i][2]), dualTo = /#\s*$/.test(rawTo);
+        out.push({ id: String(vals[i][0]), to: telKey_(rawTo) + (dualTo ? '#' : ''), text: String(vals[i][3]) });   // 시트가 숫자로 저장해 0이 날아간 번호도 되살려 보냄
         sh.getRange(i + 2, 5, 1, 2).setValues([['전송중', stamp]]);
       }
     }
@@ -2271,7 +2289,12 @@ function petHide_(s) {
   if (parts.length > 1 && keep.length !== parts.length) return keep.join(' / ');
   return t.replace(new RegExp('[^.。!?\n]*(?:' + PET_RE_.source + ')[^.。!?\n]*[.。!?]?', 'gi'), ' ').replace(/\s{2,}/g, ' ').trim();
 }
-function telKey_(n) { n = String(n || '').replace(/\D/g, ''); if (n.indexOf('82') === 0 && n.length >= 11) n = '0' + n.slice(2); return n; }
+function telKey_(n) {
+  n = String(n || '').replace(/\D/g, '');
+  if (n.indexOf('82') === 0 && n.length >= 11) n = '0' + n.slice(2);
+  if (n && n.charAt(0) !== '0' && n.length >= 9 && n.length <= 11) n = '0' + n;   // 시트에 숫자로 저장돼 앞의 0이 사라진 번호 (0507… → 507…) 되살림
+  return n;
+}
 function guestOf_(num) {   // 연락처가 같은 예약 중 오늘과 가장 가까운 예약 → 호텔·호실·고객명
   var k = telKey_(num); if (k.length < 9) return null;
   var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh.getLastRow(); if (lr < 2) return null;
@@ -2337,7 +2360,7 @@ function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.r
     var cv0 = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[6] !== 'Y'; }), cv = cv0.filter(function (x) { return x[0] !== '보냄'; });
     return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length, sent: cv0.length - cv.length }; }
   var from = Math.max(2, lr - (Number(opt.n) || 250) + 1), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
-  return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
+  return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: /^[0-9]+$/.test(String(v[3])) ? telKey_(v[3]) : String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
 function telShow_(n) { var d = telKey_(n); return d.length === 11 ? d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7) : d.length === 10 ? d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6) : String(n || ''); }
 function ownerFwdText_(hotel, room, name, num, kind, text, at) {   // 소유주에게 전달할 문구
@@ -4010,7 +4033,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.39558999';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.5f003253';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
