@@ -4034,12 +4034,14 @@ function notiProdRoom_(ctx, name) {   // 떠나요 상품명(객실 Z열) → �
   return hit ? { hotel: String(hit[1]), room: String(hit[2]) } : null;
 }
 // ── 객실타입: 플랫폼이 '타입'으로만 파는 예약(놀호텔)의 호실 추천, 놀 허수 객실(코지 01·02) 배정
+var RT_ROWS_ = null;
 function rtRows_() {
-  var sh = SpreadsheetApp.getActive().getSheetByName('객실타입'); if (!sh || sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues()
+  if (RT_ROWS_) return RT_ROWS_;
+  var sh = SpreadsheetApp.getActive().getSheetByName('객실타입'); if (!sh || sh.getLastRow() < 2) return (RT_ROWS_ = []);
+  return (RT_ROWS_ = sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues()
     .filter(function (v) { return String(v[2] == null ? '' : v[2]).trim(); })
     .map(function (v) { return { hotel: String(v[0] || ''), type: String(v[1] || ''), room: String(v[2]).trim(),
-      ord: Number(v[3]) || 9999, nol: String(v[4] || '').trim().toUpperCase(), nolh: String(v[5] || '').trim().toUpperCase(), prod: String(v[6] || '').replace(/\s+/g, ' ').trim() }; });
+      ord: Number(v[3]) || 9999, nol: String(v[4] || '').trim().toUpperCase(), nolh: String(v[5] || '').trim().toUpperCase(), prod: String(v[6] || '').replace(/\s+/g, ' ').trim() }; }));
 }
 function rtProdRoom_(hotel, name) {   // 놀 상품명 안에 '코지 01'처럼 허수 객실 이름이 있으면 그 호실
   var t = String(name || '').replace(/\s+/g, ' ').trim(); if (!t) return null;
@@ -4148,7 +4150,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.e1f6b911';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.bf9f58af';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4366,21 +4368,30 @@ function codeInfo(pin) { checkPin_(pin); adminOnly_(); codeLive_();   // 관리 
 
 // ── 만실 주의·임박 (계산) ───────────────────────────────────────────────────
 // 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박'
+var SV_ = {};   // 한 번 실행하는 동안만 쓰는 시트 읽기 캐시 — 주간요약·가격힌트처럼 같은 시트를 여러 번 보는 곳에서만 씀
+function svals_(name, cols) {
+  var k = name + '|' + cols;
+  if (SV_[k]) return SV_[k];
+  var sh = SpreadsheetApp.getActive().getSheetByName(name), lr = sh ? sh.getLastRow() : 1;
+  return (SV_[k] = (sh && lr > 1) ? sh.getRange(2, 1, lr - 1, Math.min(cols, sh.getMaxColumns())).getValues() : []);
+}
 function occScan_(hotel, from, to) {
-  var ss = SpreadsheetApp.getActive(), ob = ss.getSheetByName('객실');
-  var ov = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 30)).getValues();
+  var ov = svals_('객실', 30);
   var selfUse = {};   // 자가 객실(객실 AD열)은 팔 수 없으니 예약율에서 뺌
   ov.forEach(function (x) { if (x[1] === hotel && String(x[29] || '').trim().toUpperCase() === 'Y') selfUse[String(x[2]).trim()] = 1; });
-  var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N' && !selfUse[String(x[2]).trim()]; });
-  var rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
-  var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues().filter(function (v) {
-    return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])) && !selfUse[String(v[2]).trim()]; }) : [];
+  // 날짜 글자 바꾸기(Utilities.formatDate)는 느려서, 날마다 다시 하지 않고 미리 한 번만 해 둡니다
+  var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N' && !selfUse[String(x[2]).trim()]; })
+    .map(function (x) { return { s: mailYmd_(x[14]), e: mailYmd_(x[15]) }; });
+  var res = svals_('예약', 24).filter(function (v) {
+    return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])) && !selfUse[String(v[2]).trim()]; })
+    .map(function (v) { return { ci: mailYmd_(v[6]), co: mailYmd_(v[7]), rm: String(v[2]) }; })
+    .filter(function (q) { return q.co > from && q.ci <= to; });   // 기간에 걸치는 예약만
   var out = [], d = from, guard = 0;
   while (d <= to && guard++ < 800) {
     var n = 0, i;
-    for (i = 0; i < rooms.length; i++) { var s = mailYmd_(rooms[i][14]), e = mailYmd_(rooms[i][15]); if ((!s || s <= d) && (!e || e >= d)) n++; }
+    for (i = 0; i < rooms.length; i++) { var rr = rooms[i]; if ((!rr.s || rr.s <= d) && (!rr.e || rr.e >= d)) n++; }
     var b = 0, seen = {};
-    for (i = 0; i < res.length; i++) { var ci = mailYmd_(res[i][6]), co = mailYmd_(res[i][7]), rm = String(res[i][2]); if (ci <= d && d < co && !seen[rm]) { seen[rm] = 1; b++; } }
+    for (i = 0; i < res.length; i++) { var q2 = res[i]; if (q2.ci <= d && d < q2.co && !seen[q2.rm]) { seen[q2.rm] = 1; b++; } }
     var pct = n ? Math.round(b * 1000 / n) / 10 : 0;
     out.push({ d: d, rooms: n, booked: b, left: Math.max(0, n - b), pct: pct, level: pct >= 90 ? '만실 임박' : pct >= 80 ? '만실 주의' : '' });
     d = notiAdd_(d, 1);
@@ -4398,15 +4409,16 @@ function rtScan_(hotel, from, to) {
   var all = rtRows_().filter(function (x) { return x.hotel === hotel && x.type && (x.nol !== 'N' || x.nolh !== 'N'); });
   if (!all.length) return [];
   var types = []; all.forEach(function (x) { if (types.indexOf(x.type) < 0) types.push(x.type); });
-  var rv = SpreadsheetApp.getActive().getSheetByName('예약'), lr = rv ? rv.getLastRow() : 1;
-  var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 24).getValues().filter(function (v) { return v[1] === hotel && v[6] && v[7] && !v[23]; }) : [];
+  var res = svals_('예약', 24).filter(function (v) { return v[1] === hotel && v[6] && v[7] && !v[23]; })
+    .map(function (v) { return { ci: mailYmd_(v[6]), co: mailYmd_(v[7]), rm: String(v[2]) }; })
+    .filter(function (q) { return q.co > from && q.ci <= to; });   // 날짜 변환은 미리 한 번만 · 기간에 걸치는 예약만
   var out = [];
   types.forEach(function (t) {
     var rooms = all.filter(function (x) { return x.type === t; }).map(function (x) { return x.room; });
     var d = from, guard = 0;
     while (d <= to && guard++ < 400) {
       var busy = {};
-      for (var i = 0; i < res.length; i++) { var ci = mailYmd_(res[i][6]), co = mailYmd_(res[i][7]); if (ci <= d && d < co) busy[String(res[i][2])] = 1; }
+      for (var i = 0; i < res.length; i++) { var q = res[i]; if (q.ci <= d && d < q.co) busy[q.rm] = 1; }
       var free = rooms.filter(function (rm) { return !busy[rm]; });
       if (!free.length || (rooms.length > 1 && free.length === 1))
         out.push({ type: t, d: d, rooms: rooms.length, free: free.length, left: free.join('·'), level: free.length ? '남은 방 1개' : '빈 방 없음' });
@@ -4469,8 +4481,7 @@ function occTick() {   // 매일 아침: 새로 80%·90%를 넘은 날만 문자
 
 // ── 주간 요약 (계산) ────────────────────────────────────────────────────────
 function weekStats_(hotel, from, to) {
-  var ss = SpreadsheetApp.getActive(), rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
-  var v = lr > 1 ? rv.getRange(2, 1, lr - 1, 46).getValues() : [], plat = {}, sale = 0, nights = 0, nres = 0, cx = 0, clean = 0;
+  var v = svals_('예약', 46), plat = {}, sale = 0, nights = 0, nres = 0, cx = 0, clean = 0;
   v.forEach(function (x) {
     if (x[1] !== hotel || !x[6]) return;
     var ci = mailYmd_(x[6]);
@@ -4517,11 +4528,12 @@ function weekTick() {
 
 // ── 정산 이상 점검 (규칙) ───────────────────────────────────────────────────
 // 손으로 넣은 항목에서 흔한 실수를 찾습니다: 지난달 대비 급변 · 같은 항목 여러 번 · 0원 · 자릿수 · 매출 없이 비용만
-function ruleCheck(pin, hotel, month) {
+function ruleCheck(pin, hotel, month, withPrev) {
   checkPin_(pin); adminOnly_();
-  var now = integrated(pin, hotel, month);
+  var t0 = Date.now();
+  var now = integrated(pin, hotel, month);   // 정산서를 호실마다 다시 계산해서 오래 걸림 — 지난달까지 보면 두 배
   var p = String(month).split('-'), prevM = Utilities.formatDate(new Date(+p[0], +p[1] - 2, 1), tz_(), 'yyyy-MM'), prev = null;
-  try { prev = integrated(pin, hotel, prevM); } catch (e) { }
+  if (withPrev) try { prev = integrated(pin, hotel, prevM); } catch (e) { }
   var pmap = {};
   if (prev) (prev.rows || []).forEach(function (o) { var m = {}; (o.B || []).concat(o.C || []).forEach(function (x) { m[x[0]] = Number(x[1]) || 0; }); pmap[String(o.room)] = m; });
   // 같은 달 정산입력에서 '한 호실·한 항목'이 몇 줄인지 (중복 입력 찾기)
@@ -4552,7 +4564,7 @@ function ruleCheck(pin, hotel, month) {
   });
   var rank = { '높음': 0, '보통': 1, '낮음': 2 };
   out.sort(function (a, b) { return rank[a.level] - rank[b.level] || String(a.room).localeCompare(String(b.room)); });
-  return { hotel: hotel, month: month, prev: prev ? prevM : '', list: out.slice(0, 30) };
+  return { hotel: hotel, month: month, prev: prev ? prevM : '', prevM: prevM, asked: !!withPrev, ms: Date.now() - t0, list: out.slice(0, 30) };
 }
 
 // ── 비고 정리 (규칙) ────────────────────────────────────────────────────────

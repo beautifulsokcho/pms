@@ -473,7 +473,7 @@ body.wide{--pw:min(2600px,100%)}
       <div class="f" id="sToF" style="display:none"><label for="sTo">종료일</label><input id="sTo" type="date"></div>
       <button class="btn pri" id="sGo" type="button">정산서 보기</button>
       <button class="btn" id="sBatch" type="button" title="호텔의 모든 호실 정산서를 PDF로 만들어 ZIP 파일 1개로 저장 (이다경 소유 제외)">개별정산서 일괄 저장</button>
-      <button class="btn" id="sAiChk" type="button" title="지난달과 견줘 손으로 넣은 항목의 실수를 찾습니다">이상 점검</button>
+      <button class="btn" id="sAiChk" type="button" title="손으로 넣은 항목의 실수를 찾습니다 (이 달만 — 결과 창에서 지난달과 견줄 수 있습니다)">이상 점검</button>
       <button class="btn" id="sAiPrice" type="button" title="가동률로 값을 올리거나 내릴 만한 날을 골라 줍니다">가격 힌트</button>
       <button class="btn" id="sWeek" type="button" title="지난주 요약과 앞으로 2주 주의할 날">주간 요약</button>
     </div>
@@ -530,7 +530,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2948,12 +2948,16 @@ $('#sWeek').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 
 $('#sAiChk').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}
   var b=this,h=$('#sHotel').value,m=$('#sMonth').value;if(!m){toast('정산월을 고르세요');return}
   b.disabled=true;b.textContent='보는 중…';
-  call('ruleCheck',h,m).then(function(r){var L=r.list||[];
-    modal('<h3>정산 이상 점검</h3><p class="note">'+esc(r.hotel)+' '+esc(r.month)+(r.prev?' · 지난달('+esc(r.prev)+')과 견줌':' · 지난달 자료 없음')+' · <b>사람이 넣은 항목</b>을 중심으로 봅니다. 참고용이니 반드시 눈으로 확인하세요.</p>'+
+  ruleRun(h,m,false,this)};
+function ruleRun(h,m,withPrev,btn){var b=btn;b.disabled=true;b.textContent=withPrev?'지난달까지 보는 중…':'보는 중…';
+  call('ruleCheck',h,m,withPrev).then(function(r){var L=r.list||[];
+    modal('<h3>정산 이상 점검</h3><p class="note">'+esc(r.hotel)+' '+esc(r.month)+(r.prev?' · 지난달('+esc(r.prev)+')과 견줌':(r.asked?' · 지난달 자료 없음':' · 이 달만 봄'))+' · <b>사람이 넣은 항목</b>을 중심으로 봅니다. 참고용이니 반드시 눈으로 확인하세요. <small>('+(r.ms/1000).toFixed(1)+'초)</small></p>'+
+      (r.asked?'':'<p class="note"><button class="btn" type="button" id="rcPrev">지난달('+esc(r.prevM||'')+')과 견주기</button> — 지난달 정산서를 다시 계산하느라 시간이 두 배로 걸립니다. 「지난달보다 몇 배 늘었다」 같은 점검이 더해집니다.</p>')+
       (L.length?'<div class="scroll" style="max-height:52vh"><table class="restable"><thead><tr><th>호실</th><th>정도</th><th>무엇이 이상한지</th></tr></thead><tbody>'+
         L.map(function(x){return '<tr><td class="nw"><b>'+esc(x.room||'')+'</b></td><td class="nw">'+(x.level==='높음'?'<span class="chip x">높음</span>':x.level==='보통'?'<span class="chip hold">보통</span>':'<span class="chip">낮음</span>')+'</td><td>'+esc(x.why||'')+'</td></tr>'}).join('')+'</tbody></table></div>':'<div class="empty">눈에 띄는 이상은 없습니다.</div>')+
-      '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>')})
-    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='이상 점검'})};
+      '<div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
+    var pb=$('#rcPrev');if(pb)pb.onclick=function(){closeModal();ruleRun(h,m,true,$('#sAiChk'))}})
+    .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='이상 점검'})}
 $('#sGo').onclick=function(){
   if($('#sKind').value!=='room'){$('#sOut').innerHTML='';$('#sManual').innerHTML='';return renderIntegrated($('#sKind').value)}
   $('#sAll').innerHTML='';
