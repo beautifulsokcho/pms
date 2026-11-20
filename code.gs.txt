@@ -2483,7 +2483,8 @@ function smsConfig(pin, cfg) {   // 관리자: 문자 설정 보기·저장 (Sec
     if (cfg.phones) p.setProperty('SMS_PHONES', JSON.stringify((cfg.phones || []).map(function (x) { return { n: String(x.n || '').replace(/\D/g, ''), dual: !!x.dual, memo: String(x.memo || '').slice(0, 30) }; }).filter(function (x) { return /^0\d{8,11}$/.test(x.n); })));
     if (cfg.phone !== undefined) { var ph0 = smsPhones_(p).filter(function (x) { return x.n === String(cfg.phone).replace(/\D/g, ''); })[0]; p.setProperty('SMS_PHONE', ph0 ? ph0.n : ''); p.setProperty('SMS_DUAL', ph0 && ph0.dual ? 'Y' : 'N');
       if (ph0) { var dsx = gwDevs_(p), owner = Object.keys(dsx).filter(function (k) { return dsx[k].n === ph0.n; })[0]; if (owner) p.setProperty('GW_DEV', owner); } }   // 그 번호를 고른 적 있는 폰이 발송 폰이 됨
-    if (cfg.fwd !== undefined) p.setProperty('GW_FWD', String(cfg.fwd).replace(/\D/g, ''));
+    if (cfg.fwd !== undefined) { var fwdN = String(cfg.fwd).replace(/\D/g, '');
+      if (fwdN) p.setProperty('GW_FWD', fwdN); else p.deleteProperty('GW_FWD'); }   // 비우면 속성 자체를 지움 (빈 값이 남으면 스크립트 속성 화면에서 저장이 막힘)
     if (cfg.via) p.setProperty('SMS_VIA', ['phone', 'app'].indexOf(cfg.via) >= 0 ? cfg.via : 'solapi');
     if (cfg.gwUser !== undefined && cfg.gwUser !== '') p.setProperty('GW_USER', String(cfg.gwUser).trim());
     if (cfg.gwPass) p.setProperty('GW_PASS', String(cfg.gwPass).trim());
@@ -4087,7 +4088,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.8e2bbc4c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.cc09f71d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
