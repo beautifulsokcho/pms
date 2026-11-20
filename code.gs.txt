@@ -2188,7 +2188,9 @@ function gwPullRun_(token, st) {
   var fast = Date.now() - +(p.getProperty('GW_LAST_IN') || 0) < 15 * 60000 || gwCount_() > 0;   // 손님 문자가 온 뒤 15분 · 보낼 문자가 남아 있는 동안은 '빠른 확인'(앱이 1분마다)
   var ph = { phone: p.getProperty('SMS_PHONE') || '', phones: smsPhones_(p) };   // 앱 화면에 지금 발송 번호·목록 표시
   if (st.paused) return { msgs: [], paused: true, fast: fast, phone: ph.phone, phones: ph.phones };
-  var lock = LockService.getScriptLock(); lock.waitLock(30000);
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(30000); }
+  catch (e) { return { msgs: [], busy: true, fast: true, phone: ph.phone, phones: ph.phones }; }   // 다른 작업이 시트를 쓰는 중이면 오류 대신 '잠시 뒤 다시' (앱이 1분 뒤 재확인)
   try {
     var sh = gwSheet_(), lr = sh.getLastRow(), out = []; if (lr < 2) return { msgs: [], fast: fast, phone: ph.phone, phones: ph.phones };
     var vals = sh.getRange(2, 1, lr - 1, 6).getValues(), stamp = Utilities.formatDate(now, tz_(), 'yyyy-MM-dd HH:mm:ss');
@@ -4088,7 +4090,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.cc09f71d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.1b59b087';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
