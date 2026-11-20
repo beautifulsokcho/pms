@@ -2229,6 +2229,7 @@ function smsAskScan_() {   // 조건에 맞고 때가 된 당일예약을 '문�
     var key = smsResKey_(v);
     if (had[key + '|' + SMS_ASK_KIND_] || sent[key + '|' + SMS_ASK_KIND_]) return;
     if (smsSameDayWhy_(v, rows)) return;
+    if (contPrev_(v, rows)) return;   // 연속예약으로 이어 묵는 중이면 당일예약 안내도 묻지 않음
     var t = smsPick_(SMS_ASK_KIND_, v, list); if (!t || !SMS_OFF_[t.base]) return;
     var due = smsDueReg_(t, v); if (!due || now < due) return;
     add.push([Utilities.getUuid().slice(0, 8), Utilities.formatDate(now, tz_(), 'yyyy-MM-dd HH:mm'), Utilities.formatDate(due, tz_(), 'yyyy-MM-dd HH:mm'),
@@ -2269,6 +2270,24 @@ function smsAskDo(pin, id, action, text) {   // action: 'send'(문구를 고쳐 
     throw e;
   }
 }
+// ── 연속예약(청소안함) 자동 문자 제외 ─────────────────────────────────────
+// 같은 손님이 이어서 묵는 경우: 이어 묵는 예약에는 '입실일 기준' 안내를,
+// 나가지 않는 앞 예약에는 '퇴실일 기준' 안내를 보내지 않습니다. (손으로 보내는 것은 그대로)
+function contPrev_(v, all) {   // 이 예약의 입실일에 끝나는 '청소안함' 예약이 같은 객실에 있나 (= 이어 묵는 중)
+  var ci = fmt_(v[6], false), h = v[1], rm = String(v[2] == null ? '' : v[2]);
+  if (!ci || !h) return false;
+  for (var i = 0; i < (all || []).length; i++) {
+    var q = all[i];
+    if (q === v || q[1] !== h || String(q[2] == null ? '' : q[2]) !== rm || q[23]) continue;
+    if (String(q[43] || '').trim().toUpperCase() === 'Y' && fmt_(q[7], false) === ci) return true;
+  }
+  return false;
+}
+function contSkip_(v, base, all) {
+  if (base === '퇴실일') return String(v[43] || '').trim().toUpperCase() === 'Y';   // 이 예약이 '청소안함' = 손님이 안 나감
+  if (base === '입실일') return contPrev_(v, all);                                   // 이미 묵고 있는 손님
+  return false;
+}
 function smsTick() {   // 일정 문구 발송: 보낼 시각이 지났고 24시간 안이면 보냄 (1시간 트리거 + 폰 앱 확인 때)
   var c = smsCfg_(); if (!c.on || !smsReady_(c)) return;
   var lock = LockService.getScriptLock(); if (!lock.tryLock(20000)) return;
@@ -2278,13 +2297,15 @@ function smsTick() {   // 일정 문구 발송: 보낼 시각이 지났고 24시
     var list = smsTemplates_().filter(function (t) { return t.base === '입실일' || t.base === '퇴실일'; }); if (!list.length) return;
     var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh.getLastRow(); if (lr < 2) return;
     var now = new Date(), sent = smsSentMap_(), lo = Utilities.formatDate(new Date(now - 40 * 864e5), tz_(), 'yyyy-MM-dd'), hi = Utilities.formatDate(new Date(+now + 40 * 864e5), tz_(), 'yyyy-MM-dd');
-    sh.getRange(2, 1, lr - 1, 46).getValues().forEach(function (v, i) {
+    var vals = sh.getRange(2, 1, lr - 1, 46).getValues();
+    vals.forEach(function (v, i) {
       var ci = fmt_(v[6], false); if (!ci || ci < lo || ci > hi || v[23] || !String(v[4] || '').replace(/\D/g, '')) return;
       var key = smsResKey_(v), kinds = {};
       list.forEach(function (t) { if (smsMatch_(t, v) >= 0) kinds[t.kind] = 1; });
       Object.keys(kinds).forEach(function (k) {
         if (sent[key + '|' + k]) return;
         var t = smsPick_(k, v, smsTemplates_cache_(list)); if (!t) return;
+        if (contSkip_(v, t.base, vals)) return;   // 연속예약: 이어 묵는 입실 안내·안 나가는 퇴실 안내는 거름
         var due = smsDue_(t, v, now); if (!due || now < due || now - due > 24 * 3600000) return;
         try { smsDo_(sh, i + 2, k, false, sent); } catch (e) { }
       });
@@ -2721,7 +2742,9 @@ function smsSend(pin, r, kind, preview) {   // 예약 화면 [문자]: 종류 �
   if (!kind) {   // 이 예약에 쓸 수 있는 종류 + 보낸 기록
     var key = smsResKey_(v), lg = SpreadsheetApp.getActive().getSheetByName('문자기록'), hist = [];
     if (lg && lg.getLastRow() > 1) lg.getRange(2, 1, lg.getLastRow() - 1, 11).getValues().forEach(function (x) { if (x[2] === key) hist.push({ at: x[1] instanceof Date ? Utilities.formatDate(x[1], tz_(), 'yyyy-MM-dd HH:mm') : String(x[1]).slice(0, 16), kind: x[6], st: x[8], err: x[10] }); });
-    return { kinds: smsKinds_(v), hist: hist, to: v[4] };
+    var lrC = sh.getLastRow(), allC = lrC > 1 ? sh.getRange(2, 1, lrC - 1, 46).getValues() : [];
+    var cont = { prev: contPrev_(v, allC), next: String(v[43] || '').trim().toUpperCase() === 'Y' };   // 연속예약이면 화면에 알려 줌
+    return { kinds: smsKinds_(v), hist: hist, to: v[4], cont: cont };
   }
   if (preview) return { text: smsText_(v, kind), to: v[4] };
   return { status: smsDo_(sh, r, kind, true) };
@@ -4264,7 +4287,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.4ee74dc1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.102381ac';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
