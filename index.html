@@ -145,6 +145,8 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
 .card .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .room{font-family:var(--f-display);font-weight:700;font-size:16px}
 .chip{font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-weight:500}
+button.chip.add{border:1px dashed var(--accent);cursor:pointer;font:inherit;font-size:11.5px;font-weight:600;background:transparent}
+button.chip.add:hover{background:var(--accent-soft)}
 .chip.x{background:var(--warn-soft);color:var(--warn)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}
 .chip.mv{background:#ffe9c9;color:#8a5200}
@@ -528,7 +530,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -735,12 +737,17 @@ function cwRoom(date,h,rm){
   cApi('myRoom',date,h,rm).then(function(d){cwRoomDraw(d)}).catch(function(e){$('#cwRm').innerHTML='<p class="err">'+esc(errText(e))+'</p>'});
 }
 function cwRoomDraw(d){var box=$('#cwRm');if(!box)return;var PEND={};   // 고른 사진은 [저장] 때 한꺼번에 올림
+  // 같은 카드를 청소담당자(cApi)와 관리자(call)가 함께 씁니다 — 부르는 함수만 다름
+  var FN=d.adm?{room:'admCard',save:'admCardSave',photo:'admCardPhoto'}:{room:'myRoom',save:'mySave',photo:'myPhoto'};
+  var go=function(k){var a=[FN[k]].concat([].slice.call(arguments,1));return (d.adm?call:cApi).apply(null,a)};
   var dlab=d.kind==='공실점검'?'공실 점검 완료':d.kind==='입실준비'?'입실 준비 완료':'청소 완료';
-  box.innerHTML='<label class="chk cwbig"><input type="checkbox" id="cwDone"'+(d.done?' checked':'')+'> '+dlab+(d.done?' <small class="note">('+esc(d.done)+')</small>':'')+'</label>'+
-    (d.items.length?'<h4 class="cwh">추가 작업·비품 (해당하는 것 체크)</h4><div class="cwitems">'+d.items.map(function(m,i){return '<div class="cwit"><label class="chk"><input type="checkbox" data-i="'+i+'"'+(m.on?' checked':'')+(m.on&&!m.mine?' disabled':'')+'> '+esc(m.name)+'</label>'+
+  box.innerHTML=(d.noRow?'<p class="note">이 날짜에 저장된 청소 배정이 없어 <b>완료 표시는 할 수 없습니다</b>. 정산항목과 사진만 넣을 수 있습니다.</p>'
+      :'<label class="chk cwbig"><input type="checkbox" id="cwDone"'+(d.done?' checked':'')+'> '+dlab+(d.done?' <small class="note">('+esc(d.done)+')</small>':'')+'</label>')+
+    (d.adm&&d.cleaner?'<p class="note">담당자 <b>'+esc(d.cleaner)+'</b></p>':'')+
+    (d.items.length?'<h4 class="cwh">추가 작업·비품 (해당하는 것 체크)</h4><div class="cwitems">'+d.items.map(function(m,i){return '<div class="cwit"><label class="chk"><input type="checkbox" data-i="'+i+'"'+(m.on?' checked':'')+(m.on&&!m.mine?' disabled':'')+'> '+esc(m.name)+'</label>'+(d.adm&&m.on&&m.by?' <small class="note">'+esc(m.by)+'</small>':'')+
       '<div class="cwph" id="cwph'+i+'"'+(m.on?'':' hidden')+'>'+(m.photo?'<a href="'+esc(m.photo.split('\n').pop())+'" target="_blank" rel="noopener" class="chip ok">올린 사진 '+m.photo.split('\n').length+'장 ✓</a>':'')+
         '<span class="cwsel note" id="cwsel'+i+'"></span>'+
-        '<label class="btn cwup">📷 사진 선택<input type="file" accept="image/*" capture="environment" data-up="'+i+'" hidden></label></div>'+(m.on&&!m.mine?'<div class="note">관리자가 넣은 항목</div>':'')+'</div>'}).join('')+'</div>':'<p class="note">이 객실에 체크할 추가 항목이 없습니다.</p>')+
+        '<label class="btn cwup">📷 사진 선택 <small>(촬영·갤러리)</small><input type="file" accept="image/*" multiple data-up="'+i+'" hidden></label></div>'+(m.on&&!m.mine?'<div class="note">관리자가 넣은 항목</div>':'')+'</div>'}).join('')+'</div>':'<p class="note">이 객실에 체크할 추가 항목이 없습니다.</p>')+
     '<p class="err" id="cwErr"></p><div class="actions"><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button><button class="btn pri" type="button" id="cwSave">저장</button></div>'+
     '<p class="note">항목을 체크하고 사진을 고른 뒤 [저장]을 누르면 체크와 사진이 한 번에 저장됩니다. 체크를 풀고 저장하면 그 항목에 올렸던 사진도 삭제됩니다. 사진은 구글 드라이브 「정산항목」 폴더에 「날짜-호실-항목」 이름으로 저장되고, 그 항목은 객실 정산서에 자동으로 들어갑니다.</p>';
   function selDraw(i){var el=$('#cwsel'+i),L=PEND[i]||[];if(!el)return;
@@ -748,17 +755,19 @@ function cwRoomDraw(d){var box=$('#cwRm');if(!box)return;var PEND={};   // 고�
     var x=el.querySelector('[data-clr]');if(x)x.onclick=function(){delete PEND[i];selDraw(i)}}
   box.querySelectorAll('[data-i]').forEach(function(c){c.onchange=function(){var i=+c.dataset.i,m=d.items[i],w=$('#cwph'+i),wn=$('#cwdel'+i);if(w)w.hidden=!c.checked;
     if(m.photo){if(!wn){wn=document.createElement('div');wn.id='cwdel'+i;wn.className='err';wn.style.fontSize='13px';c.closest('.cwit').appendChild(wn)}wn.textContent=c.checked?'':'⚠ 저장하면 올린 사진 '+m.photo.split('\n').length+'장도 함께 삭제됩니다.'}}});
-  box.querySelectorAll('[data-up]').forEach(function(inp){inp.onchange=function(){var f=inp.files[0],i=+inp.dataset.up;inp.value='';if(!f)return;
-    shrinkImage(f,1600).then(function(url){(PEND[i]=PEND[i]||[]).push(url);selDraw(i)}).catch(function(e){$('#cwErr').textContent=errText(e)})}});
+  box.querySelectorAll('[data-up]').forEach(function(inp){inp.onchange=function(){var fs=[].slice.call(inp.files),i=+inp.dataset.up;inp.value='';if(!fs.length)return;
+    fs.reduce(function(p,f){return p.then(function(){return shrinkImage(f,1600).then(function(url){(PEND[i]=PEND[i]||[]).push(url);selDraw(i)})})},Promise.resolve())
+      .catch(function(e){$('#cwErr').textContent=errText(e)})}});
   $('#cwSave').onclick=function(){var b=this;b.disabled=true;$('#cwErr').textContent='';
     var boxes=[].slice.call(box.querySelectorAll('[data-i]')),names=boxes.filter(function(c){return c.checked&&!c.disabled}).map(function(c){return d.items[+c.dataset.i].name});
     var ups=[];boxes.forEach(function(c){var i=+c.dataset.i;if(c.checked&&PEND[i])PEND[i].forEach(function(u){ups.push({i:i,name:d.items[i].name,url:u})})});
     var done=0,fail=[];b.textContent=ups.length?'저장 중…':'저장';
-    cApi('mySave',d.date,d.hotel,d.room,$('#cwDone').checked,names).then(function(){
+    go('save',d.date,d.hotel,d.room,$('#cwDone')?$('#cwDone').checked:false,names).then(function(){
       return ups.reduce(function(p,u){return p.then(function(){b.textContent='사진 올리는 중 '+(done+1)+'/'+ups.length;
-        return cApi('myPhoto',d.date,d.hotel,d.room,u.name,u.url).then(function(){done++},function(e){fail.push(u.name+': '+errText(e))})})},Promise.resolve());
-    }).then(function(){return cApi('myRoom',d.date,d.hotel,d.room)}).then(function(n){
-      toast(ups.length?'저장했습니다 · 사진 '+done+'장 올림':'저장했습니다');cwRoomDraw(n);cwClean(d.date);
+        return go('photo',d.date,d.hotel,d.room,u.name,u.url).then(function(){done++},function(e){fail.push(u.name+': '+errText(e))})})},Promise.resolve());
+    }).then(function(){return go('room',d.date,d.hotel,d.room)}).then(function(n){
+      toast(ups.length?'저장했습니다 · 사진 '+done+'장 올림':'저장했습니다');cwRoomDraw(n);
+      if(d.adm){try{renderClean()}catch(e){}}else cwClean(d.date);
       if(fail.length&&$('#cwErr'))$('#cwErr').textContent='사진을 올리지 못했습니다 — '+fail.join(' / ');
     }).catch(function(e){b.disabled=false;b.textContent='저장';$('#cwErr').textContent=errText(e)})};
 }
@@ -2402,8 +2411,13 @@ function cWhoLine(ts){   // 저장된 배정 기준 담당자별 청소(퇴실 �
   if(!ns.length&&!own)return '';
   return '<div class="kwho"><span class="kwt">담당자별 청소 (저장됨)</span>'+ns.map(function(w){var c=cleanerColor(w);return '<span class="kw" style="background:'+pastel(c)+';border-color:'+c+'"><i class="dot" style="background:'+c+'"></i>'+esc(w)+' <b>'+g[w].c+'</b>'+(g[w].p?'<small> +입실준비 '+g[w].p+'</small>':'')+'</span>'}).join('')+
     (own?'<span class="kw k-own">소유주직접 <b>'+own+'</b></span>':'')+(dirty?'<span class="kwt red">저장 전 변경 있음</span>':'')+'</div>'}
+var CADM=false;   // 관리자 화면일 때만 카드에 [＋ 정산·사진] 칩을 붙임
+function admCardOpen(h,rm){var d=$('#cDate').value;
+  modal('<h3>'+esc(h)+' '+esc(rm)+' · '+md(d)+'</h3><p class="note">정산항목을 체크하고 사진을 올리면 객실 정산서에 그대로 들어갑니다.</p><div id="cwRm"><div class="empty">불러오는 중…</div></div>');
+  call('admCard',d,h,rm).then(function(x){cwRoomDraw(x)}).catch(function(e){var b=$('#cwRm');if(b)b.innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}
 function renderClean(){
   if(!$('#cDate').value)return;
+  CADM=!DEMO&&LIVE&&!ROLE&&store('role')!=='cleaner'&&store('role')!=='manager'&&store('role')!=='owner';
   $('#cHotel').innerHTML=opts(hotels(),$('#cHotel').value,'전체');
   $('#cAll').innerHTML=cleanerOpts($('#cHotel').value,'','선택 안 함');
   var ts=cleanTasks(),d=$('#cDate').value,dl=(+d.slice(5,7))+'월 '+(+d.slice(8))+'일 ('+WD[pd(d).getDay()]+')',hn=$('#cHotel').value||'전체 호텔';
@@ -2427,7 +2441,8 @@ function renderClean(){
     return sec+'<div class="task '+t.type+(prep?' prepc':(col?' whoc':''))+'" data-k="'+esc(t.key)+'"'+(prep?(col?' style="border-left-color:'+col+'"':''):(col?' style="background:'+pastel(col)+';color:#111"':''))+'><div class="row"><span class="room">'+esc(t.hotel)+' '+esc(t.room)+'</span><span class="chip '+TYPE[t.type][1]+'">'+TYPE[t.type][0]+'</span>'+
       (t.moved?'<span class="chip mv" title="'+esc(md(t.out[R.co]))+' 퇴실 청소를 넘겨받음">이월 '+md(t.out[R.co])+'</span>':'')+
       (t.st.mv!=null?'<span class="chip mv">'+md(t.st.mv)+'로 이월 <small class="unsv">저장 전</small></span>':'')+
-      (t.rec&&t.rec.v[12]?'<span class="chip ok" title="담당자 완료 '+esc(t.rec.v[12])+'">✓ 완료</span>':'')+(ownerCleans(t)?'<span class="who" style="margin-left:auto">소유주 직접</span>':who?'<span class="who" style="margin-left:auto"><i class="dot" style="background:'+col+'"></i>'+esc(who)+(uns?' <small class="unsv no-print">저장 전</small>':'')+'</span>':(t.st.mv!=null||t.st.mvx?'':'<span class="chip x" style="margin-left:auto">미배정</span>'))+'</div>'+
+      (t.rec&&t.rec.v[12]?'<span class="chip ok" title="담당자 완료 '+esc(t.rec.v[12])+'">✓ 완료</span>':'')+
+      (CADM?'<button type="button" class="chip add no-print" data-card="'+esc(t.hotel)+'|'+esc(t.room)+'" title="정산항목을 직접 넣고 사진을 올립니다">＋ 정산·사진</button>':'')+(ownerCleans(t)?'<span class="who" style="margin-left:auto">소유주 직접</span>':who?'<span class="who" style="margin-left:auto"><i class="dot" style="background:'+col+'"></i>'+esc(who)+(uns?' <small class="unsv no-print">저장 전</small>':'')+'</span>':(t.st.mv!=null||t.st.mvx?'':'<span class="chip x" style="margin-left:auto">미배정</span>'))+'</div>'+
       (o?'<div class="sub">퇴실: '+esc(o[R.name]||'')+' '+esc(o[R.ppl])+'명'+(t.st.bed==='교체필요'?' · <b class="red">교체필요</b>':'')+(memoHide(o[R.memo])?' · <b>'+esc(memoHide(o[R.memo]))+'</b>':'')+'</div>':'')+
       (n?'<div class="sub">입실: '+esc(n[R.name]||'')+' '+esc(n[R.ppl])+'명 '+esc(n[R.n])+'박'+(memoHide(n[R.memo])?' · <b>'+esc(memoHide(n[R.memo]))+'</b>':'')+' · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(t.short?' · <b class="red">'+esc(t.short)+'</b>':'')+'</div>':'')+
       (!n&&t.next5?'<div class="sub">다음 입실 '+md(t.next5[R.ci])+': '+esc(t.next5[R.ppl])+'명 '+esc(t.next5[R.n])+'박 · 수건 '+t.towel+'장 · 물 '+t.water+'개'+(memoHide(t.next5[R.memo])?' · <b>'+esc(memoHide(t.next5[R.memo]))+'</b>':'')+'</div>':'')+
@@ -2441,6 +2456,8 @@ function renderClean(){
   renderSheet();showDirty();
 }
 // 카드·현황판·지시서에서 고친 값은 [저장]을 눌러야 구글시트에 저장됨
+$('#cList').addEventListener('click',function(e){var b=e.target.closest('[data-card]');if(!b)return;
+  var p=b.dataset.card.split('|');admCardOpen(p[0],p[1])});
 $('#cList').addEventListener('change',function(e){var el=e.target,card=el.closest('.task');if(!card||!el.dataset.f)return;var st=CS[$('#cDate').value+'|'+card.dataset.k];
   if(el.dataset.f==='cleaner'&&/^__mv/.test(el.value)){   // 담당자 칸에서 '청소이월' · '이월 취소'를 고르면 날짜 칸이 나오고, [저장]을 눌러야 저장됨
     st.cleaner='';if(el.value==='__mv__'){st.mv=st.mv||addDays($('#cDate').value,1);delete st.mvx}else{st.mvx=true;delete st.mv}renderClean();return}

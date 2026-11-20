@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend, admCard: admCard, admCardSave: admCardSave, admCardPhoto: admCardPhoto };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -1708,8 +1708,11 @@ function trashPhotos_(urls) {   // 정산입력 O열의 사진 주소들 → 구
     try { DriveApp.getFileById(m[1]).setTrashed(true); } catch (e) { }
   });
 }
-function myPhoto(cred, date, hotel, room, item, dataUrl) {   // 구글 드라이브 '정산항목' 폴더에 '날짜-호실-항목' 이름으로 저장, 정산입력 O열에 주소
+function myPhoto(cred, date, hotel, room, item, dataUrl) {
   var name = cleanerLogin_(cred); myAssigned_(name, date, hotel, room);
+  return photoSave_(date, hotel, room, item, dataUrl);
+}
+function photoSave_(date, hotel, room, item, dataUrl) {   // 구글 드라이브 '정산항목' 폴더에 '날짜-호실-항목' 이름으로 저장, 정산입력 O열에 주소
   var m = String(dataUrl || '').match(/^data:(image\/[\w+.-]+);base64,(.+)$/); if (!m) throw new Error('사진 파일이 아닙니다.');
   var it = DriveApp.getFoldersByName('정산항목'), folder = it.hasNext() ? it.next() : DriveApp.createFolder('정산항목');
   var base = (date + '-' + room + '-' + item).replace(/[\\\/:*?"<>|]/g, ''), ext = m[1] === 'image/png' ? '.png' : '.jpg', fn = base + ext, n = 2;
@@ -1722,6 +1725,57 @@ function myPhoto(cred, date, hotel, room, item, dataUrl) {   // 구글 드라이
   pi.getRange(hit, 15).setValue(old ? old + '\n' + url : url);
   return { ok: true, file: fn, url: url };
 }
+// ── 관리자: 청소배정 카드에서 바로 정산항목 넣기·사진 올리기 ────────────────
+// 청소담당자 카드와 같은 내용이지만, 그 객실이 누구에게 배정됐는지와 상관없이 열립니다.
+function admCardRow_(date, hotel, room) {   // 그날 그 객실의 청소실적 줄 (없으면 null)
+  var cs = SpreadsheetApp.getActive().getSheetByName('청소실적'), lc = cs ? cs.getLastRow() : 1;
+  var v = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues() : [];
+  for (var k = 0; k < v.length; k++)
+    if (fmt_(v[k][0], false) === date && v[k][2] === hotel && String(v[k][3]) === String(room))
+      return { sh: cs, row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || ''), who: String(v[k][1] || '') };
+  return null;
+}
+function admCardData_(date, hotel, room) {
+  var a = admCardRow_(date, hotel, room), pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
+  var got = lp > 1 ? pi.getRange(2, 1, lp - 1, 15).getValues().map(function (x, k) { return { r: k + 2, x: x }; })
+    .filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; }) : [];
+  return { date: date, hotel: hotel, room: room, adm: true, noRow: !a,
+    kind: a ? a.kind : '', done: a && a.done ? String(fmt_(a.done, false)) : '', cleaner: a ? a.who : '',
+    items: manualItems_(hotel, room).map(function (m) {
+      var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
+      return { name: m.name, price: m.price, on: !!g, mine: true, by: g ? String(g.x[9] || '') : '', photo: g ? String(g.x[14] || '') : '' };
+    }) };
+}
+function admCard(pin, date, hotel, room) { checkPin_(pin); adminOnly_(); ensureSchema_(); return admCardData_(String(date), String(hotel), String(room)); }
+function admCardSave(pin, date, hotel, room, done, names) {
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  date = String(date); hotel = String(hotel); room = String(room);
+  var a = admCardRow_(date, hotel, room);
+  if (a) a.sh.getRange(a.row, 13).setValue(done ? Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') : '');
+  var cur = admCardData_(date, hotel, room), want = names || [], add = [], del = [], adm = admRoom_(hotel, room);
+  cur.items.forEach(function (m) {
+    if (want.indexOf(m.name) >= 0 && !m.on)
+      add.push({ r: null, v: { 1: date.slice(0, 7), 2: hotel, 3: room, 4: date, 5: m.name, 6: adm ? 0 : 1,
+        10: '관리자' + (adm ? ' (관리자 직접 운영 · 정산 제외)' : '') } });
+    if (want.indexOf(m.name) < 0 && m.on) del.push(m.name);   // 관리자는 청소담당자가 넣은 것도 뺄 수 있음
+  });
+  if (add.length) saveRowsRun_('정산입력', add);
+  if (del.length) {
+    var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
+    pi.getRange(2, 1, lp - 1, 15).getValues().forEach(function (x, k) {
+      if (x[1] === hotel && String(x[2]) === String(room) && x[3] && fmt_(x[3], false) === date && del.indexOf(String(x[4]).trim()) >= 0) {
+        trashPhotos_(x[14]);   // 체크를 풀면 올렸던 사진도 드라이브 휴지통으로 (30일 안에 복구 가능)
+        [1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 15].forEach(function (c) { pi.getRange(k + 2, c).clearContent(); });
+      }
+    });
+  }
+  return admCardData_(date, hotel, room);
+}
+function admCardPhoto(pin, date, hotel, room, item, dataUrl) {
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  return photoSave_(String(date), String(hotel), String(room), String(item), dataUrl);
+}
+
 // ── 예약 화면 캡처 사진 → 글자 (구글 드라이브 OCR). 사진을 잠깐 구글 문서로 바꿔 글자만 읽고 바로 지움
 function ocrImage(pin, dataUrl) {
   checkPin_(pin);
@@ -4094,7 +4148,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.e1e38a2d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.e1f6b911';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
