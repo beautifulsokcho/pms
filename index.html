@@ -530,7 +530,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -573,7 +573,9 @@ var PIN=ROLE==='manager'?{mgr:1,id:store('mid')||'',pw:store('mpw')||''}:ROLE===
 var OWNER=!DEMO&&ROLE==='owner',OWN={hotel:'',room:'',rooms:[],hotels:[]},LIMITED=!DEMO&&(ROLE==='owner'||ROLE==='manager');   // LIMITED: 소유주·매니저 — 청소안함·정산 설정 숨김   // 객실 소유주: 새 예약(본인 호실 고정) · 예약검색(카드) · 객실별 정산서   // 매니저는 아이디·PIN으로 서버 확인
 var S={};   // 시트 데이터 {이름:{header,rows:[{r,v}]}}
 function rows(n){return (S[n]&&S[n].rows)||[]}
-function errText(e){return String(e&&e.message||e)}
+function errText(e){var t=String(e&&e.message||e);
+  if(/알 수 없는 요청입니다/.test(t))return '서버 코드가 옛 버전이라 이 기능이 아직 없습니다. 관리 → 기준정보 관리에서 [업데이트 확인]을 누른 뒤 다시 해 주세요. ('+t.replace(/^.*?:\s*/,'')+')';
+  return t}
 function post(url,body){
   return fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)})
     .then(function(r){if(!r.ok)throw new Error('서버 응답 '+r.status);return r.json()})
