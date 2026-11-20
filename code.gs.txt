@@ -2142,12 +2142,14 @@ function gwSheet_() {
 function gwEnqueue_(to, text, meta) {
   var sh = gwSheet_(), id = Utilities.getUuid().slice(0, 8), now = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
   sh.appendRow([id, now, to, text, '대기', '', '', '', meta.r || '', typeof meta.col === 'string' ? meta.col : meta.col ? meta.col + '|' + (meta.id || '') : '']);
+  fcmWake_('sms');   // 발송 폰을 바로 깨움 (설정이 없으면 아무 일도 안 함)
 }
 function gwTime_(s) { s = String(s || ''); return s ? new Date(s.replace(' ', 'T') + (s.length <= 16 ? ':00' : '') + '+09:00') : null; }
 function gwCount_() { var sh = SpreadsheetApp.getActive().getSheetByName('문자대기'); if (!sh || sh.getLastRow() < 2) return 0; return sh.getRange(2, 5, sh.getLastRow() - 1, 1).getValues().filter(function (x) { return x[0] === '대기' || x[0] === '전송중'; }).length; }
 function gwAuth_(token) { var t = PropertiesService.getScriptProperties().getProperty('GW_APP_TOKEN'); if (!t || String(token || '') !== t) throw new Error('GW_TOKEN_WRONG'); }
 function gwPull(token, st) {   // 결과에 새 손님 문자·전화(ibx)를 붙여 줌 → 객실문자 앱이 폰 알림 (발송 폰·대기 폰 모두)
   var r = gwPullRun_(token, st), p = PropertiesService.getScriptProperties();
+  var fa = fcmApp_(); if (fa && !(st && st.fcm)) r.fcmApp = fa;   // 앱이 아직 토큰이 없으면 Firebase 켜는 값을 보냄
   if (r.standby) r.fast = Date.now() - +(p.getProperty('GW_LAST_IN') || 0) < 15 * 60000;
   try { var ib = inboxSince_(+(st && st.ibx) || 0); r.ibx = ib.items; r.ibxNow = ib.now; } catch (e) { }
   return r;
@@ -2183,7 +2185,7 @@ function gwPullRun_(token, st) {
   if (dv.standby) return { msgs: [], standby: true, active: dv.active, phone: p.getProperty('SMS_PHONE') || '', phones: smsPhones_(p) };
   p.setProperty('GW_SEEN', Utilities.formatDate(now, tz_(), 'yyyy-MM-dd HH:mm')); p.setProperty('GW_STATE', JSON.stringify({ roaming: !!st.roaming, paused: !!st.paused, ver: st.ver || '', battery: st.battery }));
   if (Date.now() - +(p.getProperty('SMS_TICK_AT') || 0) > 10 * 60000) { try { smsTick(); } catch (e) { } }   // 폰 앱이 확인할 때 일정 문자도 만듦 (10분에 한 번)
-  var fast = Date.now() - +(p.getProperty('GW_LAST_IN') || 0) < 15 * 60000;   // 손님 문자가 온 뒤 15분은 '대화 모드' (앱이 1분마다 확인)
+  var fast = Date.now() - +(p.getProperty('GW_LAST_IN') || 0) < 15 * 60000 || gwCount_() > 0;   // 손님 문자가 온 뒤 15분 · 보낼 문자가 남아 있는 동안은 '빠른 확인'(앱이 1분마다)
   var ph = { phone: p.getProperty('SMS_PHONE') || '', phones: smsPhones_(p) };   // 앱 화면에 지금 발송 번호·목록 표시
   if (st.paused) return { msgs: [], paused: true, fast: fast, phone: ph.phone, phones: ph.phones };
   var lock = LockService.getScriptLock(); lock.waitLock(30000);
@@ -2256,9 +2258,61 @@ function gwPhone(token, n, dev) {   // 객실문자 앱에서 발송 번호 바�
 function gwDevs_(p) { try { return JSON.parse(p.getProperty('GW_DEVS') || '{}') || {}; } catch (e) { return {}; } }
 function gwDevSeen_(p, st) {
   var dev = String(st && st.dev || '').slice(0, 40), act = p.getProperty('GW_DEV') || '', ds = gwDevs_(p);
-  if (dev) { ds[dev] = ds[dev] || {}; if (st.model) ds[dev].model = String(st.model).slice(0, 30); ds[dev].seen = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'); p.setProperty('GW_DEVS', JSON.stringify(ds)); if (!act) { act = dev; p.setProperty('GW_DEV', dev); } }
+  if (dev) { ds[dev] = ds[dev] || {}; if (st.model) ds[dev].model = String(st.model).slice(0, 30); if (st.fcm) ds[dev].fcm = String(st.fcm).slice(0, 300); ds[dev].seen = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'); p.setProperty('GW_DEVS', JSON.stringify(ds)); if (!act) { act = dev; p.setProperty('GW_DEV', dev); } }
   var a = ds[act] || {};
   return { standby: !!act && dev !== act, active: { model: a.model || '', n: a.n || '', seen: a.seen || '' } };   // 옛 앱(기기ID 없음)은 새 앱이 발송 폰이 된 뒤에는 대기
+}
+// ── 즉시 발송(FCM): 보낼 문자가 생기면 서버가 발송 폰을 바로 깨움 ──────────────────────────
+// 설정이 없으면 아무 일도 하지 않음 → 지금처럼 폰이 정기적으로 확인해서 보냄 (안전장치 그대로)
+//  · FCM_APP_JSON  : Firebase 콘솔에서 받은 google-services.json 내용 그대로
+//  · FCM_KEY_JSON  : 서비스 계정 비공개 키(JSON) 내용 그대로  ← 비밀번호와 같음
+function fcmApp_() {   // google-services.json → 앱이 Firebase를 켤 때 쓰는 값 4개
+  var p = PropertiesService.getScriptProperties(), raw = p.getProperty('FCM_APP_JSON');
+  if (!raw) return null;
+  try {
+    var j = JSON.parse(raw), cl = (j.client || [])[0] || {};
+    var o = { projectId: (j.project_info || {}).project_id || '', senderId: (j.project_info || {}).project_number || '',
+      appId: ((cl.client_info || {}).mobilesdk_app_id) || '', apiKey: ((cl.api_key || [])[0] || {}).current_key || '' };
+    return o.projectId && o.appId && o.apiKey && o.senderId ? o : null;
+  } catch (e) { return null; }
+}
+function fcmKey_() { var raw = PropertiesService.getScriptProperties().getProperty('FCM_KEY_JSON'); if (!raw) return null; try { var j = JSON.parse(raw); return j.client_email && j.private_key && j.project_id ? j : null; } catch (e) { return null; } }
+function fcmB64_(s) { return Utilities.base64EncodeWebSafe(s).replace(/=+$/, ''); }
+function fcmToken_() {   // 서비스 계정 키 → OAuth 액세스 토큰 (50분 동안 다시 씀)
+  var p = PropertiesService.getScriptProperties(), cache = p.getProperty('FCM_AT');
+  if (cache) { try { var c = JSON.parse(cache); if (c.t && c.exp > Date.now() + 60000) return c.t; } catch (e) { } }
+  var k = fcmKey_(); if (!k) return '';
+  var now = Math.floor(Date.now() / 1000);
+  var head = fcmB64_(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  var body = fcmB64_(JSON.stringify({ iss: k.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
+  var sig = fcmB64_(Utilities.newBlob(Utilities.computeRsaSha256Signature(head + '.' + body, k.private_key)).getDataAsString('ISO-8859-1'));
+  var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', { method: 'post', muteHttpExceptions: true,
+    payload: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: head + '.' + body + '.' + sig } });
+  var j = {}; try { j = JSON.parse(res.getContentText()); } catch (e) { }
+  if (!j.access_token) { Logger.log('FCM 토큰 실패: ' + res.getContentText().slice(0, 200)); return ''; }
+  p.setProperty('FCM_AT', JSON.stringify({ t: j.access_token, exp: Date.now() + 50 * 60000 }));
+  return j.access_token;
+}
+function fcmWake_(why) {   // 발송 폰을 깨움 — 실패해도 조용히 넘어감 (폰이 정기 확인 때 가져감)
+  try {
+    var k = fcmKey_(); if (!k) return false;
+    var p = PropertiesService.getScriptProperties(), ds = gwDevs_(p), act = p.getProperty('GW_DEV') || '';
+    var tk = (ds[act] || {}).fcm || '';
+    if (!tk) { for (var d in ds) if (ds[d] && ds[d].fcm) { tk = ds[d].fcm; break; } }   // 발송 폰 토큰이 없으면 아무 폰이나
+    if (!tk) return false;
+    var at = fcmToken_(); if (!at) return false;
+    var res = UrlFetchApp.fetch('https://fcm.googleapis.com/v1/projects/' + k.project_id + '/messages:send',
+      { method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + at },
+        payload: JSON.stringify({ message: { token: tk, data: { why: String(why || 'sms') },
+          android: { priority: 'HIGH' } } }) });
+    var code = res.getResponseCode();
+    if (code === 404 || code === 403) {   // 토큰이 만료됐거나 앱을 지웠으면 지움 → 다음 확인 때 새 토큰을 받음
+      for (var d2 in ds) if (ds[d2] && ds[d2].fcm === tk) delete ds[d2].fcm;
+      p.setProperty('GW_DEVS', JSON.stringify(ds));
+    }
+    return code === 200;
+  } catch (e) { return false; }
 }
 function gwDone(token, results) {
   gwAuth_(token);
@@ -4033,7 +4087,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.5f003253';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.fc1af0b4';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

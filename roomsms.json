@@ -1,6 +1,6 @@
 {
-  "code": 16,
-  "name": "1.15",
+  "code": 17,
+  "name": "1.16",
   "url": "https://beautifulsokcho.github.io/pms/roomsms.apk",
-  "note": "기록 표 읽기 쉽게 (3칸·글 접힘)"
+  "note": "즉시 발송 (FCM) 준비"
 }
