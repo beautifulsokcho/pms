@@ -2286,7 +2286,7 @@ function fcmToken_() {   // 서비스 계정 키 → OAuth 액세스 토큰 (50�
   var head = fcmB64_(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   var body = fcmB64_(JSON.stringify({ iss: k.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging',
     aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 }));
-  var sig = fcmB64_(Utilities.newBlob(Utilities.computeRsaSha256Signature(head + '.' + body, k.private_key)).getDataAsString('ISO-8859-1'));
+  var sig = Utilities.base64EncodeWebSafe(Utilities.computeRsaSha256Signature(head + '.' + body, k.private_key)).replace(/=+$/, '');   // 서명은 바이트 그대로 (글자로 바꾸면 깨짐)
   var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/token', { method: 'post', muteHttpExceptions: true,
     payload: { grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: head + '.' + body + '.' + sig } });
   var j = {}; try { j = JSON.parse(res.getContentText()); } catch (e) { }
@@ -4087,7 +4087,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.fc1af0b4';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.8e2bbc4c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
