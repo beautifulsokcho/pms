@@ -78,7 +78,9 @@ main{max-width:var(--pw);margin:0 auto;padding-block:16px 32px;padding-left:max(
 .boardbox{margin-bottom:12px}.board{border-collapse:collapse;font-size:13px;min-width:880px;width:100%}
 .board th,.board td{border:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
 .board .bh th{background:var(--surface);font-weight:700}.board .bh2 th{background:var(--sunk);font-weight:600;font-size:12px;line-height:1.2}
-.board td.rm{font-weight:700}.board td.memo{text-align:left;white-space:normal;min-width:150px}.board td.memo span{display:block;line-height:1.3}.board td.memo .red,.board td.today{color:#d93025;font-weight:600}
+.board td.rm{font-weight:700}.board td.memo{text-align:left;white-space:normal;min-width:150px}
+.board td.memo textarea.mm{min-width:120px;font-size:12px;padding:3px 5px;margin-top:2px}
+.board td.memo span+textarea.mm{margin-top:3px}.board td.memo span{display:block;line-height:1.3}.board td.memo .red,.board td.today{color:#d93025;font-weight:600}
 .board{background:#fff;color:#111}.board th{color:#333}.board .bh th,.board .bh2 th{background:#f1f3f4!important;color:#333}.board td{color:#111}.board select{color:#111;background-color:#fff;border:1px solid #ccc}.board tr.b-clean td{background:#eeeeee}.board tr.b-in td{background:#e8ecf8}.board tr.b-stay td{background:#fff3a6}.board tr.b-vac td{background:#fff}.board tr.b-own td{background:#f6c9ee}.board tr.b-self td{background:#ece4f7}.board tr.b-who td{background:var(--who)}
 .board td.kp{padding:2px}.board .bsel{padding:3px 4px;min-width:84px;font-size:13px}.board .bsel.swap{color:#d93025;font-weight:700}
 .notice{margin-top:8px}.notice .ntext{width:100%;font:inherit;font-size:14px;color:#d93025;font-weight:600;line-height:1.5}.notice .nview{display:none;white-space:pre-wrap;color:#d93025;font-weight:600;line-height:1.5}
@@ -269,6 +271,7 @@ input[type=color]{width:52px;height:32px;padding:2px;border-radius:6px;cursor:po
 .byc td.mcell{white-space:normal;min-width:140px;word-break:keep-all;overflow-wrap:anywhere}.byc td.mcell b{display:block}.byc td.nw{white-space:nowrap}
 .byc textarea.mm{width:100%;min-width:130px;resize:vertical;font:inherit;font-size:13px;padding:4px 6px;border:1px dashed var(--line);background:transparent;color:inherit;overflow:hidden}
 .byc .mprint{display:none;white-space:pre-wrap}
+.board .mprint{display:none;white-space:pre-wrap}   /* 화면에서는 입력 칸만, 인쇄·그림 저장 때는 글자만 */
 .board select.unas{color:#d93025;font-weight:600}.board select.unsv{outline:2px dashed #d93025;outline-offset:-2px}.unsv{color:#d93025;font-weight:600}
 .byc{background:#fff;color:#111}.byc th{background:#f1f3f4;color:#333}.byc tr.crow td{color:#111!important}.byc th{color:#333!important}.byc textarea.mm{color:#111}.byc tr.crow.prep td{background:#fff;color:#000}.byc tr.crow.prep td:first-child{font-weight:400}
 #resCount{font-size:17px;font-weight:700;color:var(--ink);margin:10px 0 8px}#resCount .unset{font-size:15px}
@@ -521,7 +524,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20n';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2582,12 +2585,17 @@ function boardRows(h,d,ts){
     row.nIn=next?(next[R.ci]===d?'오늘':mmdd(next[R.ci])):'기본';row.nPpl=next?next[R.ppl]:'';row.nN=next?next[R.n]:'';
     var prev=stay||out;row.pOut=stay?'('+mmdd(stay[R.co])+')':out?'오늘':'기본';row.pPpl=prev?prev[R.ppl]:'';row.pN=stay?stay[R.n]:'';   // 재실=퇴실일·인원·박수, 청소=오늘·퇴실 인원
     row.prep=inn&&Number(inn[R.ppl])>=3?'일반이불':'';
-    var mi=[],mo=[],mh=function(v){return memoHide(v)};if(out&&mh(out[R.memo]))mo.push({t:mh(out[R.memo]),red:1});   // 고객 이름·연락처는 넣지 않음
-    if(inn&&mh(inn[R.memo]))mi.push({t:mh(inn[R.memo]),red:1});else if(!inn&&next&&mh(next[R.memo])&&st!=='재실')mi.push({t:mh(next[R.memo])});
+    var mi=[],mo=[],mh=function(v){return memoHide(v)};if(out&&mh(out[R.memo]))mo.push({t:mh(out[R.memo]),red:1,memo:1});   // 고객 이름·연락처는 넣지 않음
+    if(inn&&mh(inn[R.memo]))mi.push({t:mh(inn[R.memo]),red:1,memo:1});else if(!inn&&next&&mh(next[R.memo])&&st!=='재실')mi.push({t:mh(next[R.memo]),memo:1});
+    row.inV=inn||(next&&st!=='재실'?next:null);row.outV=out||stay||null;   // 메모를 고칠 예약 (입실·다음입실 / 퇴실·재실)
     if(stay&&ownUse(stay))mi.push({t:'소유주사용',red:1});
     if(t&&t.short)mi.push({t:t.short,red:1});
     row.mi=mi;row.mo=mo;return row});
 }
+function bMemo(chips,v,kind){   // 현황판 메모 칸 — 관리자는 바로 고칠 수 있음 (수건 부족·소유주사용 같은 표시는 그대로)
+  var sp=function(m){return '<span'+(m.red?' class="red"':'')+'>'+esc(m.t)+'</span>'};
+  if(!CADM||!v)return chips.map(sp).join('');
+  return chips.filter(function(m){return !m.memo}).map(sp).join('')+mmBox(v,kind)}
 function renderBoard(ts){
   var d=$('#cDate').value,hs=$('#cHotel').value?[$('#cHotel').value]:hotels(),cl=cleaners(),wd=WD[pd(d).getDay()];
   $('#cBoard').innerHTML=hs.map(function(h){var rs=boardRows(h,d,ts);if(!rs.length)return '';
@@ -2603,7 +2611,7 @@ function renderBoard(ts){
         '<td class="'+(r.nIn==='오늘'?'today':'')+'">'+esc(r.nIn)+'</td><td class="n">'+esc(r.nPpl)+'</td><td class="n">'+esc(r.nN)+'</td>'+
         '<td class="'+(r.pOut==='오늘'?'today':'')+'">'+esc(r.pOut)+'</td><td class="n">'+esc(r.pPpl)+'</td>'+
         '<td class="kp">'+(t&&t.out&&!r.owner?'<select class="bsel'+(t.st.bed==='교체필요'?' swap':'')+'" data-k="'+esc(t.key)+'">'+opts(['일반이불','교체필요'],t.st.bed,'')+'</select>':'')+'</td>'+
-        '<td class="kp">'+keeper+'</td><td class="memo">'+r.mi.map(function(m){return '<span'+(m.red?' class="red"':'')+'>'+esc(m.t)+'</span>'}).join('')+'</td><td class="memo">'+r.mo.map(function(m){return '<span'+(m.red?' class="red"':'')+'>'+esc(m.t)+'</span>'}).join('')+'</td></tr>'}).join('');
+        '<td class="kp">'+keeper+'</td><td class="memo">'+bMemo(r.mi,r.inV,'in')+'</td><td class="memo">'+bMemo(r.mo,r.outV,'out')+'</td></tr>'}).join('');
     var hr=rows('호텔').find(function(x){return x.v[1]===h}),notice=hr?String(hr.v[15]||''):'';
     return '<div class="boardbox"><div class="scroll"><table class="board">'+head+body+'</table></div>'+
       '<div class="notice"><textarea class="ntext" data-h="'+esc(h)+'" rows="5" placeholder="공지사항을 적으세요"'+(hr?'':' disabled')+'>'+esc(CNOTE[h]!=null?CNOTE[h]:notice)+'</textarea><div class="nview">'+esc(CNOTE[h]!=null?CNOTE[h]:notice)+'</div></div></div>'}).join('')+
@@ -2644,14 +2652,23 @@ function memoNoClean(m,on){m=String(m||'').replace(/\s*연속예약\/청소안�
 function noCleanItems(prs){return prs.map(function(r){return {r:r.r,v:{44:'Y',23:memoNoClean(r.v[R.memo],true)}}})}   // 앞 예약에 청소안함 표시
 function ownerCleans(t){if(t.out&&t.st&&t.st.own!==undefined?t.st.own:t.out&&t.out[R.ownCl]==='Y')return true;var v=t.out||t.inn;return isOwnerClean(t.hotel,t.room)&&!(v&&v[R.cleanY]==='Y')}   // 이번 청소를 소유주가 하는지 (청소배정 체크 · 소유주 청소 객실, 업체 청소 Y면 아님)   // 이번 청소를 소유주가 하는지 (업체 청소 Y면 아님)
 function isOwnerClean(h,rm){return rows('청소비요율').some(function(q){return q.v[0]===h&&String(q.v[1])===String(rm)})&&cleanFee(h,rm,2,1)===0}
+// 입실·퇴실 메모 입력 상자 — 청소지시서와 현황판이 함께 씀 ([저장]을 눌러야 시트에 저장됨)
+function mmBox(v,kind){if(!v)return '';
+  var r=rows('예약').find(function(q){return q.v===v||q.v[R.id]===v[R.id]});
+  if(!r)return esc(memoHide(v[R.memo]));
+  var m=CMEMO[r.r]!=null?CMEMO[r.r]:memoHide(v[R.memo]);
+  return '<textarea class="mm no-print" rows="1" data-r="'+r.r+'" data-kind="'+kind+'" placeholder="'+(kind==='in'?'입실':'퇴실')+' 메모">'+esc(m)+'</textarea><span class="mprint">'+esc(m)+'</span>'}
+function mmEdit(el){var r=+el.dataset.r,row=rows('예약').find(function(q){return q.r===r});
+  if(row&&el.value!==String(row.v[R.memo]||''))CMEMO[r]=el.value;else delete CMEMO[r];
+  var sp=el.nextElementSibling;if(sp&&sp.classList.contains('mprint'))sp.textContent=el.value;
+  showDirty()}
 function renderSheet(){
   var ts=cleanTasks(),d=$('#cDate').value,g={},dir=$('#cSort').value==='desc'?-1:1;
   var who=function(t){return ownerCleans(t)?'소유주 직접':(t.st.cleaner||'미배정')};
   ts.forEach(function(t){var c=who(t);g[c]=g[c]||{c:0,p:0};g[c][t.out?'c':'p']++});
   var names=Object.keys(g).sort(function(a,b){var k=function(x){return x==='소유주 직접'?2:x==='미배정'?1:0};return k(a)-k(b)||g[b].c-g[a].c||a.localeCompare(b,'ko')});   // 담당자(청소 많은 순) → 미배정 → 소유주 직접
   var list=ts.slice().sort(function(a,b){return names.indexOf(who(a))-names.indexOf(who(b))||(a.out?0:1)-(b.out?0:1)||dir*a.room.localeCompare(b.room,'ko',{numeric:true})});   // 담당자별로 묶고, 그 안에서 청소 → 입실준비, 각각 호실 순
-  var mm=function(v,kind){if(!v)return '';var r=rows('예약').find(function(q){return q.v===v||q.v[R.id]===v[R.id]});if(!r)return esc(memoHide(v[R.memo]));var m=CMEMO[r.r]!=null?CMEMO[r.r]:memoHide(v[R.memo]);
-    return '<textarea class="mm no-print" rows="1" data-r="'+r.r+'" data-kind="'+kind+'" placeholder="'+(kind==='in'?'입실':'퇴실')+' 메모">'+esc(m)+'</textarea><span class="mprint">'+esc(m)+'</span>'};
+  var mm=mmBox;
   var html='<div class="sheet"><h3>청소 지시서 · '+esc(d)+' ('+WD[pd(d).getDay()]+')'+($('#cHotel').value?' · '+esc($('#cHotel').value):'')+'</h3>'+
     '<div class="legend">'+names.map(function(c){return '<span><i class="dot" style="background:'+cleanerColor(c==='미배정'||c==='소유주 직접'?'':c)+'"></i>'+esc(c)+' 청소 <b>'+g[c].c+'</b>실'+(g[c].p?' · 입실준비 '+g[c].p+'실':'')+'</span>'}).join('')+'</div>'+
     '<div class="scroll"><table class="byc"><tr><th>담당자</th><th>객실</th><th>상태</th><th>구분</th><th>수건</th><th>물</th><th>추가이불</th><th>입실 메모</th><th>퇴실 메모</th><th>다음 입실</th></tr>';
@@ -2665,10 +2682,9 @@ function renderSheet(){
   $('#cSheet').querySelectorAll('textarea.mm').forEach(autoGrow);
 }
 function autoGrow(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px'}
-$('#cSheet').addEventListener('input',function(e){var el=e.target;if(!el.classList.contains('mm'))return;autoGrow(el);var sp=el.nextElementSibling;if(sp)sp.textContent=el.value;
-  var r=+el.dataset.r,row=rows('예약').find(function(q){return q.r===r});if(row&&el.value!==String(row.v[R.memo]||''))CMEMO[r]=el.value;else delete CMEMO[r];showDirty()});
-$('#cSheet').addEventListener('change',function(e){var el=e.target;if(!el.classList.contains('mm'))return;var r=+el.dataset.r,row=rows('예약').find(function(q){return q.r===r});
-  if(row&&el.value!==String(row.v[R.memo]||''))CMEMO[r]=el.value;else delete CMEMO[r];showDirty()});
+['cSheet','cBoard'].forEach(function(id){['input','change'].forEach(function(ev){
+  $('#'+id).addEventListener(ev,function(e){var el=e.target;if(!el.classList.contains('mm'))return;
+    if(ev==='input')autoGrow(el);mmEdit(el)})})});
 $('#cSave').onclick=function(){   // 한 번에 저장: 이 날짜·호텔 청소실적(지우고 다시) + 지시서 메모 + 공지사항
   var d=$('#cDate').value,h=$('#cHotel').value,all=cleanTasks(),ts=all.filter(function(t){return t.st.on&&!ownerCleans(t)});
   ts.forEach(function(t){if(!t.st.cleaner&&t.type==='in'){var m=defaultMgr(t.hotel);if(m)t.st.cleaner=m}});   // 입실 준비만 있는 객실은 관리자 기본 배정 (수당 0원)
