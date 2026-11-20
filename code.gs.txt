@@ -4094,7 +4094,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.b19505a2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.e1e38a2d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4595,8 +4595,11 @@ function briefCal_(make) {   // '객실관리' 달력 — 없으면 make일 때�
   var p = PropertiesService.getScriptProperties(), id = p.getProperty('BRIEF_CAL_ID'), c = null;
   if (id) { try { c = CalendarApp.getCalendarById(id); } catch (e) { c = null; } }
   if (!c) c = CalendarApp.getCalendarsByName(BRIEF_CAL_NAME_)[0] || null;
-  if (!c && make) c = CalendarApp.createCalendar(BRIEF_CAL_NAME_, { summary: '객실관리 아침 브리핑에 들어가는 일정', color: CalendarApp.Color.BLUE });
-  if (c) p.setProperty('BRIEF_CAL_ID', c.getId());
+  if (!c && make) c = CalendarApp.createCalendar(BRIEF_CAL_NAME_, { summary: '객실관리 아침 브리핑에 들어가는 일정', color: CalendarApp.Color.BLUE, timeZone: tz_() });
+  if (c) {
+    p.setProperty('BRIEF_CAL_ID', c.getId());
+    try { if (c.getTimeZone() !== tz_()) c.setTimeZone(tz_()); } catch (e) { }   // 새로 만든 달력이 UTC로 잡히면 날짜가 어긋남 → 시트와 같은 시간대로
+  }
   return c;
 }
 function briefCalOn() {   // Apps Script 편집기에서 한 번 실행: 캘린더 권한 허용 + '객실관리' 달력 만들기
