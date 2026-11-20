@@ -11,7 +11,7 @@ var SHEETS = {
   '객실':     { cols: 36, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
-  '예약':     { cols: 53, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52,53], dates: [6,7,8,24,49], texts: [3,43,50,51,52,53] },
+  '예약':     { cols: 54, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52,53,54], dates: [6,7,8,24,49], texts: [3,43,50,51,52,53,54] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
   '수건규칙': { cols: 9,  key: 1, edit: [1,2,3,4,5,6,7,8,9] },
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
@@ -270,7 +270,7 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 89) return;
+  if (ver >= 90) return;
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1441,6 +1441,15 @@ function ensureSchema_() {
     try { if (!ScriptApp.getProjectTriggers().some(function (x) { return x.getHandlerFunction() === 'briefTick'; })) ScriptApp.newTrigger('briefTick').timeBased().atHour(8).nearMinute(0).everyDays(1).create(); } catch (e) { }
     props.setProperty('SCHEMA', '89');
   }
+  if (ver < 90) {   // v90: 예약 54열 '주소록 등록' — 연락처를 휴대폰번호로 고치면 구글 주소록에 넣고 그 기록을 남김
+    var rv90 = ss.getSheetByName('예약');
+    if (rv90) {
+      if (rv90.getMaxColumns() < 54) rv90.insertColumnsAfter(rv90.getMaxColumns(), 54 - rv90.getMaxColumns());
+      if (String(rv90.getRange(1, 54).getValue() || '') === '') rv90.getRange(1, 54).setValue('주소록 등록');
+      rv90.getRange('BB2:BB').setNumberFormat('@');
+    }
+    props.setProperty('SCHEMA', '90');
+  }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -1725,6 +1734,68 @@ function photoSave_(date, hotel, room, item, dataUrl) {   // 구글 드라이브
   pi.getRange(hit, 15).setValue(old ? old + '\n' + url : url);
   return { ok: true, file: fn, url: url };
 }
+// ── 구글 주소록 (연락처) ──────────────────────────────────────────────────
+// 예약 연락처를 안심번호에서 일반 휴대폰번호로 고치면, 그 번호를 '<호텔> 고객관리' 그룹에 넣습니다.
+// 쓰려면 권한이 한 번 필요합니다 — 편집기에서 ctSetup()을 실행해 「허용」. 끄려면 스크립트 속성 CT_OFF=Y.
+var CT_SUFFIX_ = ' 고객관리';
+function ctOn_() { return PropertiesService.getScriptProperties().getProperty('CT_OFF') !== 'Y'; }
+function ctApi_(method, url, body) {
+  var o = { method: method, muteHttpExceptions: true, headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } };
+  if (body) { o.contentType = 'application/json'; o.payload = JSON.stringify(body); }
+  var r = UrlFetchApp.fetch(url, o), c = r.getResponseCode(), t = r.getContentText();
+  if (c === 403 || c === 401) throw new Error('주소록 권한이 없습니다 — 편집기에서 ctSetup()을 한 번 실행해 허용해 주세요 (' + c + ')');
+  if (c < 200 || c >= 300) throw new Error('주소록 ' + c + ': ' + t.slice(0, 160));
+  return t ? JSON.parse(t) : {};
+}
+function ctGroup_(hotel) {   // '<호텔> 고객관리' 그룹 (없으면 만들고 기억)
+  var nm = String(hotel || '').trim() + CT_SUFFIX_, p = PropertiesService.getScriptProperties(), key = 'CT_GRP_' + nm;
+  var id = p.getProperty(key); if (id) return id;
+  var r = ctApi_('get', 'https://people.googleapis.com/v1/contactGroups?pageSize=200');
+  var g = (r.contactGroups || []).filter(function (x) { return x.name === nm; })[0];
+  if (!g) g = ctApi_('post', 'https://people.googleapis.com/v1/contactGroups', { contactGroup: { name: nm } });
+  p.setProperty(key, g.resourceName);
+  return g.resourceName;
+}
+function ctHas_(tel) {   // 주소록에 이미 있는 번호인지 (못 찾으면 false — 중복은 예약 54열로도 막음)
+  try {
+    var r = ctApi_('get', 'https://people.googleapis.com/v1/people:searchContacts?pageSize=10&readMask=phoneNumbers&query=' + encodeURIComponent(telShow_(tel)));
+    return (r.results || []).some(function (x) {
+      return (((x.person || {}).phoneNumbers) || []).some(function (ph) { return telKey_(ph.value) === tel; });
+    });
+  } catch (e) { return false; }
+}
+function ctAdd_(hotel, room, who, tel, note) {
+  var grp = ctGroup_(hotel);
+  var person = ctApi_('post', 'https://people.googleapis.com/v1/people:createContact', {
+    names: [{ givenName: who || telShow_(tel) }],
+    phoneNumbers: [{ value: telShow_(tel), type: 'mobile' }],
+    organizations: [{ name: String(hotel || ''), title: String(room || '') + '호' }],
+    biographies: [{ value: String(note || ''), contentType: 'TEXT_PLAIN' }]
+  });
+  ctApi_('post', 'https://people.googleapis.com/v1/' + grp + '/members:modify', { resourceNamesToAdd: [person.resourceName] });
+  return person.resourceName;
+}
+function ctSave_(sh, row, tel) {   // 예약 한 줄 → 주소록 (이미 넣은 줄은 건너뜀, 54열에 기록)
+  if (!ctOn_() || sh.getMaxColumns() < 54) return '';
+  if (String(sh.getRange(row, 54).getValue() || '').trim()) return '';
+  var v = sh.getRange(row, 1, 1, 11).getValues()[0], hotel = String(v[1] || '').trim();
+  if (!hotel) return '';
+  var room = String(v[2] == null ? '' : v[2]).trim(), who = String(v[3] || '').trim();
+  var note = hotel + ' ' + room + '호 · ' + fmt_(v[6], false) + '~' + fmt_(v[7], false) + (v[10] ? ' · ' + v[10] : '');
+  var mark = ctHas_(tel) ? '이미 있음' : (ctAdd_(hotel, room, who, tel, note), '등록');
+  var c = sh.getRange(row, 54); c.setNumberFormat('@');
+  c.setValue(mark + ' ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'));
+  return mark;
+}
+function ctSetup() {   // Apps Script 편집기에서 한 번 실행: 주소록 권한 허용 + 호텔별 그룹 만들기
+  var ht = SpreadsheetApp.getActive().getSheetByName('호텔'), out = [];
+  ht.getRange(2, 2, Math.max(ht.getLastRow() - 1, 1), 1).getValues().forEach(function (x) {
+    var h = String(x[0] || '').trim(); if (!h) return;
+    out.push(h + CT_SUFFIX_ + ' → ' + ctGroup_(h));
+  });
+  return out.join('\n') || '호텔이 없습니다';
+}
+
 // ── 관리자: 청소배정 카드에서 바로 정산항목 넣기·사진 올리기 ────────────────
 // 청소담당자 카드와 같은 내용이지만, 그 객실이 누구에게 배정됐는지와 상관없이 열립니다.
 function admCardRow_(date, hotel, room) {   // 그날 그 객실의 청소실적 줄 (없으면 null)
@@ -2884,7 +2955,7 @@ function saveRowsRun_(name, items) {
     var keyVals = sh.getRange(1, def.key, last, 1).getValues(), allVals = sh.getRange(1, 1, last, def.cols).getValues();
     // 새 행은 '완전히 빈 행'에만 씀 — 입실일만 빈 행(예약ID·예약코드 등이 남은 행)을 덮어쓰지 않게
     var blank = function (i) { var row = allVals[i]; return def.edit.every(function (c) { var x = row[c - 1]; return x === '' || x === null; }) && (name !== '예약' || (!row[27] && !row[28])); };
-    var used = {}, savedRows = [];
+    var used = {}, savedRows = [], ctQ = [];
     items.forEach(function (it) {
       var r = it.r;
       if (!r) {
@@ -2895,6 +2966,7 @@ function saveRowsRun_(name, items) {
         used[r] = true;
       }
       savedRows.push(r);
+      var oldTel = (name === '예약' && allVals[r - 1]) ? telKey_(allVals[r - 1][4]) : '';   // 고치기 전 연락처 (주소록 넣기 판단용)
       Object.keys(it.v).forEach(function (k) {
         var col = +k;
         if (def.edit.indexOf(col) < 0) return;           // 자동 계산 열은 쓰지 않음
@@ -2906,6 +2978,11 @@ function saveRowsRun_(name, items) {
         }
         cell.setValue(val === null || val === undefined ? '' : val);
       });
+      // 연락처가 '일반 휴대폰번호'로 바뀌면 주소록에 넣을 목록에 올림 (안심번호·가린 번호는 넣지 않음)
+      if (name === '예약' && it.v[5] !== undefined) {
+        var nt = telKey_(it.v[5]);
+        if (/^01[016789]\d{7,8}$/.test(nt) && nt !== oldTel) ctQ.push({ row: r, tel: nt });
+      }
       // 새 예약(손입력·붙여넣기·알림·메일 자동등록)은 들어온 시각을 50열에 남김 — 등록일·등록순으로 찾아볼 때 씀
       if (name === '예약' && !it.r && it.v[50] === undefined && sh.getMaxColumns() >= 50 && !sh.getRange(r, 50).getValue()) {
         var rc = sh.getRange(r, 50); rc.setNumberFormat('@'); rc.setValue(Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'));
@@ -2922,6 +2999,7 @@ function saveRowsRun_(name, items) {
       }
     });
     SpreadsheetApp.flush();
+    ctQ.forEach(function (q) { try { ctSave_(sh, q.row, q.tel); } catch (e) { } });   // 주소록은 실패해도 저장을 막지 않음
     if (name === '달력연결') sortCal_(sh);
     if (name === '예약') resStamp_();
     if (name === '예약') {   // 예약은 입실일·퇴실일이 실제로 들어갔는지 확인 → 비면 한 번 더 쓰고, 그래도 비면 오류. 저장기록 시트에 남김
@@ -4170,7 +4248,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.23f96103';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.c51e3d68';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4264,7 +4342,7 @@ function codeLive_() {   // 앱이 들어온 주소에서 '지금 쓰는 배포 
 }
 // 코드가 새로 쓰게 된 권한 — 업데이트 때 appsscript.json의 oauthScopes에 더해 둡니다.
 // 허용은 사람이 해야 하므로(편집기에서 아무 함수나 한 번 실행 → 허용 창), 더하기만 하고 이번 배포에는 넣지 않습니다.
-var CODE_SCOPES_ = ['https://www.googleapis.com/auth/calendar'];
+var CODE_SCOPES_ = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/contacts'];
 var CODE_SCOPE_WHY_ = '';   // 권한을 못 더했을 때 까닭 (업데이트 결과에 같이 보여 줌)
 function codeScope_(files) {   // 빠진 권한을 매니페스트에 더함 → 더한 목록 (고칠 게 없으면 빈 배열)
   var add = []; CODE_SCOPE_WHY_ = '';

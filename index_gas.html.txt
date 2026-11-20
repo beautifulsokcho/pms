@@ -378,7 +378,7 @@ body.wide{--pw:min(2600px,100%)}
     <div class="newbox" id="newBox"></div>
     <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recOpen" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
-      <div class="f mo"><label for="recDate">등록일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
+      <div class="f mo"><label for="recDate">등록(취소)일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
       <div class="f s"><label for="recCx">취소</label><select id="recCx"><option value="in">취소 포함</option><option value="">취소 제외</option><option value="only">취소만</option></select></div>
       <div class="f s"><label for="recView">보기</label><select id="recView"><option value="card">카드형</option><option value="table">목록형</option></select></div>
@@ -408,7 +408,7 @@ body.wide{--pw:min(2600px,100%)}
       <div class="f s"><label for="qCx">취소</label><select id="qCx"><option value="">취소 제외</option><option value="in">취소 포함</option><option value="only">취소만</option></select></div>
     </div>
     <div class="bar barline">
-      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="co">퇴실일</option><option value="reg">등록일</option></select></div>
+      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="co">퇴실일</option><option value="reg">등록(취소)일</option></select></div>
       <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
       <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
       <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
@@ -521,7 +521,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20l';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20m';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1088,7 +1088,9 @@ function renderRecent(){try{occDraw()}catch(e){}
   if(day&&to&&to<day){var t0=day;day=to;to=t0}
   if(cx==='only')list=list.filter(function(r){return !!r.v[R.cancel]});           // 취소만
   else if(!cx)list=list.filter(function(r){return !r.v[R.cancel]});               // 취소 뺀 예약 ('in'이면 모두)
-  if(day)list=list.filter(function(r){var g=regDay(r.v);return g&&g>=day&&g<=to});
+  if(day)list=list.filter(function(r){var g=regDay(r.v);if(g&&g>=day&&g<=to)return true;
+    if(!cx)return false;                                   // 취소를 뺀 보기에서는 등록일만
+    var c=String(r.v[R.cancel]||'').slice(0,10);return !!c&&c>=day&&c<=to});   // 취소 포함·취소만: 취소한 날로도 보여 줌
   var pl=$('#recPlat')?$('#recPlat').value:'';
   if(pl)list=list.filter(function(r){return String(r.v[R.plat]||'')===pl});
   var so=$('#recSort')?$('#recSort').value:'regd';
@@ -1264,13 +1266,18 @@ function renderRes(){try{occDraw()}catch(e){}
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
   var h=$('#qHotel').value,rm=$('#qRoom').value.trim(),q=$('#qName').value.trim(),f=$('#qFrom').value,t=$('#qTo').value,pl=$('#qPlat').value,cx=$('#qCx').value,st=$('#qSettle').value;
-  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):bs==='co'?String(v[R.co]):String(v[R.ci])};   // 기간 기준: 입실일 · 퇴실일 · 등록일(자동등록 포함)
+  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):bs==='co'?String(v[R.co]):String(v[R.ci])};   // 기간 기준: 입실일 · 퇴실일 · 등록(취소)일
+  // 등록일 기준인데 '취소 포함·취소만'이면, 취소일이 기간 안에 든 예약도 보여 줍니다
+  // (취소일은 등록일과 따로 저장되어, 전에는 등록한 날로만 찾혀 오늘 취소한 건이 안 보였음)
+  var inB=function(v){var a=bd(v),ok=(!f||a>=f)&&(!t||a<=t);
+    if(ok||bs!=='reg'||!cx)return ok;
+    var c=String(v[R.cancel]||'').slice(0,10);if(!c)return false;
+    return (!f||c>=f)&&(!t||c<=t)};
   var list=rows('예약').filter(function(r){var v=r.v;
     if(h&&v[R.hotel]!==h)return false;
     if(rm&&String(v[R.room]).indexOf(rm)<0)return false;
     if(q&&(String(v[R.name])+String(v[R.tel])+resNosV(v).join(' ')+String(v[R.code]||'')).toUpperCase().indexOf(q.toUpperCase())<0)return false;   // 이름·번호 외에 예약번호·에어비앤비 코드로도 찾음
-    if(f&&bd(v)<f)return false;          // 기간은 고른 기준(입실일/등록일)
-    if(t&&bd(v)>t)return false;
+    if(!inB(v))return false;             // 기간은 고른 기준(입실일·퇴실일·등록(취소)일)
     if(st==='on'&&v[R.excl]==='Y')return false;
     if(st==='un'&&v[R.excl]!=='Y')return false;
     if(pl&&(v[R.plat]||'ABNB')!==pl)return false;
@@ -1296,7 +1303,7 @@ function renderRes(){try{occDraw()}catch(e){}
     main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="11">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
 ['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCx','qView','qSort','qBase'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
-function qBaseLbl(){var b=$('#qBase').value,n=b==='reg'?'등록일':b==='co'?'퇴실일':'입실일';
+function qBaseLbl(){var b=$('#qBase').value,n=b==='reg'?'등록(취소)일':b==='co'?'퇴실일':'입실일';
   $('#qFromL').textContent=n+' 시작';$('#qToL').textContent=n+' 끝';$('#qDayL').textContent='날짜 ('+n+')'}
 // 예약검색 호텔은 고른 것을 기억(다음에도 그 호텔), 호실은 입력칸 + 목록에서 고르기
 function fillQRooms(){var h=$('#qHotel').value,hs=h?[h]:hotels(true),cur=$('#qRoom').value.trim(),o='<option value="">목록</option>';
