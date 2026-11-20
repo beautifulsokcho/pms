@@ -40,7 +40,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend, admCard: admCard, admCardSave: admCardSave, admCardPhoto: admCardPhoto };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend, admCard: admCard, admCardSave: admCardSave, admCardPhoto: admCardPhoto, admCardAdd: admCardAdd };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -1739,12 +1739,18 @@ function admCardData_(date, hotel, room) {
   var a = admCardRow_(date, hotel, room), pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
   var got = lp > 1 ? pi.getRange(2, 1, lp - 1, 15).getValues().map(function (x, k) { return { r: k + 2, x: x }; })
     .filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; }) : [];
+  var items = manualItems_(hotel, room).map(function (m) {
+    var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
+    return { name: m.name, price: m.price, on: !!g, mine: true, by: g ? String(g.x[9] || '') : '', photo: g ? String(g.x[14] || '') : '' };
+  });
+  got.forEach(function (o) {   // 항목 목록에 없는 줄(1회성으로 직접 넣은 것)도 보여 줘야 사진을 붙이고 뺄 수 있음
+    var nm = String(o.x[4]).trim();
+    if (items.some(function (m) { return m.name === nm; })) return;
+    items.push({ name: nm, price: Number(o.x[7]) || Number(o.x[8]) || 0, on: true, mine: true, once: String(o.x[12] || '') || 'Y',
+      by: String(o.x[9] || ''), photo: String(o.x[14] || '') });
+  });
   return { date: date, hotel: hotel, room: room, adm: true, noRow: !a,
-    kind: a ? a.kind : '', done: a && a.done ? String(fmt_(a.done, false)) : '', cleaner: a ? a.who : '',
-    items: manualItems_(hotel, room).map(function (m) {
-      var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
-      return { name: m.name, price: m.price, on: !!g, mine: true, by: g ? String(g.x[9] || '') : '', photo: g ? String(g.x[14] || '') : '' };
-    }) };
+    kind: a ? a.kind : '', done: a && a.done ? String(fmt_(a.done, false)) : '', cleaner: a ? a.who : '', items: items };
 }
 function admCard(pin, date, hotel, room) { checkPin_(pin); adminOnly_(); ensureSchema_(); return admCardData_(String(date), String(hotel), String(room)); }
 function admCardSave(pin, date, hotel, room, done, names) {
@@ -1769,6 +1775,20 @@ function admCardSave(pin, date, hotel, room, done, names) {
       }
     });
   }
+  return admCardData_(date, hotel, room);
+}
+function admCardAdd(pin, date, hotel, room, name, amount, kind) {   // 관리자: 목록에 없는 1회성 항목을 직접 넣기
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  date = String(date); hotel = String(hotel); room = String(room);
+  name = String(name == null ? '' : name).trim();
+  if (!name) throw new Error('항목 이름을 넣으세요.');
+  var amt = Math.round(Number(String(amount == null ? '' : amount).replace(/[^\d.-]/g, '')) || 0);
+  if (!amt) throw new Error('금액을 넣으세요.');
+  var k = String(kind || 'B').trim().toUpperCase(); if (k !== 'B' && k !== 'C') k = 'B';   // B=부가세 +10% · C=미공제
+  if (admCardData_(date, hotel, room).items.some(function (m) { return m.name === name && m.on; }))
+    throw new Error('「' + name + '」은(는) 이 날짜에 이미 들어가 있습니다.');
+  saveRowsRun_('정산입력', [{ r: null, v: { 1: date.slice(0, 7), 2: hotel, 3: room, 4: date, 5: name,
+    7: amt, 8: amt, 10: '관리자 1회성', 13: k } }]);
   return admCardData_(date, hotel, room);
 }
 function admCardPhoto(pin, date, hotel, room, item, dataUrl) {
@@ -4150,7 +4170,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-20.bf9f58af';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-20.23f96103';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4529,46 +4549,64 @@ function weekTick() {
 // ── 정산 이상 점검 (규칙) ───────────────────────────────────────────────────
 // 손으로 넣은 항목에서 흔한 실수를 찾습니다: 지난달 대비 급변 · 같은 항목 여러 번 · 0원 · 자릿수 · 매출 없이 비용만
 function ruleCheck(pin, hotel, month, withPrev) {
-  checkPin_(pin); adminOnly_();
+  checkPin_(pin); adminOnly_(); ensureSchema_();
+  // 정산서를 호실마다 다시 계산하지 않고 '정산입력'과 '예약'에서 바로 읽습니다 (예전에는 40초 넘게 걸렸음).
+  // 보는 대상은 전과 같이 '사람이 넣은 항목'이고, 금액은 정산입력에 적힌 값 그대로입니다.
   var t0 = Date.now();
-  var now = integrated(pin, hotel, month);   // 정산서를 호실마다 다시 계산해서 오래 걸림 — 지난달까지 보면 두 배
-  var p = String(month).split('-'), prevM = Utilities.formatDate(new Date(+p[0], +p[1] - 2, 1), tz_(), 'yyyy-MM'), prev = null;
-  if (withPrev) try { prev = integrated(pin, hotel, prevM); } catch (e) { }
-  var pmap = {};
-  if (prev) (prev.rows || []).forEach(function (o) { var m = {}; (o.B || []).concat(o.C || []).forEach(function (x) { m[x[0]] = Number(x[1]) || 0; }); pmap[String(o.room)] = m; });
-  // 같은 달 정산입력에서 '한 호실·한 항목'이 몇 줄인지 (중복 입력 찾기)
-  var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow(), dup = {};
-  if (lp > 1) pi.getRange(2, 1, lp - 1, 11).getValues().forEach(function (x) {
+  month = String(month);
+  var p = month.split('-'), prevM = Utilities.formatDate(new Date(+p[0], +p[1] - 2, 1), tz_(), 'yyyy-MM');
+  var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi ? pi.getLastRow() : 1;
+  var rows = lp > 1 ? pi.getRange(2, 1, lp - 1, 13).getValues() : [];
+  var cur = {}, old = {}, dup = {}, cost = {}, rooms = {};
+  rows.forEach(function (x) {
     if (x[1] !== hotel || !x[4]) return;
-    var mk = String(x[10] || x[0] || ''); if (mk.slice(0, 7) !== month) return;
-    var k = String(x[2]) + '|' + String(x[4]).trim(); dup[k] = (dup[k] || 0) + 1;
+    var mk = x[3] ? String(fmt_(x[3], false)).slice(0, 7) : String(fmt_(x[10] || x[0], true) || '').slice(0, 7);
+    if (mk !== month && mk !== prevM) return;
+    var room = String(x[2]), name = String(x[4]).trim(); if (!name) return;
+    var amt = Number(x[7]) || Number(x[8]) || (Number(x[5]) || 0) * (Number(x[6]) || 0);   // 금액(수동) → 금액(자동) → 수량×단가
+    if (mk === month) {
+      rooms[room] = 1;
+      cost[room] = (cost[room] || 0) + amt;
+      if (/자동-|대행수수료|청소비/.test(name)) return;   // 자동 계산 항목은 점검 대상이 아님
+      (cur[room] = cur[room] || {})[name] = (cur[room][name] || 0) + amt;
+      var k = room + '|' + name; dup[k] = (dup[k] || 0) + 1;
+    } else {
+      if (/자동-|대행수수료|청소비/.test(name)) return;
+      (old[room] = old[room] || {})[name] = (old[room][name] || 0) + amt;
+    }
   });
-  var out = [];
-  (now.rows || []).forEach(function (o) {
-    var room = String(o.room), was = pmap[room] || {}, items = (o.B || []).concat(o.C || []);
-    var hasPrev = !!pmap[room];
-    items.forEach(function (x) {
-      var name = String(x[0] || '').trim(), v = Number(x[1]) || 0; if (!name) return;
-      if (/자동-|대행수수료|청소비/.test(name)) return;   // 자동 계산 항목은 건너뜀
-      var n = dup[room + '|' + name] || 0;
+  // 그 달 매출 (입실일 기준) — 본인계정 입금액도 매출로 봅니다
+  var sale = {};
+  svals_('예약', 42).forEach(function (v) {
+    if (v[1] !== hotel || !v[6] || v[23]) return;
+    if (String(mailYmd_(v[6])).slice(0, 7) !== month) return;
+    var r = String(v[2]), o = sale[r] = sale[r] || { s: 0, own: 0 };
+    o.s += Number(v[11]) || 0; o.own += Number(v[41]) || 0;
+  });
+  var out = [], nPrev = 0;
+  Object.keys(rooms).sort().forEach(function (room) {
+    var now = cur[room] || {}, was = old[room] || null; if (was) nPrev++;
+    Object.keys(now).forEach(function (name) {
+      var v = now[name], n = dup[room + '|' + name] || 0;
       if (n > 1) out.push({ room: room, why: '「' + name + '」이 이 달에 ' + n + '줄 들어가 있습니다 (중복 입력일 수 있음)', level: '높음' });
       if (v && v % 10 !== 0 && v < 1000) out.push({ room: room, why: '「' + name + '」 ' + v.toLocaleString() + '원 — 자릿수를 확인해 보세요', level: '보통' });
-      if (hasPrev) {
+      if (was) {
         var w = was[name] || 0;
         if (w > 0 && v > 0 && v >= w * 3 && v - w >= 20000) out.push({ room: room, why: '「' + name + '」이 지난달 ' + w.toLocaleString() + '원 → ' + v.toLocaleString() + '원 (' + Math.round(v / w * 10) / 10 + '배)', level: '높음' });
-        if (w >= 20000 && v === 0) out.push({ room: room, why: '지난달 있던 「' + name + '」(' + w.toLocaleString() + '원)이 이 달엔 없습니다', level: '낮음' });
-      } else if (v >= 50000) out.push({ room: room, why: '「' + name + '」 ' + v.toLocaleString() + '원 — 지난달엔 없던 호실입니다', level: '낮음' });
+      } else if (v >= 50000) out.push({ room: room, why: '「' + name + '」 ' + v.toLocaleString() + '원 — 지난달엔 항목이 없던 호실입니다', level: '낮음' });
     });
-    if (!(Number(o.sales) > 0) && Number(o.Bsum) + Number(o.Csum) >= 50000)
-      out.push({ room: room, why: '매출이 없는데 비용만 ' + (Number(o.Bsum) + Number(o.Csum)).toLocaleString() + '원 잡혀 있습니다', level: '보통' });
+    if (was) Object.keys(was).forEach(function (name) {
+      if (was[name] >= 20000 && !now[name]) out.push({ room: room, why: '지난달 있던 「' + name + '」(' + was[name].toLocaleString() + '원)이 이 달엔 없습니다', level: '낮음' });
+    });
+    // 매출이 없는데 비용만 — 본인계정 입금이 있으면 매출을 0으로 잡는 것이 정상이라 뺍니다
+    var sv = sale[room] || { s: 0, own: 0 };
+    if (!sv.s && !sv.own && (cost[room] || 0) >= 50000)
+      out.push({ room: room, why: '이 달 예약도 본인계정 입금도 없는데 비용만 ' + Math.round(cost[room]).toLocaleString() + '원 잡혀 있습니다', level: '보통' });
   });
   var rank = { '높음': 0, '보통': 1, '낮음': 2 };
   out.sort(function (a, b) { return rank[a.level] - rank[b.level] || String(a.room).localeCompare(String(b.room)); });
-  return { hotel: hotel, month: month, prev: prev ? prevM : '', prevM: prevM, asked: !!withPrev, ms: Date.now() - t0, list: out.slice(0, 30) };
+  return { hotel: hotel, month: month, prev: nPrev ? prevM : '', prevM: prevM, asked: true, ms: Date.now() - t0, list: out.slice(0, 30) };
 }
-
-// ── 비고 정리 (규칙) ────────────────────────────────────────────────────────
-// 비고 글에서 조기입실·늦은퇴실 시각, 인원, 반려견 마리수를 찾아 메모·인원·반려견 칸으로
 function noteRead_(s) {
   var t = String(s || '').replace(/\s+/g, ' ');
   var hm = function (m) { if (!m) return ''; var h = +m[1], mi = m[2] ? +m[2] : 0; if (/오후|pm/i.test(m[0]) && h < 12) h += 12; return ('0' + h).slice(-2) + ':' + ('0' + mi).slice(-2); };
