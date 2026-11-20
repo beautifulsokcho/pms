@@ -502,7 +502,7 @@ body.cw-board #v-clean .cp1,body.cw-board #v-clean .cp3,body.cw-board #cSave,bod
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-20d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-20e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3720,11 +3720,16 @@ function resPoll(){
 RPOLL.t=setInterval(resPoll,60000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(resPoll,300)});
 function srvInit(){var n=$('#srvNote');if(!n)return;if(DEMO||!LIVE||ROLE==='manager'||ROLE==='owner'||store('role')==='cleaner'||store('role')==='manager'||store('role')==='owner'){n.hidden=true;return}   // 서버 코드(Code.gs) 버전·자동 업데이트 — 관리자만
-  call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');if(i.last)$('#srvMsg').textContent='최근 '+i.last}).catch(function(){n.hidden=true});
+  var srvVers=function(i){var el=$('#srvVers');if(!el){el=document.createElement('span');el.id='srvVers';n.appendChild(el)}   // 버전 200개가 차면 업데이트가 막혀서 미리 알려 줌
+    var k=Number(i.vers)||0,m=Number(i.versMax)||200;if(!k){el.textContent='';return}
+    el.textContent=' · 버전 '+k+'/'+m+(k>=m?' — 꽉 찼습니다. 편집기 ⏱프로젝트 기록에서 오래된 버전을 지워 주세요':k>=m-30?' — 곧 꽉 찹니다. 편집기 ⏱프로젝트 기록에서 오래된 버전을 미리 지워 두세요':'');
+    el.className=k>=m-30?'warnc':''};
+  call('codeInfo').then(function(i){$('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐 (codeSetup 실행 필요)');
+    if(i.last)$('#srvMsg').textContent='최근 '+i.last;srvVers(i)}).catch(function(){n.hidden=true});
   $('#srvUpd').onclick=function(){var b=this;b.disabled=true;$('#srvMsg').textContent='깃허브에서 확인 중…';
     call('codeUpdate').then(function(r){b.disabled=false;$('#srvMsg').textContent=r.msg||'';toast(r.msg||'확인했습니다');
       var chk=function(n){return call('codeInfo').then(function(i){   // 새 배포가 실제로 돌기까지 1분쯤 걸려 몇 번 나눠 확인
-        $('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐');
+        $('#srvVer').textContent=i.ver+(i.auto?' · 자동 업데이트 켜짐':' · 자동 업데이트 꺼짐');srvVers(i);
         if(!r.ver||i.ver===r.ver){$('#srvMsg').textContent='지금 돌고 있는 코드 '+i.ver;return}
         if(n>0){$('#srvMsg').textContent='배포가 반영되기를 기다리는 중… ('+n+')';return new Promise(function(ok){setTimeout(ok,12000)}).then(function(){return chk(n-1)})}
         $('#srvMsg').textContent='';
