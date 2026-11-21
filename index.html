@@ -345,10 +345,15 @@ body.wide{--pw:min(2600px,100%)}
 }
 /* 입력 칸·카드 배열이 '칸의 실제 폭'에 맞춰 바뀜 (창을 끌어 줄이면 바로 따라옴) */
 .newbox,#cList,.list,.tasks{container-type:inline-size}
-@container (min-width:1080px){.newbox .form{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (min-width:1080px){.newbox .form .hotel-pick select{max-width:520px}}   /* 호텔 고르는 칸만 화면 끝까지 늘어나지 않게 */
-@container (min-width:1520px){.newbox .form{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@container (min-width:1960px){.newbox .form{grid-template-columns:repeat(5,minmax(0,1fr))}}
+/* 칸 수는 '입력 상자 안쪽 폭'을 따라갑니다. 기준이 그 안쪽 폭(테두리 안쪽, padding 14px 제외)이라는 점이 중요합니다 —
+   보통 폭은 본문이 1120px까지라 안쪽이 최대 1060px인데, 전에는 첫 칸수 기준이 1080px이어서
+   보통 폭에서는 창을 어떻게 늘려도 영원히 2줄이었습니다. 기준을 낮춰 보통 폭에서도 2→3→4줄로 바뀌게 했습니다. */
+@container (min-width:720px){.newbox .form{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:720px){.newbox .form .hotel-pick select{max-width:520px}}   /* 호텔 고르는 칸만 화면 끝까지 늘어나지 않게 */
+@container (min-width:1000px){.newbox .form{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (min-width:1320px){.newbox .form{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@container (min-width:1660px){.newbox .form{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@container (min-width:2000px){.newbox .form{grid-template-columns:repeat(7,minmax(0,1fr))}}
 #wideBtn[hidden]{display:none!important}
 </style>
 
@@ -537,7 +542,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
