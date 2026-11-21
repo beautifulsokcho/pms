@@ -66,20 +66,33 @@ function checkPin_(pin) {
   CTX_ = { role: 'admin' };
   var want = PropertiesService.getScriptProperties().getProperty('APP_PIN');
   if (!want) throw new Error('PIN_UNSET');
+  // 빈 PIN은 '아직 로그인 안 함'이지 비밀번호를 맞혀 보는 것이 아닙니다 → 잠금 횟수에 넣지 않습니다.
+  // (관리자 미리보기처럼 PIN이 비는 화면에서 호출 하나가 새면, 전에는 10분 잠금까지 갔습니다)
+  var got = String(pin || '').trim();
+  if (!got) throw new Error('PIN_WRONG');
   var cache = CacheService.getScriptCache(), fails = +(cache.get('pinfail') || 0);
   if (fails >= 10) throw new Error('PIN_LOCK');
-  if (String(pin || '').trim() !== String(want).trim()) {
+  if (got !== String(want).trim()) {
     cache.put('pinfail', String(fails + 1), 600);
     throw new Error('PIN_WRONG');
   }
+}
+function pinUnlock() {   // 편집기에서 실행: PIN을 여러 번 틀려 잠긴 것을 바로 풀기 (10분 기다리지 않아도 됨)
+  var c = CacheService.getScriptCache();
+  c.remove('pinfail');
+  var cl = SpreadsheetApp.getActive().getSheetByName('청소담당자'), lr = cl ? cl.getLastRow() : 1;
+  if (cl && lr > 1) cl.getRange(2, 17, lr - 1, 1).getValues().forEach(function (x) { if (x[0]) c.remove('cfail_' + String(x[0]).trim()); });
+  return '잠금을 풀었습니다 — 관리자 PIN·청소담당자 로그인 모두 다시 쓸 수 있습니다.';
 }
 function ping(pin) { checkPin_(pin); return { ok: true, name: SpreadsheetApp.getActive().getName(), code: CODE_VER, role: CTX_.role, who: CTX_.name || '', hotels: CTX_.hotels || [], room: CTX_.room || '', rooms: CTX_.rooms || [] }; }
 // 관리자 미리보기: 비밀번호 자리에 'ADM:관리자PIN'이 오면 관리자 PIN을 확인하고 그 사람(호실·매니저·담당자)의 화면으로 들어감
 function admPw_(pw) {
   var s = String(pw || ''); if (s.indexOf('ADM:') !== 0) return false;
+  var got = s.slice(4).trim();
+  if (!got) throw new Error('PIN_WRONG');   // 빈 PIN은 잠금 횟수에 넣지 않음 (checkPin_과 같은 까닭)
   var want = PropertiesService.getScriptProperties().getProperty('APP_PIN'), cache = CacheService.getScriptCache(), fails = +(cache.get('pinfail') || 0);
   if (fails >= 10) throw new Error('PIN_LOCK');
-  if (!want || s.slice(4).trim() !== String(want).trim()) { cache.put('pinfail', String(fails + 1), 600); throw new Error('PIN_WRONG'); }
+  if (!want || got !== String(want).trim()) { cache.put('pinfail', String(fails + 1), 600); throw new Error('PIN_WRONG'); }
   return true;
 }
 function managerLogin_(cred) {
@@ -4396,7 +4409,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.3a95f221';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-22.0560a769';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

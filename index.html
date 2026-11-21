@@ -537,7 +537,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21j';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -610,6 +610,7 @@ function post(url,body){
     .then(function(r){if(!r.ok)throw new Error('서버 응답 '+r.status);return r.json()})
     .then(function(j){if(j.error)throw new Error(j.error);return j.result});
 }
+function inPreview(){try{return !!(TABMODE&&sessionStorage.getItem('viewRole'))}catch(e){return false}}   // 👁 관리자 미리보기로 보는 중인가
 function call(fn){
   var args=Array.prototype.slice.call(arguments,1);
   if(DEMO) return Demo[fn].apply(null,args);
@@ -618,6 +619,9 @@ function call(fn){
           :post(API,{fn:fn,pin:PIN,args:args});
   return p.catch(function(e){var t=errText(e);
     if(t.indexOf('PIN_WRONG')>=0&&(ROLE==='manager'||ROLE==='owner')){store('role','');store('mid','');store('mpw','');toast('로그인 정보가 바뀌었습니다. 다시 로그인하세요.');setTimeout(function(){softReload()},1500);throw e}
+    // 관리자 미리보기(👁 화면)에서는 관리자 PIN이 이 탭에 없습니다. 거기서 관리 기능 호출이 하나 새면
+    // 전에는 로그인 창이 뜨고, 누를수록 PIN 틀린 횟수가 쌓여 10분 잠금까지 갔습니다 → 알려만 주고 멈춥니다.
+    if(t.indexOf('PIN_WRONG')>=0&&inPreview()){toast('관리자 미리보기에서는 이 기능을 쓸 수 없습니다. 띠의 [관리자 화면으로]를 눌러 돌아가세요.');throw e}
     if(t.indexOf('PIN_WRONG')>=0)return askPin(true).then(function(){return call.apply(null,[fn].concat(args))});
     if(t.indexOf('PIN_LOCK')>=0)throw new Error('PIN을 여러 번 틀려 10분간 잠겼습니다. 잠시 후 다시 시도하세요.');
     if(t.indexOf('PIN_UNSET')>=0)throw new Error('Apps Script의 스크립트 속성에 APP_PIN을 먼저 설정하세요.');
