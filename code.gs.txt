@@ -152,9 +152,17 @@ function adminOnly_() { if (CTX_.role !== 'admin') throw new Error('권한이 �
 function hotelOk_(h) { if (CTX_.role === 'admin') return; if (CTX_.hotels.indexOf(String(h)) < 0) throw new Error('맡은 호텔이 아닙니다: ' + h); }
 var MGR_SHEETS_ = { '호텔': 1, '객실': 1, '예약': 1, '정산입력': 1, '청소비요율': 0, '수건규칙': 0, '플랫폼': -1, '정산항목': -1 };   // 매니저가 읽는 시트 (값 = 호텔 열 위치, -1은 전체)
 
-function tz_() { return SpreadsheetApp.getActive().getSpreadsheetTimeZone(); }
+// 시트 시간대 읽기(getSpreadsheetTimeZone)는 구글 서버에 묻는 일이라 느립니다 — 한 번 묻고 그 실행 동안 돌려 씁니다.
+var TZ_ = '';
+function tz_() { return TZ_ || (TZ_ = SpreadsheetApp.getActive().getSpreadsheetTimeZone()); }
+// 날짜를 글자로 바꾸는 일(Utilities.formatDate)도 느립니다. 시트에는 같은 날짜가 수없이 나오므로
+// 날짜마다 한 번만 바꿔 두고 다시 쓰면, 예약 2천 건을 읽을 때 6천 번이 600번쯤으로 줄어듭니다.
+var FMTC_ = {};
 function fmt_(v, isMonth) {
-  if (v instanceof Date) return Utilities.formatDate(v, tz_(), isMonth ? 'yyyy-MM' : 'yyyy-MM-dd');
+  if (v instanceof Date) {
+    var k = (isMonth ? 'm' : 'd') + v.getTime(), c = FMTC_[k];
+    return c !== undefined ? c : (FMTC_[k] = Utilities.formatDate(v, tz_(), isMonth ? 'yyyy-MM' : 'yyyy-MM-dd'));
+  }
   return v;
 }
 // 날짜는 구글시트 시간대(예: 한국) 자정으로 만든다 — 스크립트 시간대(미국 등)로 만들면 하루씩 밀림
@@ -268,10 +276,12 @@ function acctFill_(ss) {   // 써밋베이 호실에 은행·예금주·계좌�
   });
   return '등록 ' + done.length + '실' + (miss.length ? ' · 못 찾은 호실 ' + miss.join(',') : '');
 }
+var SCHEMA_OK_ = false;   // 한 실행 안에서는 한 번만 — 스크립트 속성 읽기도 공짜가 아닙니다
 function ensureSchema_() {
+  if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 91) return;
+  if (ver >= 91) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1615,12 +1625,11 @@ function exportXlsx(pin, title, sheets) {
 // ── 청소담당자 로그인: 아이디·비밀번호 확인 (10번 틀리면 10분 잠김) → 이름
 function cleanerLogin_(cred) {
   var id = String(cred && cred.id || '').trim(), pw = String(cred && cred.pw || '').trim();
-  if (admPw_(pw)) { var clA = SpreadsheetApp.getActive().getSheetByName('청소담당자'), xA = clA.getRange(2, 1, Math.max(clA.getLastRow() - 1, 1), 18).getValues().find(function (x) { return x[0] && String(x[16]).trim() === id; }); if (!xA) throw new Error('LOGIN_WRONG'); return String(xA[0]); }
+  if (admPw_(pw)) { var xA = svals_('청소담당자', 18).find(function (x) { return x[0] && String(x[16]).trim() === id; }); if (!xA) throw new Error('LOGIN_WRONG'); return String(xA[0]); }
   if (!id || !pw) throw new Error('LOGIN_WRONG');
   var cache = CacheService.getScriptCache(), ck = 'cfail_' + id, fails = +(cache.get(ck) || 0);
   if (fails >= 10) throw new Error('LOGIN_LOCK');
-  var cl = SpreadsheetApp.getActive().getSheetByName('청소담당자');
-  var v = cl.getRange(2, 1, Math.max(cl.getLastRow() - 1, 1), 18).getValues();
+  var v = svals_('청소담당자', 18);
   var me = v.find(function (x) { return x[0] && String(x[16]).trim() === id && String(x[17]).trim() === pw && x[10] !== 'N'; });
   if (!me) { cache.put(ck, String(fails + 1), 600); throw new Error('LOGIN_WRONG'); }
   return String(me[0]);
@@ -1628,17 +1637,19 @@ function cleanerLogin_(cred) {
 // ── 청소담당자 화면: 그 날짜에 나에게 배정된 청소·입실준비 객실만 (금액·연락처 없음)
 function myClean(cred, date) {
   ensureSchema_();
-  var name = cleanerLogin_(cred), ss = SpreadsheetApp.getActive();
+  var name = cleanerLogin_(cred);
   date = date || Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
-  var cs = ss.getSheetByName('청소실적'), lc = cs.getLastRow();
-  var recs = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues().filter(function (x) { return x[1] === name && fmt_(x[0]) === date && x[2]; }) : [];
-  var rv = ss.getSheetByName('예약'), lr = rv.getLastRow();
-  var res = lr > 1 ? rv.getRange(2, 1, lr - 1, 27).getValues().filter(function (x) { return x[6] && x[7] && !x[23]; }) : [];
+  var recs = svals_('청소실적', 13).filter(function (x) { return x[1] === name && fmt_(x[0]) === date && x[2]; });
+  var res = svals_('예약', 27).filter(function (x) { return x[6] && x[7] && !x[23]; });
+  // 객실마다 예약 2천 건을 다시 훑으면 느려지므로, 호텔|호실로 한 번만 묶어 둡니다 (입실일 순)
+  var byRoom = {};
+  res.forEach(function (x) { var k = x[1] + '|' + String(x[2]); (byRoom[k] = byRoom[k] || []).push(x); });
+  Object.keys(byRoom).forEach(function (k) { byRoom[k].sort(function (a, b) { return fmt_(a[6]) < fmt_(b[6]) ? -1 : 1; }); });
   var plus = function (d, n) { var t = Utilities.parseDate(d, tz_(), 'yyyy-MM-dd'); t.setDate(t.getDate() + n); return Utilities.formatDate(t, tz_(), 'yyyy-MM-dd'); };
   var lim = plus(date, 5), hotels = {};
   var items = recs.map(function (x) {
     var h = x[2], room = String(x[3]), kind = String(x[6] || x[5] || ''), memo = String(x[11] || '');
-    var mine = res.filter(function (r) { return r[1] === h && String(r[2]) === room; }).sort(function (a, b) { return fmt_(a[6]) < fmt_(b[6]) ? -1 : 1; });
+    var mine = byRoom[h + '|' + room] || [];
     var out = mine.find(function (r) { return fmt_(r[7]) === date; });
     var nx = mine.find(function (r) { var c = fmt_(r[6]); return c >= date && c <= lim; });
     hotels[h] = true;
@@ -1647,13 +1658,16 @@ function myClean(cred, date) {
       inDate: nx ? (fmt_(nx[6]) === date ? '오늘' : fmt_(nx[6]).slice(5)) : '', inPpl: nx ? nx[9] : '', inN: nx ? nx[8] : '', inMemo: nx ? String(nx[22] || '') : '',
       towel: nx ? nx[25] : '', water: nx ? nx[26] : '' };
   }).sort(function (a, b) { return a.hotel === b.hotel ? Number(b.room) - Number(a.room) : (a.hotel < b.hotel ? -1 : 1); });
-  var notices = {}, defs = {}, ht = ss.getSheetByName('호텔');
-  if (ht && ht.getMaxColumns() >= 16) ht.getRange(2, 1, Math.max(ht.getLastRow() - 1, 1), Math.min(18, ht.getMaxColumns())).getValues().forEach(function (x) { if (hotels[x[1]] && x[15]) notices[x[1]] = String(x[15]); defs[x[1]] = { t: x[16], w: x[17] }; });
-  var ob = ss.getSheetByName('객실'), rdef = {};
-  if (ob && ob.getMaxColumns() >= 29) ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), 29).getValues().forEach(function (x) { if (x[27] !== '' || x[28] !== '') rdef[x[1] + '|' + x[2]] = { t: x[27], w: x[28] }; });
+  var notices = {}, defs = {};
+  svals_('호텔', 18).forEach(function (x) { if (hotels[x[1]] && x[15]) notices[x[1]] = String(x[15]); defs[x[1]] = { t: x[16], w: x[17] }; });
+  var rdef = {};
+  svals_('객실', 31).forEach(function (x) { if (x[27] !== '' || x[28] !== '') rdef[x[1] + '|' + x[2]] = { t: x[27], w: x[28] }; });   // 31열까지 — 아래 객실 카드와 같은 읽기를 돌려 쓰려고
   items.forEach(function (it) { var rd = rdef[it.hotel + '|' + it.room]; if (it.towel === '' && rd) { it.towel = rd.t !== '' ? rd.t : (defs[it.hotel] ? defs[it.hotel].t : ''); it.water = rd.w !== '' ? rd.w : (defs[it.hotel] ? defs[it.hotel].w : ''); it.def = true; } });   // 객실별 기본 세팅 우선
   items.forEach(function (it) { if (it.towel === '' && defs[it.hotel]) { it.towel = defs[it.hotel].t === undefined ? '' : defs[it.hotel].t; it.water = defs[it.hotel].w === undefined ? '' : defs[it.hotel].w; it.def = true; } });   // 5일 안 입실 예약이 없으면 호텔 기본 수량
-  var clm = ss.getSheetByName('청소담당자'), mrow = clm.getRange(2, 1, Math.max(clm.getLastRow() - 1, 1), 16).getValues().find(function (x) { return String(x[0]) === name; });
+  // 객실 카드(완료 표시·정산항목·사진)도 함께 보냅니다 — 카드를 누를 때마다 서버를 다시 부르면 폰에서 몇 초씩 걸립니다.
+  // 시트는 위에서 읽어 둔 것(svals_)을 그대로 쓰므로 객실이 20개여도 더 읽지 않습니다.
+  items.forEach(function (it) { try { it.card = myRoomData_(name, date, it.hotel, it.room); } catch (e) { } });
+  var mrow = svals_('청소담당자', 18).find(function (x) { return String(x[0]) === name; });   // 로그인할 때 읽은 것을 그대로 씀 (다시 읽지 않음)
   return { name: name, date: date, items: items, notices: notices, mgr: !!(mrow && String(mrow[13]).trim().toUpperCase() === 'Y'), home: mrow ? String(mrow[15] || '') : '' };
 }
 // ── 청소담당자: PIN(비밀번호) 바꾸기 — 숫자 4자리, 청소담당자 R열에 저장
@@ -1668,31 +1682,28 @@ function myPin(cred, newPin) {
 }
 // ── 청소담당자: 객실 카드 — 완료 표시 · 수동 정산항목 체크 · 사진 (나에게 배정된 객실만)
 function myAssigned_(name, date, hotel, room) {
-  var cs = SpreadsheetApp.getActive().getSheetByName('청소실적'), lc = cs.getLastRow(), v = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues() : [];
+  var v = svals_('청소실적', 13);
   var k = v.findIndex(function (x) { return x[1] === name && fmt_(x[0], false) === date && x[2] === hotel && String(x[3]) === String(room); });
   if (k < 0) throw new Error('나에게 배정된 객실이 아닙니다.');
-  return { sh: cs, row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || '') };
+  return { sh: SpreadsheetApp.getActive().getSheetByName('청소실적'), row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || '') };
 }
 function admRoom_(hotel, room) {   // 객실 AE열 '관리자 직접 운영 (Y)'
-  var ob = SpreadsheetApp.getActive().getSheetByName('객실');
-  var v = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 31)).getValues()
-    .find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
+  var v = svals_('객실', 31).find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
   return String(v[30] || '').trim().toUpperCase() === 'Y';
 }
 function manualItems_(hotel, room) {   // 그 객실에 쓰는 '수동' 정산항목 (적용 호텔·객실 V열 반영, 관리자 직접 운영 객실은 없음)
-  var ss = SpreadsheetApp.getActive(), it = ss.getSheetByName('정산항목'), ob = ss.getSheetByName('객실');
-  var rv = ob.getRange(2, 1, Math.max(ob.getLastRow() - 1, 1), Math.min(ob.getMaxColumns(), 31)).getValues().find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
+  var rv = svals_('객실', 31).find(function (x) { return x[1] === hotel && String(x[2]) === String(room); }) || [];
   // 관리자 직접 운영 객실(AE열 Y)도 청소담당자 화면에는 항목이 나오게 함 — 다만 정산에는 들어가지 않도록 mySave가 수량 0으로 적음
   var only = String(rv[21] || '').trim(); if (only === '없음') return [];
   var toks = only ? only.split(/\s*,\s*/).filter(String) : [];
-  return it.getRange(2, 1, Math.max(it.getLastRow() - 1, 1), 10).getValues().filter(function (x) {
+  return svals_('정산항목', 10).filter(function (x) {
     var j = String(x[9] || '').trim(), nm = String(x[0] || '').trim();
     return nm && x[2] === '수동' && x[6] === 'Y' && (j === '' || j === '전체' || j.split(/\s*,\s*/).indexOf(hotel) >= 0) && (!toks.length || toks.some(function (t) { return nm.indexOf(t) >= 0; }));
   }).map(function (x) { return { name: String(x[0]).trim(), grp: x[1], price: Number(x[3]) || 0 }; });
 }
 function myRoomData_(name, date, hotel, room) {
-  var a = myAssigned_(name, date, hotel, room), pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
-  var got = lp > 1 ? pi.getRange(2, 1, lp - 1, 15).getValues().map(function (x, k) { return { r: k + 2, x: x }; }).filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; }) : [];
+  var a = myAssigned_(name, date, hotel, room);
+  var got = svals_('정산입력', 15).map(function (x, k) { return { r: k + 2, x: x }; }).filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; });
   return { date: date, hotel: hotel, room: room, kind: a.kind, done: a.done ? String(fmt_(a.done, false)) : '', items: manualItems_(hotel, room).map(function (m) {
     var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
     return { name: m.name, price: m.price, on: !!g, mine: !!(g && /^청소담당자/.test(String(g.x[9]))), photo: g ? String(g.x[14] || '') : '' };
@@ -1702,6 +1713,7 @@ function myRoom(cred, date, hotel, room) { return myRoomData_(cleanerLogin_(cred
 function mySave(cred, date, hotel, room, done, names) {
   var name = cleanerLogin_(cred), a = myAssigned_(name, date, hotel, room);
   a.sh.getRange(a.row, 13).setValue(done ? Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') : '');
+  svDrop_('청소실적');   // 완료 시각을 썼으니 다시 읽게 함
   var cur = myRoomData_(name, date, hotel, room), want = names || [], add = [], del = [];
   var adm = admRoom_(hotel, room);   // 관리자 직접 운영 객실: 기록은 남기되 수량 0으로 넣어 객실정산에는 안 들어가게
   cur.items.forEach(function (m) {
@@ -1711,6 +1723,7 @@ function mySave(cred, date, hotel, room, done, names) {
   if (add.length) saveRowsRun_('정산입력', add);
   if (del.length) {
     var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
+    svDrop_('정산입력');   // 아래에서 지우므로 읽기 캐시를 버림
     pi.getRange(2, 1, lp - 1, 15).getValues().forEach(function (x, k) {
       if (x[1] === hotel && String(x[2]) === String(room) && x[3] && fmt_(x[3], false) === date && del.indexOf(String(x[4]).trim()) >= 0 && /^청소담당자/.test(String(x[9]))) {
         trashPhotos_(x[14]);   // 체크 해제 → 올렸던 사진도 드라이브 휴지통으로
@@ -1741,6 +1754,7 @@ function photoSave_(date, hotel, room, item, dataUrl) {   // 구글 드라이브
   if (hit < 0) throw new Error('먼저 항목을 체크하고 저장하세요.');
   var old = String(pi.getRange(hit, 15).getValue() || '');
   pi.getRange(hit, 15).setValue(old ? old + '\n' + url : url);
+  svDrop_('정산입력');   // 사진 주소를 썼으니 다시 읽게 함
   return { ok: true, file: fn, url: url };
 }
 // ── 구글 주소록 (연락처) ──────────────────────────────────────────────────
@@ -1815,17 +1829,16 @@ function ctSetup() {   // Apps Script 편집기에서 한 번 실행: 주소록 
 // ── 관리자: 청소배정 카드에서 바로 정산항목 넣기·사진 올리기 ────────────────
 // 청소담당자 카드와 같은 내용이지만, 그 객실이 누구에게 배정됐는지와 상관없이 열립니다.
 function admCardRow_(date, hotel, room) {   // 그날 그 객실의 청소실적 줄 (없으면 null)
-  var cs = SpreadsheetApp.getActive().getSheetByName('청소실적'), lc = cs ? cs.getLastRow() : 1;
-  var v = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues() : [];
+  var v = svals_('청소실적', 13);
   for (var k = 0; k < v.length; k++)
     if (fmt_(v[k][0], false) === date && v[k][2] === hotel && String(v[k][3]) === String(room))
-      return { sh: cs, row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || ''), who: String(v[k][1] || '') };
+      return { sh: SpreadsheetApp.getActive().getSheetByName('청소실적'), row: k + 2, done: v[k][12], kind: String(v[k][6] || v[k][5] || ''), who: String(v[k][1] || '') };
   return null;
 }
 function admCardData_(date, hotel, room) {
-  var a = admCardRow_(date, hotel, room), pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
-  var got = lp > 1 ? pi.getRange(2, 1, lp - 1, 15).getValues().map(function (x, k) { return { r: k + 2, x: x }; })
-    .filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; }) : [];
+  var a = admCardRow_(date, hotel, room);
+  var got = svals_('정산입력', 15).map(function (x, k) { return { r: k + 2, x: x }; })
+    .filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; });
   var items = manualItems_(hotel, room).map(function (m) {
     var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
     return { name: m.name, price: m.price, on: !!g, mine: true, by: g ? String(g.x[9] || '') : '', photo: g ? String(g.x[14] || '') : '' };
@@ -1844,7 +1857,7 @@ function admCardSave(pin, date, hotel, room, done, names) {
   checkPin_(pin); adminOnly_(); ensureSchema_();
   date = String(date); hotel = String(hotel); room = String(room);
   var a = admCardRow_(date, hotel, room);
-  if (a) a.sh.getRange(a.row, 13).setValue(done ? Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') : '');
+  if (a) { a.sh.getRange(a.row, 13).setValue(done ? Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') : ''); svDrop_('청소실적'); }
   var cur = admCardData_(date, hotel, room), want = names || [], add = [], del = [], adm = admRoom_(hotel, room);
   cur.items.forEach(function (m) {
     if (want.indexOf(m.name) >= 0 && !m.on)
@@ -1855,6 +1868,7 @@ function admCardSave(pin, date, hotel, room, done, names) {
   if (add.length) saveRowsRun_('정산입력', add);
   if (del.length) {
     var pi = SpreadsheetApp.getActive().getSheetByName('정산입력'), lp = pi.getLastRow();
+    svDrop_('정산입력');   // 아래에서 지우므로 읽기 캐시를 버림
     pi.getRange(2, 1, lp - 1, 15).getValues().forEach(function (x, k) {
       if (x[1] === hotel && String(x[2]) === String(room) && x[3] && fmt_(x[3], false) === date && del.indexOf(String(x[4]).trim()) >= 0) {
         trashPhotos_(x[14]);   // 체크를 풀면 올렸던 사진도 드라이브 휴지통으로 (30일 안에 복구 가능)
@@ -2930,18 +2944,22 @@ function getDataRun_(names, opt) {
     var vals = sh.getRange(1, 1, last, def.cols).getValues();
     var months = def.months || [];
     var header = vals[0].map(function (h) { return String(h).replace(/\n/g, ' '); });
-    var rows = [];
+    var rows = [], all = 0;
+    // 지난 예약은 셀을 바꾸기 '전에' 걸러냅니다 — 바꾸는 일이 가장 오래 걸리므로, 뒤에서 거르면 헛일을 2천 행 다 합니다.
+    var cut = (n === '예약' && resFrom) ? resFrom : '';   // 입실일·퇴실일·취소일 중 하나라도 기준 뒤면 보냄 (지난 예약은 필요할 때 전체로 다시 받음)
     for (var i = 1; i < vals.length; i++) {
       if (vals[i][def.key - 1] === '' || vals[i][def.key - 1] === null) continue;
+      all++;
+      if (cut) {
+        var w = vals[i];
+        if (!(String(fmt_(w[6]) || '') >= cut || String(fmt_(w[7]) || '') >= cut || String(fmt_(w[23]) || '') >= cut)) continue;
+      }
       var vv = vals[i].map(function (x, j) { return fmt_(x, months.indexOf(j + 1) >= 0); });
       while (vv.length && (vv[vv.length - 1] === '' || vv[vv.length - 1] === null)) vv.pop();   // 끝의 빈 칸은 빼고 보냄 (앱이 다시 채움)
       rows.push({ r: i + 1, v: vv });
     }
-    if (n === '예약' && resFrom) {   // 입실일·퇴실일·취소일 중 하나라도 기준 뒤면 보냄 (지난 예약은 필요할 때 전체로 다시 받음)
-      var all = rows.length;
-      rows = rows.filter(function (q) { return String(q.v[6] || '') >= resFrom || String(q.v[7] || '') >= resFrom || String(q.v[23] || '') >= resFrom; });
-      out[n] = { header: header, rows: rows, partial: true, from: resFrom, all: all, cols: def.cols };
-    } else out[n] = { header: header, rows: rows };
+    if (cut) out[n] = { header: header, rows: rows, partial: true, from: cut, all: all, cols: def.cols };
+    else out[n] = { header: header, rows: rows };
     out[n].cols = def.cols;
     if (n === '예약') {   // 입실일이 비어 앱에 안 보이는 예약(예약ID나 예약코드는 있음) — 화면에 알려서 고치게
       var broken = [];
@@ -2986,6 +3004,7 @@ function saveRows(pin, name, items) {
 function saveRowsRun_(name, items) {
   var def = SHEETS[name];
   if (!def) throw new Error('시트 없음: ' + name);
+  svDrop_(name);   // 이 시트를 바꾸므로, 읽기 캐시(svals_)는 버려 뒤에서 새로 읽게 함
   var lock = LockService.getScriptLock(); lock.waitLock(60000);   // 통합정산서 계산 등 다른 작업이 끝날 때까지 최대 1분 기다림
   try {
     var sh = SpreadsheetApp.getActive().getSheetByName(name);
@@ -4291,7 +4310,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.e34518c5';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.0eb7668c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4515,6 +4534,9 @@ function svals_(name, cols) {
   if (SV_[k]) return SV_[k];
   var sh = SpreadsheetApp.getActive().getSheetByName(name), lr = sh ? sh.getLastRow() : 1;
   return (SV_[k] = (sh && lr > 1) ? sh.getRange(2, 1, lr - 1, Math.min(cols, sh.getMaxColumns())).getValues() : []);
+}
+function svDrop_(name) {   // 그 시트에 뭔가 썼으면 캐시를 버림 — 쓴 뒤에 다시 읽으면 새 값이 나와야 하므로
+  Object.keys(SV_).forEach(function (k) { if (k.indexOf(name + '|') === 0) delete SV_[k]; });
 }
 function occScan_(hotel, from, to) {
   var ov = svals_('객실', 30);
