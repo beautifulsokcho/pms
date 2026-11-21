@@ -4457,7 +4457,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-22.013bb95b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-22.bbaff15d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -5008,8 +5008,10 @@ function briefData_() {
   var today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
   var d = { date: today, inN: 0, outN: 0, ppl: 0, towel: 0, water: 0, ins: [], memo: [],
             cleanN: 0, prepN: 0, cleanNo: [], cleanMiss: [], blk: [], open: [], pend: 0,
-            unread: 0, warn: 0, sent: 0, full: [], settle: '', cal: [], mail: [], mailN: 0, err: [], hotels: {} };
+            unread: 0, warn: 0, sent: 0, full: [], settle: '', cal: [], mail: [], mailN: 0, err: [], hotels: {},
+            ct: { on: false, newN: 0, allN: 0, dup: 0, safe: 0, byG: {} } };   // 구글 주소록(고객관리 그룹) 등록 현황
   var outRoom = {};
+  var yday = Utilities.formatDate(new Date(now.getTime() - 864e5), tz, 'yyyy-MM-dd');   // 어제 0시부터 지금까지를 '새로 등록'으로 봄
   var hot = function (h) {   // 호텔별로 따로 셈 (브리핑에서 호텔마다 나눠 보여 줌)
     h = String(h || '').trim() || '(호텔없음)';
     return d.hotels[h] = d.hotels[h] || { ins: [], inN: 0, ppl: 0, towel: 0, water: 0, outN: 0, cleanN: 0, prepN: 0 };
@@ -5018,7 +5020,7 @@ function briefData_() {
   // ① 예약 — 오늘 입실·퇴실 · 수건·물 · 메모(조기입실·늦은퇴실) · 방막기·방풀기 확인
   try {
     var rv = ss.getSheetByName('예약'), lr = rv ? rv.getLastRow() : 1;
-    var v = lr > 1 ? rv.getRange(2, 1, lr - 1, Math.min(53, rv.getMaxColumns())).getValues() : [];
+    var v = lr > 1 ? rv.getRange(2, 1, lr - 1, Math.min(54, rv.getMaxColumns())).getValues() : [];   // 54열(주소록 등록)까지
     v.forEach(function (x) {
       if (!x[6]) return;
       var ci = mailYmd_(x[6]), co = mailYmd_(x[7]), cx = x[23] ? mailYmd_(x[23]) : '';
@@ -5035,6 +5037,17 @@ function briefData_() {
         if ((ci === today || co === today) && String(x[22] || '').trim())
           d.memo.push(x[1] + ' ' + x[2] + '호 ' + (ci === today ? '입실' : '퇴실') + ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 60));
       }
+      // 구글 주소록 — 54열에 '등록 yyyy-MM-dd HH:mm' 또는 '이미 있음 …'이 적힙니다.
+      // 안심번호(0503·0507…)는 일부러 넣지 않으므로, 0명일 때 그 까닭도 함께 보여 줍니다.
+      var ctm = String(x[53] || '').trim();
+      if (ctm) {
+        var ctDay = (ctm.match(/(\d{4}-\d\d-\d\d)/) || [])[1] || '';
+        if (ctm.indexOf('등록') === 0) {
+          d.ct.allN++;
+          if (ctDay >= yday) { d.ct.newN++; var g = String(x[1] || '').trim() + CT_SUFFIX_; d.ct.byG[g] = (d.ct.byG[g] || 0) + 1; }
+        } else if (ctDay >= yday) d.ct.dup++;   // 이미 주소록에 있던 번호
+      } else if (!x[23] && String(x[7] || '') >= today && !/^01[016789]\d{7,8}$/.test(String(x[4] == null ? '' : x[4]).replace(/[^\d]/g, ''))
+                 && String(x[4] || '').trim()) d.ct.safe++;   // 앞으로 묵을 예약 중 안심번호·가린 번호
       if (String(x[51] || '').indexOf('확인필요') === 0) d.blk.push(x[1] + ' ' + x[2] + '호 · ' + ci.slice(5) + ' 입실');
       if (String(x[52] || '').indexOf('확인필요') === 0) d.open.push(x[1] + ' ' + x[2] + '호 · ' + ci.slice(5) + '~' + co.slice(5) + ' 취소');
     });
@@ -5110,7 +5123,9 @@ function briefData_() {
     });
   } catch (e) { d.err.push('메일: ' + (e && e.message || e)); }
 
-  // 보낼지 말지는 '처리하면 사라지는 것'만으로 셈 — 쌓여 있는 알림·만실은 보여만 줌
+  try { d.ct.on = ctOn_(); } catch (e) { }   // 주소록 기능을 켜 둔 상태인가 (CT_OFF=Y면 끔)
+
+  // 보낼지 말지는 '처리하면 사라지는 것'만으로 셈 — 쌓여 있는 알림·만실·주소록은 보여만 줌
   d.todo = d.cleanNo.length + d.cleanMiss.length + d.blk.length + d.open.length + d.pend
          + d.unread + d.mailN + (d.settle ? 1 : 0);
   return d;
@@ -5158,6 +5173,18 @@ function briefText_(d) {
   else if (d.calNo) L.push('□ 오늘 일정 — 「' + BRIEF_CAL_NAME_ + '」 달력이 없습니다 (편집기에서 briefCalOn 한 번 실행)');
   if (d.mailN) L.push(briefLine_('□ 안 읽은 메일', d.mail, 6) + (d.mailN > d.mail.length ? '\n  · …외 ' + (d.mailN - d.mail.length) + '건' : ''));
   if (d.full.length) L.push(briefLine_('□ 만실 주의 (2주)', d.full, 8));
+  // 구글 주소록 — 어제 새로 넣은 고객 수와 그룹 이름. 0명이면 까닭(안심번호)도 같이 적습니다.
+  if (d.ct && (d.ct.on === false || d.ct.newN || d.ct.allN || d.ct.safe)) {
+    var cl = [];
+    Object.keys(d.ct.byG).sort().forEach(function (g) { cl.push('「' + g + '」 ' + d.ct.byG[g] + '명'); });
+    if (!d.ct.newN) cl.push(d.ct.safe ? '새로 넣은 고객 없음 — 앞으로 묵을 예약 ' + d.ct.safe + '건이 안심번호라 넣지 못합니다 (손님이 일반 번호를 알려 주면 연락처를 고치면 들어갑니다)'
+      : '새로 넣은 고객 없음');
+    if (d.ct.dup) cl.push('이미 주소록에 있던 번호 ' + d.ct.dup + '건');
+    if (d.ct.allN) cl.push('지금까지 모두 ' + d.ct.allN + '명');
+    if (d.ct.on === false) cl.push('주소록 넣기를 꺼 둔 상태입니다 (스크립트 속성 CT_OFF=Y)');
+    // briefLine_은 제목에 'n건'을 붙이므로 여기서는 직접 만듭니다 (항목 수가 뜻이 없는 대목)
+    L.push('□ 고객 연락처 — 어제 새로 ' + d.ct.newN + '명' + (cl.length ? '\n' + cl.map(function (s) { return '  · ' + s; }).join('\n') : ''));
+  }
   if (d.err.length) L.push('※ 못 읽은 것: ' + d.err.join(' / '));
   return L.filter(String).join('\n\n');
 }
