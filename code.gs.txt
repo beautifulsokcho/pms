@@ -17,7 +17,9 @@ var SHEETS = {
   '정산항목': { cols: 10, key: 1, edit: [1,2,3,4,5,6,7,8,10] },
   '정산입력': { cols: 15, key: 5, edit: [1,2,3,4,5,6,7,8,10,13], dates: [4], months: [1], texts: [3] },
   '청소담당자': { cols: 19, key: 1, edit: [1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19], dates: [5], texts: [17,18] },
-  '청소실적': { cols: 13, key: 2, edit: [1,2,3,4,5,6,10,12], dates: [1], texts: [4] },
+  // 13열 '완료(담당자)'도 edit에 넣습니다 — 전에는 빠져 있어서 ① 지울 수 없고 ② blank() 검사에서도 안 보여,
+  // 배정을 다시 저장할 때 '완료만 남은 빈 줄'을 새 배정이 그대로 물려받아 어제 완료 시각이 오늘 줄에 붙었습니다.
+  '청소실적': { cols: 13, key: 2, edit: [1,2,3,4,5,6,10,12,13], dates: [1], texts: [4] },
   '매니저':   { cols: 7, key: 1, edit: [1,2,3,4,5,6,7], texts: [3,4] },
   '수당입력': { cols: 9,  key: 3, edit: [1,2,3,4,5,6,8,9], dates: [8], months: [1] },
   '문자':     { cols: 10, key: 8, edit: [1,2,3,4,5,6,7,8,9,10], texts: [7] },
@@ -294,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 92) { SCHEMA_OK_ = true; return; }
+  if (ver >= 93) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1499,6 +1501,20 @@ function ensureSchema_() {
       SALE_OFF_ = null;   // 방금 바꿨으니 캐시를 비움
     }
     props.setProperty('SCHEMA', '92');
+  }
+  if (ver < 93) {   // v93: 청소실적 '완료'가 청소일보다 앞선 줄 비우기 — 13열이 edit에 없어 안 지워진 탓에
+    var cs93 = ss.getSheetByName('청소실적'), lr93 = cs93 ? cs93.getLastRow() : 1;   // 새 배정이 '완료만 남은 줄'을 물려받았습니다
+    if (cs93 && lr93 > 1 && cs93.getMaxColumns() >= 13) {
+      var n93 = lr93 - 1, d93 = cs93.getRange(2, 1, n93, 1).getValues(), m93 = cs93.getRange(2, 13, n93, 1).getValues(), c93 = 0;
+      for (var i93 = 0; i93 < n93; i93++) {
+        var done93 = String(fmt_(m93[i93][0], false) || '').trim(), day93 = String(fmt_(d93[i93][0], false) || '').trim();
+        if (!done93 || !day93) continue;
+        if (done93.slice(0, 10) < day93.slice(0, 10)) { m93[i93][0] = ''; c93++; }   // 청소하기 전에 완료될 수는 없습니다
+      }
+      if (c93) cs93.getRange(2, 13, n93, 1).setValues(m93);
+      codeLog_('v93', '', '', '완료 잘못 남은 줄 ' + c93 + '건 비움');
+    }
+    props.setProperty('SCHEMA', '93');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -4409,7 +4425,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-22.0560a769';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-22.71397342';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

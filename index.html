@@ -542,7 +542,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2685,8 +2685,10 @@ function renderBoard(ts){
 }
 // 키퍼·이불 선택 → 청소실적에 바로 저장 (구분수동: 교체필요=추가, 일반이불=기본, 빈칸=인원으로 자동)
 function recItem(t){var d=$('#cDate').value,bed=t.st.bed||'',memo=[bed,(t.out&&t.out[R.memo])||''].filter(Boolean).join(' · ');
-  if(!t.st.cleaner)return t.rec?{r:t.rec.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:''}}:null;
-  return {r:t.rec?t.rec.r:null,v:{1:d,2:t.st.cleaner,3:t.hotel,4:t.room,5:Number(t.st.ppl)||'',6:t.type==='vac'?'공실점검':t.type==='in'?'입실준비':bed==='교체필요'?'추가':bed==='일반이불'?'기본':'',12:t.type==='vac'?'공실 점검':memo}}}
+  // 13열(완료)도 함께 비웁니다 — 새 배정은 아직 완료가 아니고, 지우는 줄에 완료만 남으면 다음 저장이 그것을 물려받습니다
+  if(!t.st.cleaner)return t.rec?{r:t.rec.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:'',13:''}}:null;
+  return {r:t.rec?t.rec.r:null,v:{1:d,2:t.st.cleaner,3:t.hotel,4:t.room,5:Number(t.st.ppl)||'',6:t.type==='vac'?'공실점검':t.type==='in'?'입실준비':bed==='교체필요'?'추가':bed==='일반이불'?'기본':'',12:t.type==='vac'?'공실 점검':memo,
+    13:t.rec&&t.rec.v[12]&&t.rec.v[1]===t.st.cleaner?t.rec.v[12]:''}}}   // 같은 담당자 줄을 고치는 것이면 이미 찍힌 완료는 지키고, 그 밖에는 비움
 $('#cBoard').addEventListener('change',function(e){var s=e.target.closest('.ksel,.bsel');if(!s)return;var k=s.dataset.k,t=cleanTasks().find(function(z){return z.key===k});if(!t)return;
   if(s.classList.contains('ksel'))t.st.cleaner=s.value;else t.st.bed=s.value;
   renderClean()});
@@ -2770,7 +2772,7 @@ $('#cSave').onclick=function(){   // 한 번에 저장: 이 날짜·호텔 청�
   ts=ts.filter(function(t){return t.st.mv==null&&!t.st.mvx});   // 이월로 고른 객실은 그날 청소실적을 만들지 않음
   var miss=ts.filter(function(t){return !t.st.cleaner});ts=ts.filter(function(t){return t.st.cleaner});   // 담당자 없는 객실은 미배정으로 남김
   var old=rows('청소실적').filter(function(r){return r.v[0]===d&&(!h||r.v[2]===h)});
-  var clear=old.map(function(r){return {r:r.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:''}}});
+  var clear=old.map(function(r){return {r:r.r,v:{1:'',2:'',3:'',4:'',5:'',6:'',10:'',12:'',13:''}}});   // 완료(13)까지 비움 — 안 그러면 완료만 남은 줄이 되고, 새 배정이 그 줄을 물려받아 엉뚱한 완료가 찍힘
   var items=ts.map(function(t){var x=recItem(t);x.r=null;return x});
   var memos=Object.keys(CMEMO).map(function(r){return {r:+r,v:{23:CMEMO[r]}}});
   var nMemo=memos.length;
