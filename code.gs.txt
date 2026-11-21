@@ -3317,7 +3317,7 @@ function syncAirbnb_() {
       if (v[27]) byCode[String(v[27])] = r + 1;
       if (!v[23]) byKey[v[1] + '|' + String(v[2]) + '|' + fmt_(v[6])] = r + 1;
     }
-    var added = 0, updated = 0, linked = 0, flagged = 0, seen = {}, fresh = [];
+    var added = 0, updated = 0, linked = 0, flagged = 0, seen = {}, fresh = [], warn = '';
     Object.keys(byRoom).forEach(function (key) {
       var p = key.split('|');
       byRoom[key].forEach(function (e) {
@@ -3363,14 +3363,20 @@ function syncAirbnb_() {
       rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function () { return ['에어비앤비 달력 자동등록 · 이름·인원 확인']; }));   // '자동등록'이 들어가야 화면의 자동등록 칩·목록에 잡힘
       rv.getRange(r0, 28, fresh.length, 2).setValues(fresh.map(function (n) { return [n.e.code, '달력에서 추가 ' + stamp]; }));
       rv.getRange(r0, 37, fresh.length, 1).setValues(fresh.map(function (n) { return [n.e.own ? 'Y' : '']; }));
-      if (rv.getMaxColumns() >= 50) {   // 등록시각(50) — 이게 없으면 새 예약 '최근 입력'·예약검색 등록일 기준에 안 나옴
-        var regC = rv.getRange(r0, 50, fresh.length, 1), regS = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
-        regC.setNumberFormat('@'); regC.setValues(fresh.map(function () { return [regS]; }));
-      }
-      if (rv.getMaxColumns() >= 52) {   // 방막기 확인 — 달력으로 들어온 예약도 다른 플랫폼 막았는지 확인해야 함 (앞으로 묵을 건만)
-        var blkC = rv.getRange(r0, 52, fresh.length, 1);
-        blkC.setNumberFormat('@'); blkC.setValues(fresh.map(function (n) { return [blkNeed_(n.h, n.e.ci) ? '확인필요' : '']; }));
-      }
+      // 등록시각·방막기 확인은 따로따로 — 한쪽이 막혀도 다른 쪽은 들어가게 하고, 왜 막혔는지 남깁니다.
+      // (실제로 이 두 칸이 계속 비어 있었고, 앞 칸은 다 들어가 있었습니다 — 가운데서 막혀 그 뒤를 못 쓴 모양)
+      try {
+        if (rv.getMaxColumns() >= 50) {   // 등록시각(50) — 이게 없으면 새 예약 '최근 입력'·예약검색 등록일 기준에 안 나옴
+          var regC = rv.getRange(r0, 50, fresh.length, 1), regS = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
+          regC.setNumberFormat('@'); regC.setValues(fresh.map(function () { return [regS]; }));
+        }
+      } catch (e50) { warn = '등록시각 못 씀: ' + (e50 && e50.message || e50); }
+      try {
+        if (rv.getMaxColumns() >= 52) {   // 방막기 확인 — 달력으로 들어온 예약도 다른 플랫폼 막았는지 확인해야 함 (앞으로 묵을 건만)
+          var blkC = rv.getRange(r0, 52, fresh.length, 1);
+          blkC.setNumberFormat('@'); blkC.setValues(fresh.map(function (n) { return [blkNeed_(n.h, n.e.ci) ? '확인필요' : '']; }));
+        }
+      } catch (e52) { warn = (warn ? warn + ' / ' : '') + '방막기 못 씀: ' + (e52 && e52.message || e52); }
       added = fresh.length;
       applyOwnRooms_(rv);   // 본인계정 전용 객실: 판매·입금 0
       try { syncInbox_(fresh); } catch (e) { }   // 문자함에 '달력 자동등록' 알림 (실패해도 저장은 그대로)
@@ -3382,8 +3388,31 @@ function syncAirbnb_() {
       flagged++;
     }
     SpreadsheetApp.flush();
-    return { added: added, updated: updated, linked: linked, flagged: flagged, rooms: Object.keys(byRoom).length, errors: errors, stamp: stamp };
+    var fixed = 0; try { fixed = syncFix_(); } catch (e) { }   // 등록시각·방막기가 빠진 달력 예약을 스스로 고침
+    return { added: added, updated: updated, linked: linked, flagged: flagged, rooms: Object.keys(byRoom).length, errors: errors, stamp: stamp, fixed: fixed, warn: warn };
   } finally { lock.releaseLock(); }
+}
+
+// 달력으로 들어온 예약에 등록시각(50)·방막기 확인(52)이 빠진 것을 찾아 채웁니다.
+// 왜 빠지는지와 별개로 — syncAirbnb_가 그 두 칸을 쓰다가 막히면 그 뒤 칸도 못 쓰고 지나갑니다 —
+// 달력확인(29)에 '달력에서 추가 <시각>'이 적혀 있으면 그 시각으로 되살릴 수 있으므로,
+// 달력을 돌릴 때마다 한 번 훑어 스스로 고칩니다. 등록시각이 없으면 '등록(취소)일' 검색에 안 나옵니다.
+function syncFix_() {
+  var rv = SpreadsheetApp.getActive().getSheetByName('예약'), lr = rv ? rv.getLastRow() : 1;
+  if (!rv || lr < 2 || rv.getMaxColumns() < 52) return 0;
+  var n = lr - 1;
+  var ac = rv.getRange(2, 29, n, 1).getValues(), ax = rv.getRange(2, 50, n, 1).getValues(),
+      az = rv.getRange(2, 52, n, 1).getValues(), ci = rv.getRange(2, 7, n, 1).getValues(),
+      ho = rv.getRange(2, 2, n, 1).getValues(), cx = rv.getRange(2, 24, n, 1).getValues(), c1 = 0, c2 = 0;
+  for (var i = 0; i < n; i++) {
+    var m = String(ac[i][0] || '').match(/달력에서 추가\s+(\d{4}-\d\d-\d\d \d\d:\d\d)/);
+    if (!m) continue;
+    if (!String(ax[i][0] || '').trim()) { ax[i][0] = m[1] + ':00'; c1++; }
+    if (!String(az[i][0] || '').trim() && !cx[i][0] && blkNeed_(ho[i][0], ci[i][0])) { az[i][0] = '확인필요'; c2++; }
+  }
+  if (c1) { var r50 = rv.getRange(2, 50, n, 1); r50.setNumberFormat('@'); r50.setValues(ax); }
+  if (c2) { var r52 = rv.getRange(2, 52, n, 1); r52.setNumberFormat('@'); r52.setValues(az); }
+  return c1 + c2;
 }
 
 // 달력으로 새로 들어온 예약을 문자함에 알림으로 남깁니다. 에어비앤비 달력은 이름·인원·판매금액을 주지 않아
@@ -4367,7 +4396,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.9d79c26f';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.3a95f221';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
