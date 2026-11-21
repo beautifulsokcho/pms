@@ -537,7 +537,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-21d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -981,11 +981,13 @@ function tabFit(){var n=$('#mobTabs');if(!n)return;   // 글자를 크게 보거
   if(getComputedStyle(n).display==='none'){document.documentElement.style.removeProperty('--tabh');return}
   var h=n.offsetHeight;if(h>20)document.documentElement.style.setProperty('--tabh',h+'px')}
 addEventListener('resize',tabFit);addEventListener('orientationchange',function(){setTimeout(tabFit,300)});
-var BACK_ARM=false;
+var BACK_ARM=false,MODAL_BACK=null;   // MODAL_BACK: 창 안에서 뒤로 갈 곳이 있으면 그 함수
 function backPush(){try{history.pushState({pms:1},'')}catch(e){}}
 backPush();
 addEventListener('popstate',function(){
-  if($('#modalRoot')&&$('#modalRoot').innerHTML){closeModal();backPush();return}   // ① 열린 창 닫기
+  if($('#modalRoot')&&$('#modalRoot').innerHTML){
+    if(typeof MODAL_BACK==='function'){var mb=MODAL_BACK;MODAL_BACK=null;if(mb()!==false){backPush();return}}   // ①-1 창 안에서 한 단계 뒤로 (문자함 묶음 → 목록)
+    closeModal();backPush();return}                                                 // ① 열린 창 닫기
   var list=visTabs(),first=list.length?list[0]:'new',cur=store('tab')||first;
   if(cur!==first){show(first);backPush();return}                                    // ② 첫 화면으로
   if(!BACK_ARM){BACK_ARM=true;toast('한 번 더 누르면 종료됩니다');backPush();setTimeout(function(){BACK_ARM=false},2000);return}
@@ -1008,7 +1010,7 @@ function modal(html,sticky){$('#modalRoot').innerHTML='<div class="modal-bg'+(st
   var down=null,mbg=$('#mbg');   // 휴대폰 키패드가 올라오며 화면이 밀릴 때 잘못 닫히지 않게: 바깥을 '누르고 떼는 것'이 모두 바깥일 때만 닫음
   mbg.addEventListener('pointerdown',function(e){down=e.target===mbg?Date.now():null});
   mbg.addEventListener('click',function(e){if(e.target===mbg&&down&&Date.now()-down<800&&!(document.activeElement&&/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)&&mbg.contains(document.activeElement)))closeModal();down=null})}
-function closeModal(){$('#modalRoot').innerHTML=''}
+function closeModal(){MODAL_BACK=null;$('#modalRoot').innerHTML=''}
 
 // ───────── 예약 화면 ─────────
 function fillResFilters(){
@@ -3625,6 +3627,7 @@ function fwdOwnerAsk(id,sel){   // 손님 문자를 그 호실 소유주 번호�
         inboxOpen(sel)}).catch(function(e){b.disabled=false;b.textContent='보내기';$('#fwMsg').textContent=errText(e)})}
   }).catch(function(e){toast(errText(e))})}
 function inboxOpen(sel,cached){
+  MODAL_BACK=sel?function(){inboxOpen(null,true);return true}:null;   // 묶음을 보는 중이면 뒤로가기는 목록으로
   if(!(cached&&IBX.data&&$('#ibx')))modal('<h3>문자함</h3><div id="ibx"><div class="empty">불러오는 중…</div></div><div class="actions"><button class="btn" type="button" id="ibxClose">닫기</button></div>');
   if(cached&&IBX.data){inboxDraw(IBX.data,sel);   // 이미 받아 둔 내용으로 바로 그림 (서버를 다시 읽지 않음)
     if(sel){(IBX.data.rows||[]).forEach(function(r){if(String(r.num)===String(sel))r.read=true});
@@ -3701,7 +3704,9 @@ function nolRun(all){modal('<h3>놀 달력 대조</h3><div class="empty">대조 
   call('nolCheck',!!all).then(function(r){nolShow(r,!!all)}).catch(function(e){closeModal();toast(errText(e))})}
 function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],th={};
   rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(!r.read){if(r.kind==='보냄')t.osent=(t.osent||0)+1;else t.unread++}});
-  var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':'⚠ 자동등록 경고'};
+  var SYSN={'자동등록':'⚠ 자동등록 경고','브리핑':'☀️ 아침 브리핑','만실':'📈 만실 알림','객실타입':'📈 객실타입 빈 방','주간':'📊 주간 요약'};   // 번호가 아닌 묶음(앱이 보낸 알림)의 이름
+  var sysName=function(n){return SYSN[String(n)]||'🔔 '+esc(String(n||'알림'))};
+  var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':sysName(t.num)};
   var dir=IBX.sort==='asc'?-1:1;
   if(!sel){var ts=Object.keys(th).map(function(k){return th[k]}).filter(function(t){return t.list.some(ibxPass)}).sort(function(a,b){return (a.list[a.list.length-1].at<b.list[b.list.length-1].at?1:-1)*dir});
     box.innerHTML='<p class="note">발송 폰 마지막 확인: '+esc(d.seen||'없음')+' · 예약 관련 문자와 손님 번호에서 온 문자, 객실관리가 <b>자동 발송</b>한 문자가 여기에 모입니다. 아직 확인하지 않은 것은 <b class="warnc">● 주황색</b>으로 보입니다.</p>'+(Object.keys(th).length?ibxSortBar(true):'')+'<div class="actions" style="justify-content:flex-end;margin:0 0 6px"><button class="btn" type="button" id="ibxRoom" title="오늘부터 7일 안에 입실하는 예약 중, 비고에 적힌 호실과 배정된 호실이 다른 것을 찾아 여기에 올립니다">입실 호실 점검</button><button class="btn" type="button" id="ibxNol" title="놀 예약달력과 우리 장부를 맞춰 봅니다">놀 달력 대조</button><button class="btn" type="button" id="ibxRt" title="날짜별로 객실타입(코지 등)의 빈 방이 없거나 1개만 남은 날을 찾습니다 — 다 차면 다른 플랫폼 방막기가 필요합니다">객실타입 빈 방</button>'+(ts.length?'<button class="btn warn" type="button" id="ibxClear">문자함 모두 비우기</button>':'')+'</div>'+(ts.length?'<div class="ibx-list">'+ts.map(function(t){var fl=t.list.filter(ibxPass),l=fl[fl.length-1]||t.list[t.list.length-1];
@@ -3720,7 +3725,7 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
       cb.disabled=true;cb.textContent='지우는 중…';call('smsInboxClear').then(function(r){toast('문자함 '+(r&&r.n||0)+'줄을 지웠습니다');var bd=$('#inboxN');if(bd)bd.hidden=true;IBX.unread=0;inboxOpen()}).catch(function(e){cb.disabled=false;cb.textContent='문자함 모두 비우기';toast(errText(e))})};
     return}
   var t=th[sel]||{num:sel,list:[]},sys=!/\d/.test(String(sel));   // 번호가 아닌 묶음 = 자동등록 경고 (답장·차단 없음)
-  box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+(sys?'⚠ 자동등록 경고':who(t))+'</b></p>'+
+  box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+(sys?sysName(sel):who(t))+'</b></p>'+
     (sys?'<p class="note">카톡 알림이 와도 예약이 자동으로 들어가지 않은 건들입니다. 아래 내용을 보고 예약검색에서 확인한 뒤 손으로 넣으세요.</p>':'<p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p>')+
     ibxSortBar()+'<div class="ibx-msgs" id="ibxMsgs">'+t.list.slice().sort(function(a,b){return (a.at<b.at?-1:a.at>b.at?1:0)*(IBX.sort==='asc'?1:-1)}).map(function(r){var out=r.kind==='보냄',isNew=!r.read;
       var fwOk=!out&&r.kind!=='알림'&&(r.hotel||'')&&(r.room||''),fwDone=/소유주전달/.test(r.note||'');

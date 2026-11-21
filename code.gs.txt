@@ -4287,7 +4287,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.57b8f3da';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.966e53d1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4833,9 +4833,13 @@ function briefData_() {
   var ss = SpreadsheetApp.getActive(), tz = tz_(), now = new Date();
   var today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
   var d = { date: today, inN: 0, outN: 0, ppl: 0, towel: 0, water: 0, ins: [], memo: [],
-            cleanN: 0, cleanNo: [], cleanMiss: [], blk: [], open: [], pend: 0,
-            unread: 0, warn: 0, sent: 0, full: [], settle: '', cal: [], mail: [], mailN: 0, err: [] };
+            cleanN: 0, prepN: 0, cleanNo: [], cleanMiss: [], blk: [], open: [], pend: 0,
+            unread: 0, warn: 0, sent: 0, full: [], settle: '', cal: [], mail: [], mailN: 0, err: [], hotels: {} };
   var outRoom = {};
+  var hot = function (h) {   // 호텔별로 따로 셈 (브리핑에서 호텔마다 나눠 보여 줌)
+    h = String(h || '').trim() || '(호텔없음)';
+    return d.hotels[h] = d.hotels[h] || { ins: [], inN: 0, ppl: 0, towel: 0, water: 0, outN: 0, cleanN: 0, prepN: 0 };
+  };
 
   // ① 예약 — 오늘 입실·퇴실 · 수건·물 · 메모(조기입실·늦은퇴실) · 방막기·방풀기 확인
   try {
@@ -4846,10 +4850,13 @@ function briefData_() {
       var ci = mailYmd_(x[6]), co = mailYmd_(x[7]), cx = x[23] ? mailYmd_(x[23]) : '';
       if (!cx) {
         if (ci === today) {
-          d.inN++; d.ppl += Number(x[9]) || 0; d.towel += Number(x[25]) || 0; d.water += Number(x[26]) || 0;
-          d.ins.push(x[1] + ' ' + x[2] + '호 · ' + (String(x[3] || '').trim() || '이름없음') + ' · ' + (Number(x[9]) || 0) + '인 ' + (Number(x[8]) || 0) + '박' + (x[10] ? ' · ' + x[10] : ''));
+          var o = hot(x[1]), pp = Number(x[9]) || 0, tw = Number(x[25]) || 0, wa = Number(x[26]) || 0;
+          d.inN++; d.ppl += pp; d.towel += tw; d.water += wa;
+          o.inN++; o.ppl += pp; o.towel += tw; o.water += wa;
+          o.ins.push(x[2] + '호 · ' + (String(x[3] || '').trim() || '이름없음') + ' · ' + pp + '인 ' + (Number(x[8]) || 0) + '박' + (x[10] ? ' · ' + x[10] : '')
+            + (String(x[22] || '').trim() ? ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 40) : ''));
         }
-        if (co === today) { d.outN++; if (!x[43]) outRoom[x[1] + '|' + String(x[2]).trim()] = x[1] + ' ' + String(x[2]).trim() + '호'; }
+        if (co === today) { d.outN++; hot(x[1]).outN++; if (!x[43]) outRoom[x[1] + '|' + String(x[2]).trim()] = x[1] + ' ' + String(x[2]).trim() + '호'; }
         if ((ci === today || co === today) && String(x[22] || '').trim())
           d.memo.push(x[1] + ' ' + x[2] + '호 ' + (ci === today ? '입실' : '퇴실') + ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 60));
       }
@@ -4864,10 +4871,11 @@ function briefData_() {
     var cv = lc > 1 ? cs.getRange(2, 1, lc - 1, 13).getValues().filter(function (x) { return x[2] && fmt_(x[0], false) === today; }) : [];
     var have = {};
     cv.forEach(function (x) {
-      have[x[2] + '|' + String(x[3]).trim()] = 1;
-      if (!String(x[1] || '').trim()) d.cleanNo.push(x[2] + ' ' + String(x[3]).trim() + '호');
+      var h = String(x[2] || ''), rm = String(x[3]).trim(), kind = String(x[6] || x[5] || ''), o = hot(h);
+      have[h + '|' + rm] = 1;
+      if (/입실준비/.test(kind)) { o.prepN++; d.prepN++; } else { o.cleanN++; d.cleanN++; }   // 입실준비는 청소가 아니라 따로 셈
+      if (!String(x[1] || '').trim()) d.cleanNo.push(h + ' ' + rm + '호');
     });
-    d.cleanN = cv.length;
     Object.keys(outRoom).forEach(function (k) { if (!have[k]) d.cleanMiss.push(outRoom[k]); });
   } catch (e) { d.err.push('청소실적: ' + (e && e.message || e)); }
 
@@ -4952,12 +4960,25 @@ function briefText_(d) {
   if (d.unread || d.warn) L.push('■ 문자함: 안 읽은 손님 문자 ' + d.unread + '건' + (d.warn ? ' · 알림 ' + d.warn + '건' : '') + (d.sent ? ' · 보낸 문자 ' + d.sent + '건' : ''));
   if (d.settle) L.push('■ ' + d.settle);
 
-  // 오늘 돌아가는 일
-  var run = ['오늘 입실 ' + d.inN + '팀' + (d.ppl ? ' ' + d.ppl + '명' : '') + ' · 퇴실 ' + d.outN + '실' + (d.cleanN ? ' · 청소 배정 ' + d.cleanN + '실' : '')];
-  if (d.towel || d.water) run.push('세팅 합계: 수건 ' + d.towel + '장 · 물 ' + d.water + '개');
-  L.push('□ 오늘\n' + run.map(function (s) { return '  ' + s; }).join('\n'));
-  if (d.ins.length) L.push(briefLine_('□ 입실', d.ins, 10));
-  if (d.memo.length) L.push(briefLine_('□ 메모(조기입실·늦은퇴실)', d.memo, 10));
+  // 오늘 돌아가는 일 — 호텔별로
+  var hs = Object.keys(d.hotels || {}).sort(), run = [];
+  hs.forEach(function (h) {
+    var o = d.hotels[h];
+    run.push('  ' + h + ' — 입실 ' + o.inN + '팀' + (o.ppl ? ' ' + o.ppl + '명' : '') + ' · 퇴실 ' + o.outN + '실'
+      + (o.cleanN || o.prepN ? ' · 청소 ' + o.cleanN + '실' + (o.prepN ? ' · 입실준비 ' + o.prepN + '실' : '') : ''));
+    if (o.towel || o.water) run.push('      세팅: 수건 ' + o.towel + '장 · 물 ' + o.water + '개');
+  });
+  if (hs.length > 1) run.push('  합계 — 입실 ' + d.inN + '팀' + (d.ppl ? ' ' + d.ppl + '명' : '') + ' · 퇴실 ' + d.outN + '실'
+    + (d.cleanN || d.prepN ? ' · 청소 ' + d.cleanN + '실' + (d.prepN ? ' · 입실준비 ' + d.prepN + '실' : '') : ''));
+  if (run.length) L.push('□ 오늘\n' + run.join('\n'));
+  var inL = [];   // 입실 내역은 호텔별로 모두 (줄이지 않음)
+  hs.forEach(function (h) {
+    var o = d.hotels[h]; if (!o.ins.length) return;
+    inL.push('  ' + h + ' ' + o.ins.length + '건');
+    o.ins.forEach(function (t) { inL.push('    · ' + t); });
+  });
+  if (inL.length) L.push('□ 입실 ' + d.inN + '건\n' + inL.join('\n'));
+  if (d.memo.length) L.push(briefLine_('□ 메모(조기입실·늦은퇴실)', d.memo, 40));
   if (d.cal.length) L.push(briefLine_('□ 오늘 일정 (' + BRIEF_CAL_NAME_ + ' 달력)', d.cal, 12));
   else if (d.calNo) L.push('□ 오늘 일정 — 「' + BRIEF_CAL_NAME_ + '」 달력이 없습니다 (편집기에서 briefCalOn 한 번 실행)');
   if (d.mailN) L.push(briefLine_('□ 안 읽은 메일', d.mail, 6) + (d.mailN > d.mail.length ? '\n  · …외 ' + (d.mailN - d.mail.length) + '건' : ''));
