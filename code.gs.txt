@@ -4080,7 +4080,10 @@ function notiDone_(sh) {
   if (lr > 1) sh.getRange(Math.max(2, lr - 499), 1, Math.min(lr - 1, 500), 1).getValues().forEach(function (x) { if (x[0]) m[String(x[0])] = 1; });
   return m;
 }
-function notiParse_(title, text) { return notiParseDdn_(title, text) || notiParseNol_(title, text); }
+// 놀 알림은 두 가지로 옵니다 — 긴 'NOL 미리예약' 글과 짧은 요약('[신규예약] [연박] 상품명 / 이*규 / 12.11(금) 15:00 (3박) / 도보').
+// 긴 글이 안 올 때가 있어(폰 알림이 묶이거나 앱이 못 집음) 짧은 요약도 읽어서 처리합니다.
+// 짧은 요약에는 예약번호·연락처가 없으므로, 뒤에 긴 글이 오면 같은 예약으로 보고 빈 칸을 채웁니다.
+function notiParse_(title, text) { return notiParseDdn_(title, text) || notiParseNol_(title, text) || notiParseNol2_('', text); }
 // 떠나요 카톡 알림톡: [떠나요_예약완료] 펜션명/예약자/객실 : 상품명/2026-12-31(목)/2박/총 2명/총 결제금액:598,000원
 //                    [떠나요_환불 요청 접수 안내] 숙소명/예약번호/예약자/예약내역: - 상품명/12월31일(2박)/2명
 function notiParseDdn_(title, text) {
@@ -4271,7 +4274,8 @@ function notiReg_(ctx, it, at) {
       dup: { ci: mailYmd_(ov.v[6]), co: mailYmd_(ov.v[7]), name: String(ov.v[3] || ''), plat: String(ov.v[10] || ''), row: ov.r, auto: /자동등록/.test(String(ov.v[21] || '')) } };
   }
   var pn = pp.plat === '놀호텔' ? '놀호텔' : pp.plat === '떠나요' ? '떠나요' : '놀';
-  var note = [it.plat === '떠나요' ? String(it.roomName || '').trim() : String(it.roomName || '').replace(/\(.*$/, '').trim(), it.way, '알림 자동등록'].filter(String).join(' / ');
+  var note = [it.plat === '떠나요' ? String(it.roomName || '').trim() : String(it.roomName || '').replace(/\(.*$/, '').trim(), it.way,
+    it.brief ? '알림 자동등록 (요약 · 이름·연락처 확인)' : '알림 자동등록'].filter(String).join(' / ');
   var nv = { 2: pp.hotel, 3: it.room, 4: it.name || '', 6: Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd'), 7: it.ci, 8: it.co, 10: it.ppl || 2, 11: pp.plat || '놀', 22: note, 51: no || '' };
   if (blkNeed_(pp.hotel, it.ci)) nv[52] = '확인필요';   // 다른 플랫폼 방막기 확인 (지난 예약·안 쓰는 호텔은 빼고)
   if (it.tel) nv[5] = it.tel;
@@ -4287,7 +4291,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.966e53d1';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.e34518c5';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
