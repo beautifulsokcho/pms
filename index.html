@@ -537,7 +537,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-21f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3902,7 +3902,7 @@ function boot(){
     return Promise.resolve()}
   if(!DEMO&&!GAS){var cb=$('#connBtn');cb.hidden=!!APP_API&&!store('api');cb.onclick=function(){setupScreen()};
     if(!API){st.textContent='연결 필요';st.classList.add('demo');setupScreen();return Promise.resolve()}}
-  if(!DEMO&&store('role')==='cleaner'){cleanerHome();try{viewInit()}catch(e){}return Promise.resolve()}
+  if(!DEMO&&store('role')==='cleaner'){cleanerHome();try{viewInit()}catch(e){}setTimeout(function(){verCheck(true)},4000);return Promise.resolve()}   // 청소담당자도 켤 때 새 화면이 나왔는지 바로 확인 (관리자와 같게)
   var hm=DEMO&&location.hash.match(/^#cleaner=([^&]*)(?:&d=([\d-]+))?/);if(hm){store('cid',decodeURIComponent(hm[1]));store('cpw','');return load(['호텔','객실','예약','청소담당자','청소실적','정산항목']).then(function(){var cr=rows('청소담당자').find(function(r){return String(r.v[16]||'')===store('cid')});store('cpw',cr?String(cr.v[17]||''):'');cleanerHome(hm[2]||'')})}   // 예시 데이터에서 청소담당자 화면 미리보기: #cleaner=아이디&d=날짜   // 청소담당자로 로그인한 기기
   if(!DEMO&&LIVE&&!ROLE&&!PIN){st.textContent='로그인';$('#mobTabs').style.display='none';$('#deskTabs').style.display='none';document.querySelectorAll('[data-tab]').forEach(function(x){x.hidden=true});
     askPin().then(function(){softReload()});return Promise.resolve()}   // 로그인 전: 앱 화면 없이 로그인 창만 (역할별 주소면 그 역할만)
