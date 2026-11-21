@@ -531,7 +531,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2031,6 +2031,49 @@ function nolXlsItems(grid){   // 놀 예약목록 시트 → 붙여넣기 카드
     if(y.room&&!y.unknownRoom){q.x.hotel=y.hotel;q.x.room=y.room;q.x.unknownRoom=!!y.unknownRoom;delete q.x.roomHint}else if(!q.x.hotel)q.x.hotel=main}
     else if(!q.x.hotel)q.x.hotel=main});
   return raw.map(function(q){return q.x})}
+// ───────── 놀호텔(NOL 숙소) 예약목록 엑셀 → 붙여넣기 카드 ─────────
+// 놀 예약목록과 머리글이 다릅니다: 'NOL 숙소 예약번호 · 예약자 · 연락처 · 객실타입 · 입실일시 · 퇴실일시 · 판매금액 · 입금가 …'
+// 쓸모 있는 칸은 '입금가'까지이고, 그 뒤 쿠폰·프로모션 칸은 보지 않습니다.
+// 호실은 ① '제휴점 예약번호'에 적어 둔 호수(그 호텔에 실제로 있을 때만) ② 객실타입으로 추천 순서로 찾습니다.
+function nolhHotel(name){var s=String(name||'').replace(/\s/g,'');   // 시트 이름 '써밋베이등대해변점_예약목록_…' → 호텔
+  return hotels(true).filter(function(h){return s.indexOf(String(h).replace(/\s/g,''))>=0})[0]||''}
+function nolhXlsItems(grid){
+  var hi=-1,hd=null;
+  for(var i=0;i<Math.min(grid.length,8)&&hi<0;i++){var h=grid[i].map(function(x){return String(x==null?'':x).replace(/\s/g,'')});
+    if(h.indexOf('입실일시')>=0&&(h.indexOf('입금가')>=0||h.indexOf('객실타입')>=0)){hi=i;hd=h}}
+  if(hi<0)return [];
+  var ix=function(){for(var k=0;k<arguments.length;k++){var j=hd.indexOf(arguments[k]);if(j>=0)return j}return -1};
+  var cNo=ix('NOL숙소예약번호','숙소예약번호','예약번호'),cNm=ix('예약자'),cTel=ix('연락처','예약자연락처'),
+      cCi=ix('입실일시','입실일'),cCo=ix('퇴실일시','퇴실일'),cRm=ix('객실타입','객실명'),cBk=ix('예약일시'),
+      cCx=ix('예약취소일시'),cSt=ix('예약상태'),cSl=ix('판매금액','판매가'),cDep=ix('입금가'),
+      cWay=ix('방문형태'),cPt=ix('제휴점예약번호');
+  var hotel=nolhHotel(grid.sheetName||''),out=[];
+  grid.slice(hi+1).forEach(function(v){
+    var no=String(v[cNo]==null?'':v[cNo]).replace(/[^0-9A-Za-z]/g,''),ci=xlsDate(v[cCi]);
+    if(!ci||!no)return;
+    var st=String(v[cSt]==null?'':v[cSt]).trim(),prod=String(v[cRm]==null?'':v[cRm]).trim();
+    var tel=String(v[cTel]==null?'':v[cTel]).trim();   // '만료'처럼 번호가 아닌 글자는 비웁니다
+    var way=cWay>=0?String(v[cWay]==null?'':v[cWay]).trim():'';
+    var x={plat:'놀호텔',name:String(v[cNm]==null?'':v[cNm]).trim(),tel:/\d{6,}/.test(tel.replace(/[^0-9]/g,''))?telFmt(tel):'',
+      ci:ci,co:xlsDate(v[cCo]),ppl:2,pplGuess:true,xls:true,xlsNo:no,
+      src:['놀호텔 예약목록 엑셀',prod.replace(/\(.*$/,'').trim(),st,cDep>=0&&isFinite(Number(v[cDep]))&&Number(v[cDep])>0?'입금가 '+won(Math.round(Number(v[cDep]))):''].filter(Boolean)};
+    if(hotel)x.hotel=hotel;
+    if(cBk>=0){var bk=xlsDate(v[cBk]);if(bk)x.booked=bk}
+    if(/취소/.test(st)){x.cancel=true;x.cxDate=xlsDate(v[cCx])||ymd(new Date());x.cxWhy='취소 ('+st+')'}
+    else{
+      var s=Number(v[cSl]);if(cSl>=0&&isFinite(s)&&s>0)x.sale=Math.round(s);
+      var dp=Number(v[cDep]);if(cDep>=0&&isFinite(dp)&&dp>0)x.dep=Math.round(dp);   // 입금가 → 입금금액(수동)
+    }
+    // 호실: 제휴점 예약번호에 적어 둔 호수가 그 호텔에 실제로 있으면 그대로 씀
+    var pt=cPt>=0?String(v[cPt]==null?'':v[cPt]).replace(/[^0-9]/g,''):'';
+    if(pt&&x.hotel&&roomsOf(x.hotel,true).indexOf(pt)>=0)x.room=pt;
+    if(!x.room&&prod)x.roomHint=prod;   // 못 찾으면 객실타입으로 빈 방을 추천하게 함 (rtSuggest)
+    x.note=[prod.replace(/\(.*$/,'').trim(),way,'놀호텔 예약번호 '+no].filter(Boolean).join(' / ');
+    out.push(x)});
+  if(!hotel){var cnt={};out.forEach(function(x){if(x.hotel)cnt[x.hotel]=(cnt[x.hotel]||0)+1});
+    var main=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]})[0]||defHotel();
+    out.forEach(function(x){if(!x.hotel)x.hotel=main})}
+  return out}
 // ───────── 같은 호실 겹침 검사 ─────────
 function overlaps(x,selfR){
   if(!x.hotel||!x.room||!x.ci||!x.co||isSubRoom(x.room))return [];   // 대체객실은 겹침 무시
@@ -2266,9 +2309,11 @@ function xlsGrid(buf,pw){   // 파일 → 시트 2차원 배열 (암호가 걸�
   return loadScript(JSZIP).then(function(){return JSZip.loadAsync(data)}).then(function(z){
     var sh=z.file('xl/worksheets/sheet1.xml')||(z.file(/worksheets\/[^\/]+\.xml$/)||[])[0];
     if(!sh)throw new Error('엑셀 안에서 시트를 찾지 못했습니다');
-    var ss=z.file('xl/sharedStrings.xml');
-    return Promise.all([sh.async('string'),ss?ss.async('string'):Promise.resolve('')])})
-  .then(function(a){return xlsSheet(a[0],xlsSst(a[1]))})}
+    var ss=z.file('xl/sharedStrings.xml'),wb=z.file('xl/workbook.xml');
+    return Promise.all([sh.async('string'),ss?ss.async('string'):Promise.resolve(''),wb?wb.async('string'):Promise.resolve('')])})
+  .then(function(a){var g=xlsSheet(a[0],xlsSst(a[1]));
+    g.sheetName=xlsUnesc(((a[2]||'').match(/<sheet\b[^>]*\bname="([^"]*)"/)||[])[1]||'');   // 시트 이름에 호텔이 들어 있는 경우가 많아 함께 넘김
+    return g})}
 function xlsAsk(f){   // 암호가 다르면 한 번 물어봄
   return new Promise(function(ok){var p=null;try{p=window.prompt('"'+f.name+'" 문서 비밀번호를 입력하세요','')}catch(e){}ok(p)})}
 function xlsFile(f,pw){
@@ -2286,6 +2331,7 @@ function xlsFiles(fs){
   var next=function(){if(k>=fs.length)return Promise.resolve();var f=fs[k++];msg.textContent='엑셀 읽는 중… ('+k+'/'+fs.length+') '+f.name;
     return xlsFile(f).then(function(g){
       var items=nolXlsItems(g);
+      if(!items.length)items=nolhXlsItems(g);   // 놀호텔(NOL 숙소) 예약목록 — 머리글이 달라 따로 읽음
       if(!items.length){bad.push(f.name+': 예약을 찾지 못함');return}
       items.forEach(function(x){
         if(PASTE.some(function(y){return y.xlsNo&&y.xlsNo===x.xlsNo})){skip++;return}            // 같은 파일을 두 번 올려도 카드가 겹치지 않게
