@@ -526,7 +526,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-21g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1061,7 +1061,7 @@ function blkOff(h){var x=rows('호텔').find(function(r){return r.v[1]===h});ret
 function blkNeed(h,ci){return dOnly(ci)>=ymd(new Date())&&!blkOff(h)}   // 입실일이 오늘 이후이고, 방막기 확인을 쓰는 호텔일 때만
 function needBlk(v){return String(v[R.block]||'').indexOf('확인필요')===0&&!v[R.cancel]&&blkNeed(v[R.hotel],v[R.ci])}   // 자동등록 예약 · 아직 방막기 확인 전 (지난 예약·안 쓰는 호텔은 빼고)
 function cardHtml(r,reg){var v=r.v;
-  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(needBlk(v)?'<span class="chip blk">방막기 확인 필요</span>':'')+(needOpen(v)?'<span class="chip blk">방풀기 확인 필요</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
+  return '<button type="button" class="card" data-r="'+r.r+'"><div class="l1"><span class="room">'+esc(v[R.hotel])+' '+esc(roomLab(v))+'</span><span class="chip">'+esc(v[R.plat]||'ABNB')+'</span>'+(!v[R.cancel]&&autoSrc(v)?'<span class="chip" title="알림·메일·달력·엑셀로 저절로 들어온 예약입니다">🔔 자동등록</span>':'')+(function(){var m=(!v[R.cancel]&&autoSrc(v))?autoMiss(v):[];return m.length?'<span class="chip miss" title="'+esc(m.join(' · '))+'">세부정보 등록 필요</span>':''})()+(needBlk(v)?'<span class="chip blk">방막기 확인 필요</span>':'')+(needOpen(v)?'<span class="chip blk">방풀기 확인 필요</span>':'')+(v[R.cancel]?'<span class="chip x">취소 '+md(v[R.cancel])+'</span>':'')+(v[R.own]==='Y'?'<span class="chip hold">'+ownLab(v[R.hotel])+'</span>':'')+(v[R.cleanY]==='Y'?'<span class="chip">업체 청소</span>':'')+(v[R.subFor]?'<span class="chip hold">→ '+esc(v[R.subFor])+'호 정산</span>':'')+(v[R.excl]==='Y'?'<span class="chip x">미정산</span>':(v[R.xpp]==='Y'||v[R.xpet]==='Y')?'<span class="chip hold">정산 조정</span>':'')+(!LIMITED&&Number(v[R.pets])>0?'<span class="chip">반려견 '+esc(v[R.pets])+'</span>':'')+(String(v[R.cal]||'').indexOf('취소 확인')>=0?'<span class="chip x">달력에서 사라짐 · 취소 확인</span>':(v[R.code]?'<span class="chip ok">달력</span>':''))+'</div>'+
     '<div class="dates num">'+md(v[R.ci])+' → '+md(v[R.co])+' · '+esc(v[R.n])+'박 · '+esc(v[R.ppl])+'명</div>'+
     '<div class="meta"><span>'+esc(v[R.name]||'(이름 없음)')+'</span><span class="num">'+(function(){var aj=adjOf(v);
       if(aj&&!OWNER)return '<b class="adjtag">'+esc(aj.tag)+'</b> 판매 '+(won(v[R.sale])||'-')+' → '+won(aj.sale)+' · 입금 '+(won(v[R.fin])||'-')+' → '+won(aj.fin);
@@ -1085,7 +1085,8 @@ function autoMiss(v){var m=[],pl=String(v[R.plat]||'ABNB'),own=pl==='개인예�
   if(!own&&v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');   // 개인예약은 매출 없음·청소만
   if(!own&&!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
-function autoSrc(v){return /자동등록/.test(String(v[R.note]||''))||String(v[R.block]||'').trim()!==''}   // 알림·메일·엑셀로 들어온 예약 (방막기 칸에 확인필요/확인 기록이 있으면 그것도)
+function autoSrc(v){return /자동등록|달력에서 추가/.test(String(v[R.note]||''))||String(v[R.block]||'').trim()!==''}   // 알림·메일·엑셀·달력으로 들어온 예약 (방막기 칸에 확인필요/확인 기록이 있으면 그것도)
+// '달력에서 추가'는 옛 비고 글 — 마리나베이는 방막기 확인을 쓰지 않아 방막기 칸이 비고, 옛 비고에는 '자동등록'이 없어 자동등록으로 안 잡혔음
 function needOpen(v){   // 취소된 예약 · 아직 방풀기 확인 전 (오늘부터 취소된 것, 묵을 날이 남은 것, 방막기를 쓰는 호텔만)
   return String(v[R.open]||'').indexOf('확인필요')===0&&!!v[R.cancel]&&dOnly(v[R.co])>=ymd(new Date())&&!blkOff(v[R.hotel])}
 function openRegs(){   // 방풀기 확인이 필요한 취소 예약 (최근 취소 먼저)
@@ -3630,7 +3631,7 @@ function inboxInit(){var b=$('#inboxBtn');b.hidden=false;b.onclick=function(){if
   var tick2=function(){tick();askTick()};
   tick2();clearInterval(IBX.t);IBX.t=setInterval(tick2,60000);   // 1분마다 새 문의·당일예약 문자 확인 (이 화면이 열려 있는 동안)
   if(!IBX.vis){IBX.vis=1;document.addEventListener('visibilitychange',function(){if(!document.hidden&&IBX.tick)IBX.tick()})}IBX.tick=tick2}
-function inboxNotify(k,w,sn){var msg=w?'자동등록 실패 '+w+'건 — 문자함에서 확인하세요':k>0?'새 문의 '+k+'건이 왔습니다':'자동 발송 문자 '+(sn||0)+'건 — 문자함에서 확인하세요';toast((w?'⚠ ':k>0?'✉ ':'📤 ')+msg);
+function inboxNotify(k,w,sn){var msg=w?'확인할 알림 '+w+'건 — 문자함에서 확인하세요':k>0?'새 문의 '+k+'건이 왔습니다':'자동 발송 문자 '+(sn||0)+'건 — 문자함에서 확인하세요';toast((w?'⚠ ':k>0?'✉ ':'📤 ')+msg);
   try{if(window.Notification&&Notification.permission==='granted'){if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(function(rg){rg.showNotification('객실관리 문자함',{body:msg,tag:'inbox'})}).catch(function(){new Notification('객실관리 문자함',{body:msg})});else new Notification('객실관리 문자함',{body:msg})}}catch(e){}}
 function fwdOwnerAsk(id,sel){   // 손님 문자를 그 호실 소유주 번호로 전달 (미리보기 → 보내기)
   toast('소유주 번호를 찾는 중…');
@@ -3660,7 +3661,7 @@ function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unr
   if(bd){bd.hidden=!t;bd.textContent=t;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w;IBX.sent=sn}).catch(function(){})}
 function ibxSortBar(list){var k=IBX.kind||'all',o=function(v,t){return '<option value="'+v+'"'+(k===v?' selected':'')+'>'+t+'</option>'};
   return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select>'+
-    (list?'<label for="ibxKind" class="note">보기</label><select id="ibxKind">'+o('all','전체')+o('in','받은 문자')+o('out','보낸 문자')+o('warn','자동등록 경고')+'</select><button class="btn" type="button" id="ibxReload" title="서버에서 다시 읽기">새로고침</button>':'')+'</div>'}
+    (list?'<label for="ibxKind" class="note">보기</label><select id="ibxKind">'+o('all','전체')+o('in','받은 문자')+o('out','보낸 문자')+o('warn','자동등록·알림')+'</select><button class="btn" type="button" id="ibxReload" title="서버에서 다시 읽기">새로고침</button>':'')+'</div>'}
 function ibxPass(r){var k=IBX.kind||'all';return k==='all'?true:k==='warn'?r.kind==='알림':k==='out'?r.kind==='보냄':k==='in'?r.kind!=='보냄'&&r.kind!=='알림':true}
 function ibxSortBind(sel){var s2=$('#ibxSort');if(s2)s2.onchange=function(){IBX.sort=this.value;store('ibxSort',this.value);if(IBX.data)inboxDraw(IBX.data,sel)};
   var k2=$('#ibxKind');if(k2)k2.onchange=function(){IBX.kind=this.value;if(IBX.data)inboxDraw(IBX.data,sel)};
@@ -3724,7 +3725,7 @@ function nolRun(all){modal('<h3>놀 달력 대조</h3><div class="empty">대조 
   call('nolCheck',!!all).then(function(r){nolShow(r,!!all)}).catch(function(e){closeModal();toast(errText(e))})}
 function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],th={};
   rows.forEach(function(r){var k=r.num;(th[k]=th[k]||{num:k,list:[],unread:0,hotel:'',room:'',name:''}).list.push(r);var t=th[k];if(r.hotel){t.hotel=r.hotel;t.room=r.room;t.name=r.name}if(!r.read){if(r.kind==='보냄')t.osent=(t.osent||0)+1;else t.unread++}});
-  var SYSN={'자동등록':'⚠ 자동등록 경고','브리핑':'☀️ 아침 브리핑','만실':'📈 만실 알림','객실타입':'📈 객실타입 빈 방','주간':'📊 주간 요약'};   // 번호가 아닌 묶음(앱이 보낸 알림)의 이름
+  var SYSN={'자동등록':'⚠ 자동등록 경고','달력':'📅 달력 자동등록','브리핑':'☀️ 아침 브리핑','만실':'📈 만실 알림','객실타입':'📈 객실타입 빈 방','주간':'📊 주간 요약'};   // 번호가 아닌 묶음(앱이 보낸 알림)의 이름
   var sysName=function(n){return SYSN[String(n)]||'🔔 '+esc(String(n||'알림'))};
   var who=function(t){return /\d/.test(String(t.num))?(t.hotel?esc(t.hotel)+' '+esc(t.room)+' · '+esc(t.name||'')+' ':'')+'<span class="note">'+esc(t.num)+'</span>':sysName(t.num)};
   var dir=IBX.sort==='asc'?-1:1;

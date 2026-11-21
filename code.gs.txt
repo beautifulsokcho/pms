@@ -3330,7 +3330,7 @@ function syncAirbnb_() {
         return ['AB-' + (n.e.code || Utilities.getUuid().slice(0, 8)), n.h, n.r, '', n.e.phone4 ? '뒤4자리 ' + n.e.phone4 : '', '', parseDate_(n.e.ci), parseDate_(n.e.co)];
       }));
       rv.getRange(r0, 10, fresh.length, 2).setValues(fresh.map(function () { return [2, 'ABNB']; }));
-      rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function () { return ['에어비앤비 달력에서 추가 · 이름·인원 확인']; }));
+      rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function () { return ['에어비앤비 달력 자동등록 · 이름·인원 확인']; }));   // '자동등록'이 들어가야 화면의 자동등록 칩·목록에 잡힘
       rv.getRange(r0, 28, fresh.length, 2).setValues(fresh.map(function (n) { return [n.e.code, '달력에서 추가 ' + stamp]; }));
       rv.getRange(r0, 37, fresh.length, 1).setValues(fresh.map(function (n) { return [n.e.own ? 'Y' : '']; }));
       if (rv.getMaxColumns() >= 50) {   // 등록시각(50) — 이게 없으면 새 예약 '최근 입력'·예약검색 등록일 기준에 안 나옴
@@ -3343,6 +3343,7 @@ function syncAirbnb_() {
       }
       added = fresh.length;
       applyOwnRooms_(rv);   // 본인계정 전용 객실: 판매·입금 0
+      try { syncInbox_(fresh); } catch (e) { }   // 문자함에 '달력 자동등록' 알림 (실패해도 저장은 그대로)
     }
     for (var q = 1; q < vals.length; q++) {
       var w = vals[q]; if (!w[27] || w[23]) continue;
@@ -3353,6 +3354,23 @@ function syncAirbnb_() {
     SpreadsheetApp.flush();
     return { added: added, updated: updated, linked: linked, flagged: flagged, rooms: Object.keys(byRoom).length, errors: errors, stamp: stamp };
   } finally { lock.releaseLock(); }
+}
+
+// 달력으로 새로 들어온 예약을 문자함에 알림으로 남깁니다. 에어비앤비 달력은 이름·인원·판매금액을 주지 않아
+// 반드시 손이 가야 하는데, 전에는 아무 알림도 없어서 들어온 줄 모르고 넘어갈 수 있었습니다.
+// (번호 자리에 '달력'을 넣어 한 묶음으로 모임 — 알림·메일 '자동등록 경고'와는 따로)
+var SYNC_INBOX_NUM_ = '달력';
+function syncInbox_(fresh) {
+  if (!fresh || !fresh.length) return;
+  var d = function (s) { s = String(s || ''); return s.length >= 10 ? (+s.slice(5, 7)) + '/' + (+s.slice(8, 10)) : s; };
+  var lines = ['[달력 자동등록] ' + fresh.length + '건'];
+  fresh.slice(0, 20).forEach(function (n) {
+    lines.push('· ' + n.h + ' ' + n.r + '호 · ' + d(n.e.ci) + '~' + d(n.e.co) + (n.e.phone4 ? ' · 뒤4자리 ' + n.e.phone4 : ''));
+  });
+  if (fresh.length > 20) lines.push('… 그 밖 ' + (fresh.length - 20) + '건');
+  lines.push('→ 이름·인원·판매금액이 비어 있습니다. 새 예약 화면 [🔔 확인할 자동등록]에서 채워 주세요.');
+  inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+    '알림', SYNC_INBOX_NUM_, lines.join('\n'), fresh.length === 1 ? fresh[0].h : '', fresh.length === 1 ? String(fresh[0].r) : '', '', '', '달력 자동등록']);
 }
 
 // ── 예약 메일 자동 읽기 (Gmail: 에어비앤비 automated@airbnb.com · 놀호텔 no_reply@nol-universe.com) ──
@@ -4318,7 +4336,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.55d80b83';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.5874ee21';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
