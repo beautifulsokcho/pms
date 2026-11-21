@@ -537,7 +537,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-21h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1069,6 +1069,7 @@ function syncMonth(){var f=$('#qFrom').value,t=$('#qTo').value,sel=$('#qMonth');
   if(!f&&!t){sel.value='';return}
   var ym=f.slice(0,7),g=f?monthRange(ym):null;sel.value=(g&&f===g[0]&&t===g[1])?ym:'custom'}
 function blkOff(h){var x=rows('호텔').find(function(r){return r.v[1]===h});return !!(x&&String(x.v[21]||'').trim().toUpperCase()==='Y')}   // 호텔 22열: 이 호텔은 방막기 확인 안 함
+function saleOff(h){var x=rows('호텔').find(function(r){return r.v[1]===h});return !!(x&&String(x.v[22]||'').trim().toUpperCase()==='Y')}   // 호텔 23열: 판매금액을 알 수 없는 호텔 (마리나베이) — 비어 있는 게 정상
 function blkNeed(h,ci){return dOnly(ci)>=ymd(new Date())&&!blkOff(h)}   // 입실일이 오늘 이후이고, 방막기 확인을 쓰는 호텔일 때만
 function needBlk(v){return String(v[R.block]||'').indexOf('확인필요')===0&&!v[R.cancel]&&blkNeed(v[R.hotel],v[R.ci])}   // 자동등록 예약 · 아직 방막기 확인 전 (지난 예약·안 쓰는 호텔은 빼고)
 function cardHtml(r,reg){var v=r.v;
@@ -1093,7 +1094,7 @@ var REC_MODE='recent';   // 최근 입력 / 알림·메일 자동등록만 보�
 function autoMiss(v){var m=[],pl=String(v[R.plat]||'ABNB'),own=pl==='개인예약';   // 자동등록 예약에서 비어 있거나 가려진 정보
   if(!String(v[R.name]||'').trim())m.push('이름 없음');else if(/\*/.test(String(v[R.name])))m.push('이름 가려짐');
   if(pl!=='ABNB'&&!own&&!String(v[R.tel]||'').trim())m.push('연락처 없음');   // 에어비앤비는 손님 연락처를 주지 않고, 개인예약은 본인·지인 사용
-  if(!own&&v[R.own]!=='Y'&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');   // 개인예약은 매출 없음·청소만
+  if(!own&&v[R.own]!=='Y'&&!saleOff(v[R.hotel])&&(isBlank(v[R.sale])||Number(v[R.sale])===0))m.push('판매금액 없음');   // 개인예약은 매출 없음·청소만, 마리나베이는 판매금액을 알 수 없음
   if(!own&&!resNosV(v).length&&!String(v[R.code]||'').trim())m.push('예약번호 없음');
   return m}
 function autoSrc(v){return /자동등록|달력에서 추가/.test(String(v[R.note]||''))||String(v[R.block]||'').trim()!==''}   // 알림·메일·엑셀·달력으로 들어온 예약 (방막기 칸에 확인필요/확인 기록이 있으면 그것도)
@@ -3290,7 +3291,7 @@ function person(name){
 }
 
 // ───────── 기준정보 관리 ─────────
-var EDIT={'호텔':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20],'객실':[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35],'플랫폼':[1,2,3,5],'청소비요율':[1,2,3,4,5,6,7,8,9,12,13],'수건규칙':[1,2,3,4,5,6,7,8,9],'달력연결':[1,2,3,4,5,8],
+var EDIT={'호텔':[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23],   // 21 놀 달력번호 · 22 방막기 확인 안 함 · 23 판매금액 모름 — 표에서 고칠 수 있어야 함'객실':[2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35],'플랫폼':[1,2,3,5],'청소비요율':[1,2,3,4,5,6,7,8,9,12,13],'수건규칙':[1,2,3,4,5,6,7,8,9],'달력연결':[1,2,3,4,5,8],
   '매니저':[1,2,3,4,5,6,7],'청소담당자':[1,2,3,4,5,6,7,11,12,13,14,15,16,17,18,19],'청소실적':[1,2,3,4,5,6,10,12],'정산항목':[1,2,3,4,5,6,7,8,10],'정산입력':[1,2,3,4,5,6,7,8,10,13],'문자':[1,2,3,4,5,6,7,8,9,10],'객실타입':[1,2,3,4,5,6,7,8]};
 var DATES={'객실':[15,16],'정산입력':[4],'청소담당자':[5],'청소실적':[1],'수당입력':[8]};
 var NUMS={'객실타입':[4],'문자':[6],'수건규칙':[2,3,4,5,6,7,8],'객실':[4,5,18,28,29],'플랫폼':[2],'청소비요율':[3,4,5,6,7,8,12,13],'호텔':[7,13,14,15,17,18],'청소담당자':[6,7,15],'청소실적':[5,10],'수당입력':[4,5],'정산항목':[4],'정산입력':[6,7,8]};
@@ -3298,7 +3299,7 @@ var HCOL={'객실':2,'청소비요율':1,'달력연결':1,'객실타입':1};
 var HIDE={'객실':[4,5]};   // 더 이상 쓰지 않는 열 (수건·물은 수건규칙으로 계산)   // 호텔을 골라 그 호텔 것만 보는 표 (값 = 호텔 열 번호)
 function choices(n,c){
   var YN=['Y','N'];
-  var m={'객실타입':{1:hotels(true),5:['','N'],6:['','N']},'호텔':{8:YN,10:YN,20:['','Y'],22:['','Y']},'객실':{2:hotels(true),14:YN,27:['','Y'],30:['','Y'],31:['','Y'],32:['','Y'],35:['','Y']},'청소비요율':{1:hotels(true)},'수건규칙':{1:hotels(true)},'달력연결':{1:hotels(true),2:roomsOf(adminHotel()!=='*'?adminHotel():defHotel(),true),5:YN,8:['Y','N']},'청소담당자':{11:YN,14:YN,16:hotels(true),19:YN},
+  var m={'객실타입':{1:hotels(true),5:['','N'],6:['','N']},'호텔':{8:YN,10:YN,20:['','Y'],22:['','Y'],23:['','Y']},'객실':{2:hotels(true),14:YN,27:['','Y'],30:['','Y'],31:['','Y'],32:['','Y'],35:['','Y']},'청소비요율':{1:hotels(true)},'수건규칙':{1:hotels(true)},'달력연결':{1:hotels(true),2:roomsOf(adminHotel()!=='*'?adminHotel():defHotel(),true),5:YN,8:['Y','N']},'청소담당자':{11:YN,14:YN,16:hotels(true),19:YN},
     '매니저':{5:['','Y','N']},'청소실적':{2:cleaners(),3:hotels(true),6:['기본','추가','입실준비']},'수당입력':{2:[P1,P2],3:cleaners(),9:['지급완료','미지급']},
     '정산항목':{2:['B','C'],3:['자동-청소비','자동-대행수수료','자동-인원단가','자동-물수량','자동-단가*인원수*숙박일수','자동-단가*숙박일수','수동'],5:YN,6:YN,7:YN,10:['전체'].concat(hotels(true))},
     '문자':{2:['전체'].concat(hotels(true)),5:['예약 즉시','5분후','10분후','20분후','30분후','60분후','2시간후','3시간후','입실일','퇴실일','수동'],9:YN},

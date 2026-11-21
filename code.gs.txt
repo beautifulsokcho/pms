@@ -7,7 +7,7 @@
 
 // ── 시트 정의: cols=전체 열 수, key=빈 행 판정 열, edit=앱이 쓰는 입력 열, dates=날짜 열, months=YYYY-MM 열, texts=문자로 저장할 열
 var SHEETS = {
-  '호텔':     { cols: 22, key: 2, edit: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22], texts: [21] },
+  '호텔':     { cols: 23, key: 2, edit: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], texts: [21] },
   '객실':     { cols: 36, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
   '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
@@ -281,7 +281,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 91) { SCHEMA_OK_ = true; return; }
+  if (ver >= 92) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1468,6 +1468,24 @@ function ensureSchema_() {
       mz.setFrozenRows(1); mz.getRange('C:E').setNumberFormat('@');
     }
     props.setProperty('SCHEMA', '91');
+  }
+  if (ver < 92) {   // v92: 호텔 23열 '판매금액 모름 (Y)' — 마리나베이는 판매금액을 알 수 없는 호텔이라, 비었다고 해서 '채워야 할 정보'로 보면 안 됨
+    var hv92 = ss.getSheetByName('호텔');
+    if (hv92) {
+      if (hv92.getMaxColumns() < 23) hv92.insertColumnsAfter(hv92.getMaxColumns(), 23 - hv92.getMaxColumns());
+      if (String(hv92.getRange(1, 23).getValue() || '') === '') hv92.getRange(1, 23).setValue('판매금액\n모름 (Y)').setFontWeight('bold');
+      var lr92 = hv92.getLastRow();
+      if (lr92 > 1) {   // 대행수수료율·객실정산서 작성이 비어 있는 호텔 = 이 앱으로 금액을 다루지 않는 호텔 (마리나베이)
+        var rv92 = hv92.getRange(2, 1, lr92 - 1, 23), vv92 = rv92.getValues(), ch92 = false;
+        vv92.forEach(function (v) {
+          if (String(v[22] || '').trim()) return;
+          if (!String(v[6] || '').trim() && String(v[7] || '').trim().toUpperCase() !== 'Y') { v[22] = 'Y'; ch92 = true; }
+        });
+        if (ch92) rv92.setValues(vv92);
+      }
+      SALE_OFF_ = null;   // 방금 바꿨으니 캐시를 비움
+    }
+    props.setProperty('SCHEMA', '92');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -2830,6 +2848,18 @@ function blkOffHotel_(h) {
   }
   return !!BLK_OFF_[String(h)];
 }
+// 호텔 23열 '판매금액 모름 (Y)' — 마리나베이처럼 판매금액을 알 수 없는 호텔.
+// 그런 호텔은 판매금액이 비어 있는 게 정상이므로 '채워야 할 정보'로도, '매출 없는데 비용만'으로도 보지 않습니다.
+var SALE_OFF_ = null;
+function saleOffHotel_(h) {
+  if (!SALE_OFF_) {
+    SALE_OFF_ = {};
+    var sh = SpreadsheetApp.getActive().getSheetByName('호텔'), lr = sh ? sh.getLastRow() : 1;
+    if (sh && lr > 1 && sh.getMaxColumns() >= 23)
+      sh.getRange(2, 1, lr - 1, 23).getValues().forEach(function (v) { if (String(v[22] || '').trim().toUpperCase() === 'Y') SALE_OFF_[String(v[1])] = 1; });
+  }
+  return !!SALE_OFF_[String(h)];
+}
 function openNeed_(hotel, co, cxDate) {   // 방풀기 확인을 붙일 취소인가 — 오늘 취소된 것, 묵을 날이 아직 남은 것, 그 호텔이 쓰는 경우
   var today = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
   return String(fmt_(cxDate, false) || '').slice(0, 10) >= today && String(fmt_(co, false) || '') >= today && !blkOffHotel_(hotel);
@@ -3368,7 +3398,8 @@ function syncInbox_(fresh) {
     lines.push('· ' + n.h + ' ' + n.r + '호 · ' + d(n.e.ci) + '~' + d(n.e.co) + (n.e.phone4 ? ' · 뒤4자리 ' + n.e.phone4 : ''));
   });
   if (fresh.length > 20) lines.push('… 그 밖 ' + (fresh.length - 20) + '건');
-  lines.push('→ 이름·인원·판매금액이 비어 있습니다. 새 예약 화면 [🔔 확인할 자동등록]에서 채워 주세요.');
+  var sOff = fresh.every(function (n) { return saleOffHotel_(n.h); });   // 판매금액을 알 수 없는 호텔(마리나베이)이면 채우라고 하지 않음
+  lines.push('→ ' + (sOff ? '이름·인원이' : '이름·인원·판매금액이') + ' 비어 있습니다. 새 예약 화면 [🔔 확인할 자동등록]에서 채워 주세요.');
   inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
     '알림', SYNC_INBOX_NUM_, lines.join('\n'), fresh.length === 1 ? fresh[0].h : '', fresh.length === 1 ? String(fresh[0].r) : '', '', '', '달력 자동등록']);
 }
@@ -4336,7 +4367,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.5874ee21';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.9d79c26f';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4769,9 +4800,10 @@ function ruleCheck(pin, hotel, month, withPrev) {
     if (was) Object.keys(was).forEach(function (name) {
       if (was[name] >= 20000 && !now[name]) out.push({ room: room, why: '지난달 있던 「' + name + '」(' + was[name].toLocaleString() + '원)이 이 달엔 없습니다', level: '낮음' });
     });
-    // 매출이 없는데 비용만 — 본인계정 입금이 있으면 매출을 0으로 잡는 것이 정상이라 뺍니다
+    // 매출이 없는데 비용만 — 본인계정 입금이 있으면 매출을 0으로 잡는 것이 정상이라 뺍니다.
+    // 판매금액을 알 수 없는 호텔(마리나베이)도 매출이 0인 게 정상이라 보지 않습니다.
     var sv = sale[room] || { s: 0, own: 0 };
-    if (!sv.s && !sv.own && (cost[room] || 0) >= 50000)
+    if (!sv.s && !sv.own && (cost[room] || 0) >= 50000 && !saleOffHotel_(hotel))
       out.push({ room: room, why: '이 달 예약도 본인계정 입금도 없는데 비용만 ' + Math.round(cost[room]).toLocaleString() + '원 잡혀 있습니다', level: '보통' });
   });
   var rank = { '높음': 0, '보통': 1, '낮음': 2 };
