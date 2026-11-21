@@ -526,7 +526,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-21b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-21c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2976,7 +2976,7 @@ $('#occBtn').onclick=function(){var b=this,h=$('#qHotel').value||defHotel();b.di
   call('occCheck',h,60).then(function(r){
     chkTable('만실 점검',esc(r.hotel)+' · '+esc(r.from)+' ~ '+esc(r.to)+' · 예약이 <b>80% 이상</b>인 날입니다.',r.rows||[],
       [['날짜',function(x){return esc(md(x.d))},' class="nw"'],
-       ['상태',function(x){return x.level==='만실 임박'?'<span class="chip x">만실 임박</span>':'<span class="chip hold">만실 주의</span>'},' class="nw"'],
+       ['상태',function(x){return x.level==='만실'?'<span class="chip x">만실</span>':x.level==='만실 임박'?'<span class="chip x">만실 임박</span>':'<span class="chip hold">만실 주의</span>'},' class="nw"'],
        ['예약/객실',function(x){return x.booked+' / '+x.rooms},' class="n"'],
        ['가동률',function(x){return x.pct+'%'},' class="n"'],
        ['남은 방',function(x){return '<b>'+x.left+'</b>'},' class="n"']])})

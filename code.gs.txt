@@ -4287,7 +4287,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.102381ac';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.57b8f3da';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4503,8 +4503,8 @@ function codeInfo(pin) { checkPin_(pin); adminOnly_(); codeLive_();   // 관리 
     last: p.getProperty('CODE_VER_AT') || '', vers: vs ? vs.n : 0, versMax: 200 };
 }
 
-// ── 만실 주의·임박 (계산) ───────────────────────────────────────────────────
-// 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박'
+// ── 만실 · 만실 임박 · 만실 주의 (계산) ────────────────────────────────────────
+// 그날 쓰는 객실 수 대비 예약이 80% 이상이면 '만실 주의', 90% 이상이면 '만실 임박', 남은 방이 없으면 '만실'
 var SV_ = {};   // 한 번 실행하는 동안만 쓰는 시트 읽기 캐시 — 주간요약·가격힌트처럼 같은 시트를 여러 번 보는 곳에서만 씀
 function svals_(name, cols) {
   var k = name + '|' + cols;
@@ -4530,7 +4530,9 @@ function occScan_(hotel, from, to) {
     var b = 0, seen = {};
     for (i = 0; i < res.length; i++) { var q2 = res[i]; if (q2.ci <= d && d < q2.co && !seen[q2.rm]) { seen[q2.rm] = 1; b++; } }
     var pct = n ? Math.round(b * 1000 / n) / 10 : 0;
-    out.push({ d: d, rooms: n, booked: b, left: Math.max(0, n - b), pct: pct, level: pct >= 90 ? '만실 임박' : pct >= 80 ? '만실 주의' : '' });
+    var left = Math.max(0, n - b);
+    out.push({ d: d, rooms: n, booked: b, left: left, pct: pct,
+      level: n && !left ? '만실' : pct >= 90 ? '만실 임박' : pct >= 80 ? '만실 주의' : '' });   // 남은 방이 없으면 '임박'이 아니라 '만실'
     d = notiAdd_(d, 1);
   }
   return out;
