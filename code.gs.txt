@@ -3055,6 +3055,14 @@ function saveRowsRun_(name, items) {
           && openNeed_(sh.getRange(r, 2).getValue(), sh.getRange(r, 8).getValue(), it.v[24])) {
         var oc = sh.getRange(r, 53); oc.setNumberFormat('@'); oc.setValue('확인필요');
       }
+      // 취소를 되돌리면(취소일이 있던 예약의 취소일을 지우면) 오늘 새로 들어온 예약과 같습니다 —
+      // 등록시각을 지금으로 다시 적어 '등록(취소)일' 기준 오늘 목록에 나오게 하고, 취소 때 붙은 '방풀기 확인'은 지웁니다
+      // (방을 풀 일이 없어졌고, 오히려 다시 막아야 하므로 위 '방막기 확인'이 맞습니다).
+      if (name === '예약' && it.r && it.v[24] !== undefined && !String(it.v[24] || '').trim()
+          && allVals[r - 1] && String(fmt_(allVals[r - 1][23], false) || '').trim() && sh.getMaxColumns() >= 50) {
+        var uc = sh.getRange(r, 50); uc.setNumberFormat('@'); uc.setValue(Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'));
+        if (sh.getMaxColumns() >= 53) sh.getRange(r, 53).clearContent();
+      }
     });
     SpreadsheetApp.flush();
     ctQ.forEach(function (q) { try { ctSave_(sh, q.row, q.tel); } catch (e) { } });   // 주소록은 실패해도 저장을 막지 않음
@@ -4310,7 +4318,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-21.0eb7668c';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-21.55d80b83';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
