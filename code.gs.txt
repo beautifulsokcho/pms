@@ -1704,7 +1704,18 @@ function myClean(cred, date) {
       outPpl: out ? out[9] : '', outMemo: out ? String(out[22] || '') : '',
       inDate: nx ? (fmt_(nx[6]) === date ? '오늘' : fmt_(nx[6]).slice(5)) : '', inPpl: nx ? nx[9] : '', inN: nx ? nx[8] : '', inMemo: nx ? String(nx[22] || '') : '',
       towel: nx ? nx[25] : '', water: nx ? nx[26] : '' };
-  }).sort(function (a, b) { return a.hotel === b.hotel ? Number(b.room) - Number(a.room) : (a.hotel < b.hotel ? -1 : 1); });
+  });
+  // 급한 순서로 보여 줍니다: ① 오늘 퇴실+입실이 같이 있는 방(그날 안에 끝내야 함) ② 퇴실만 ③ 입실 준비 ④ 공실 점검
+  var turnOf = function (it) { return it.outPpl !== '' && it.outPpl !== null && it.outPpl !== undefined && it.inDate === '오늘'; };
+  var rank = function (it) {
+    if (/공실점검/.test(it.kind)) return 3;
+    if (/입실준비/.test(it.kind)) return 2;
+    return turnOf(it) ? 0 : 1;
+  };
+  items.forEach(function (it) { it.turn = turnOf(it); });
+  items.sort(function (a, b) {
+    return rank(a) - rank(b) || (a.hotel === b.hotel ? Number(b.room) - Number(a.room) : (a.hotel < b.hotel ? -1 : 1));
+  });
   var notices = {}, defs = {};
   svals_('호텔', 18).forEach(function (x) { if (hotels[x[1]] && x[15]) notices[x[1]] = String(x[15]); defs[x[1]] = { t: x[16], w: x[17] }; });
   var rdef = {};
@@ -2877,6 +2888,27 @@ function blkOffHotel_(h) {
   }
   return !!BLK_OFF_[String(h)];
 }
+// 이번 퇴실 청소를 소유주가 직접 하는지 — 화면 ownerCleans()와 같은 규칙입니다.
+//  ① 그 예약의 '소유주 직접 청소 (Y)'(예약 47열), 또는
+//  ② 청소비요율에 그 호실 줄이 따로 있고 요금이 0원('-' 포함)이고, 그 예약이 '업체 청소 (Y)'(41열)가 아닐 때.
+// 소유주가 하는 방은 청소배정표에 아예 넣지 않으므로, 아침 브리핑의 '배정표에 없음'에서도 빼야 합니다.
+var OWNCL_ = null;
+function ownCleanRoom_(hotel, room) {
+  if (!OWNCL_) {
+    OWNCL_ = {};
+    svals_('청소비요율', 13).forEach(function (x) {
+      var h = String(x[0] || '').trim(), rm = String(x[1] == null ? '' : x[1]).trim();
+      if (!h || !rm) return;   // 호실이 빈 줄은 그 호텔 전체 기준이라 해당 없음
+      if (!(Number(String(x[4] == null ? '' : x[4]).replace(/[^\d.]/g, '')) > 0)) OWNCL_[h + '|' + rm] = 1;
+    });
+  }
+  return !!OWNCL_[String(hotel) + '|' + String(room).trim()];
+}
+function ownCleans_(v) {
+  if (String(v[46] || '').trim().toUpperCase() === 'Y') return true;
+  return ownCleanRoom_(v[1], v[2]) && String(v[40] || '').trim().toUpperCase() !== 'Y';
+}
+
 // 호텔 23열 '판매금액 모름 (Y)' — 마리나베이처럼 판매금액을 알 수 없는 호텔.
 // 그런 호텔은 판매금액이 비어 있는 게 정상이므로 '채워야 할 정보'로도, '매출 없는데 비용만'으로도 보지 않습니다.
 var SALE_OFF_ = null;
@@ -4425,7 +4457,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-22.71397342';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-22.013bb95b';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4998,7 +5030,8 @@ function briefData_() {
           o.ins.push(x[2] + '호 · ' + (String(x[3] || '').trim() || '이름없음') + ' · ' + pp + '인 ' + (Number(x[8]) || 0) + '박' + (x[10] ? ' · ' + x[10] : '')
             + (String(x[22] || '').trim() ? ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 40) : ''));
         }
-        if (co === today) { d.outN++; hot(x[1]).outN++; if (!x[43]) outRoom[x[1] + '|' + String(x[2]).trim()] = x[1] + ' ' + String(x[2]).trim() + '호'; }
+        // 청소안함(44열)이거나 소유주가 직접 청소하는 방은 배정표에 없는 게 정상이라 '배정표에 없음'에서 뺍니다 (퇴실 수에는 그대로 셈)
+        if (co === today) { d.outN++; hot(x[1]).outN++; if (!x[43] && !ownCleans_(x)) outRoom[x[1] + '|' + String(x[2]).trim()] = x[1] + ' ' + String(x[2]).trim() + '호'; }
         if ((ci === today || co === today) && String(x[22] || '').trim())
           d.memo.push(x[1] + ' ' + x[2] + '호 ' + (ci === today ? '입실' : '퇴실') + ' · ' + String(x[22]).trim().replace(/\s+/g, ' ').slice(0, 60));
       }

@@ -542,7 +542,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -727,7 +727,7 @@ function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());
       '<button class="btn" type="button" id="myToday">오늘</button><button class="btn" type="button" id="myTom">내일</button></div>'+
       '<div class="count cwsum">'+md(d.date)+' · '+d.items.length+'실'+(d.items.length?' <span class="cwneed">— 수건 <b>'+tw+'</b>장 · 물 <b>'+wa+'</b>개</span>':'')+'</div>';   // 오늘 필요한 수건·물 합계
     if(!d.items.length)html+='<div class="empty">이 날짜에 배정된 객실이 없습니다.</div>';
-    else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':'청소';
+    else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':x.turn?'퇴실→입실':'청소';   // 서버가 급한 순서로 보내 줌 (퇴실+입실 → 퇴실 → 입실준비 → 공실점검)
       return '<div class="task cwcard '+(vac?'vac':prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(vac?'ok':prep?'hold':'x')+'">'+lab+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
         (x.outPpl!==''?'<div class="sub">퇴실: '+esc(x.outPpl)+'명'+(x.outMemo?' · <b>'+esc(x.outMemo)+'</b>':'')+'</div>':'')+
         (x.inDate?'<div class="sub">다음 입실 '+esc(x.inDate)+': '+esc(x.inPpl)+'명 '+esc(x.inN)+'박'+(x.inMemo?' · <b>'+esc(x.inMemo)+'</b>':'')+'</div>':'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅</div>')+
