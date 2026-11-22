@@ -542,7 +542,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22i';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2014,9 +2014,10 @@ function rtAll(){try{return rows('객실타입').map(function(x){var v=x.v;retur
 function rtProd(hotel,name){var t=String(name||'').replace(/\s+/g,' ').trim();if(!t)return null;
   return rtAll().filter(function(x){return x.prod&&(!hotel||x.hotel===hotel)&&t.indexOf(x.prod)>=0}).sort(function(a,b){return b.prod.length-a.prod.length})[0]||null}
 function rtTypeOf(hotel,room){return rtAll().filter(function(x){return x.hotel===hotel&&x.room===String(room)})[0]||null}
-function rtFree(hotel,type,ci,co,plat){   // 그 기간에 비는 같은 타입 객실 (배정순서)
+function admOwn(h,rm){var r=roomRow(h,rm);return !!(r&&String(r.v[30]||'').trim().toUpperCase()==='Y')}   // 객실 AE열 '관리자 직접 운영 (Y)'
+function rtFree(hotel,type,ci,co,plat){   // 그 기간에 비는 같은 타입 객실 — 관리자 직접 운영 객실 먼저, 그다음 배정순서
   return rtAll().filter(function(x){return x.hotel===hotel&&x.type===type&&(plat==='놀'?x.nol!=='N':plat==='놀호텔'?x.nolh!=='N':true)})
-    .sort(function(a,b){return a.ord-b.ord})
+    .sort(function(a,b){return (admOwn(hotel,b.room)?1:0)-(admOwn(hotel,a.room)?1:0)||a.ord-b.ord})
     .filter(function(x){return !overlaps({hotel:hotel,room:x.room,ci:ci,co:co}).length})}
 function rtSuggest(x){   // 호실을 골라야 하는 카드: 숙박기간에 비는 같은 타입 객실 추천 + 남은 방 경고
   if(!x.ci||!x.co)return null;
@@ -2278,7 +2279,7 @@ function renderPaste(){
           (x.plat==='떠나요'&&x.roomHint?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="learn"'+(x.learn!==false?' checked':'')+'> 이 상품명을 이 호실로 기억</label>':''):
           '<button class="btn" type="button" data-p="chroom" style="align-self:flex-end;padding:6px 10px">호실 바꾸기</button>')+
         (needRoom&&rtS?'<div class="f" style="flex:1 1 100%"><label>추천 · '+esc(rtS.type)+' ('+md(x.ci)+'~'+md(x.co)+')</label><div class="rtpick">'+
-          (rtS.free.length?rtS.free.map(function(rm){return '<button class="btn'+(rm===x.room?' pri':'')+'" type="button" data-p="rtpick" data-r="'+esc(rm)+'" data-h="'+esc(rtS.hotel)+'">'+esc(rm)+'호</button>'}).join(''):'<span class="chip x">빈 방 없음</span>')+
+          (rtS.free.length?rtS.free.map(function(rm){var ad=admOwn(rtS.hotel,rm);return '<button class="btn'+(rm===x.room?' pri':'')+'" type="button" data-p="rtpick" data-r="'+esc(rm)+'" data-h="'+esc(rtS.hotel)+'"'+(ad?' title="관리자 직접 운영 객실 — 먼저 추천합니다"':'')+'>'+esc(rm)+'호'+(ad?' ★':'')+'</button>'}).join(''):'<span class="chip x">빈 방 없음</span>')+
           (rtS.warn?'<span class="chip x">'+esc(rtS.warn)+'</span>':'')+'</div></div>':'')+
         '<div class="f" style="flex:0 1 90px"><label>인원'+(x.pplKeep?' (기존)':x.pplGuess?' (확인)':'')+'</label><input data-p="ppl" type="number" min="1" inputmode="numeric" value="'+esc(x.ppl)+'"></div>'+
         ((x.ncNext||x.noClean)?'<label class="chk" style="align-self:flex-end"><input type="checkbox" data-p="noclean"'+(x.noClean?' checked':'')+'> 청소안함 (연속예약'+(x.ncNext?' → '+md(x.ncNext[R.ci])+'~'+md(x.ncNext[R.co]):'')+')</label>':'')+
