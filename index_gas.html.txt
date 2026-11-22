@@ -531,7 +531,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22h';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3661,8 +3661,12 @@ function chatInit(){var b=$('#chatBtn');if(!b||DEMO||!LIVE)return;
   b.hidden=false;b.title=mine?'관리자와 대화':'대화방 (소유주·청소담당자)';
   b.onclick=function(){mine?myChatOpen():chatOpen()};
   var tick=function(){
+    // 👁 미리보기 탭에는 그 사람의 비밀번호가 없고, 관리자 PIN도 탭마다 따로입니다(TAB_KEYS).
+    // 없는 채로 부르면 PIN_WRONG만 나고 1분마다 되풀이되므로 아예 부르지 않습니다. (문자함과 같은 기준)
+    if(inPreview())return;
     if(mine)return call('myChatNew').then(function(r){var n=(r&&r.n)||0,bd=$('#chatN');bd.hidden=!n;bd.textContent=n;
       if(CHAT.n>=0&&n>CHAT.n)toast('💬 관리자 메시지 '+(n-CHAT.n)+'건');CHAT.n=n}).catch(function(){});
+    if(!store('pin'))return;
     call('chatRooms').then(function(r){var n=(r&&r.unread)||0,bd=$('#chatN');bd.hidden=!n;bd.textContent=n;
       if(CHAT.n>=0&&n>CHAT.n)toast('💬 새 대화 '+(n-CHAT.n)+'건');CHAT.n=n}).catch(function(){})};
   tick();clearInterval(CHAT.t);CHAT.t=setInterval(tick,60000);CHAT.tick=tick}
@@ -3938,6 +3942,7 @@ var RPOLL={t:null,busy:false,sig:''};
 function resSig(){return rows('예약').map(function(r){return r.r+':'+r.v[R.ci]+r.v[R.co]+r.v[R.room]+r.v[R.name]+r.v[R.cancel]+r.v[R.fin]+r.v[R.regAt]}).join('|')}
 function resPoll(){
   if(RPOLL.busy||document.hidden||DEMO||!LIVE)return;
+  if(inPreview()||(!ROLE&&!store('pin')))return;                              // 비밀번호가 이 탭에 없으면 부르지 않음 (PIN_WRONG 되풀이 방지)
   if(store('tab')!=='res'&&store('tab')!=='new')return;                      // 예약검색·새 예약 화면일 때만
   if($('#modalRoot').innerHTML)return;                                        // 수정 창이 열려 있으면 건너뜀
   var ae=document.activeElement;if(ae&&/INPUT|TEXTAREA/.test(ae.tagName))return;   // 입력 중이면 건너뜀
