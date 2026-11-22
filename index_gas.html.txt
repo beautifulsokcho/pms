@@ -531,7 +531,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-22f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-22g';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -615,7 +615,8 @@ function call(fn){
     if(t.indexOf('PIN_WRONG')>=0&&(ROLE==='manager'||ROLE==='owner')){store('role','');store('mid','');store('mpw','');toast('로그인 정보가 바뀌었습니다. 다시 로그인하세요.');setTimeout(function(){softReload()},1500);throw e}
     // 관리자 미리보기(👁 화면)에서는 관리자 PIN이 이 탭에 없습니다. 거기서 관리 기능 호출이 하나 새면
     // 전에는 로그인 창이 뜨고, 누를수록 PIN 틀린 횟수가 쌓여 10분 잠금까지 갔습니다 → 알려만 주고 멈춥니다.
-    if(t.indexOf('PIN_WRONG')>=0&&inPreview()){toast('관리자 미리보기에서는 이 기능을 쓸 수 없습니다. 띠의 [관리자 화면으로]를 눌러 돌아가세요.');throw e}
+    if(t.indexOf('PIN_WRONG')>=0&&inPreview()){try{console.warn('미리보기에서 막은 관리자 기능: '+fn)}catch(e2){}
+      toast('관리자 미리보기에서는 「'+fn+'」을(를) 쓸 수 없습니다 — 미리보기는 보기만 됩니다. 띠의 [관리자 화면으로]를 눌러 돌아가세요.');throw e}
     if(t.indexOf('PIN_WRONG')>=0)return askPin(true).then(function(){return call.apply(null,[fn].concat(args))});
     if(t.indexOf('PIN_LOCK')>=0)throw new Error('PIN을 여러 번 틀려 10분간 잠겼습니다. 잠시 후 다시 시도하세요.');
     if(t.indexOf('PIN_UNSET')>=0)throw new Error('Apps Script의 스크립트 속성에 APP_PIN을 먼저 설정하세요.');
@@ -705,19 +706,35 @@ function cleanerHome(date){   // 청소담당자 화면: 메뉴 청소 · 지난
 function cwErr(e){var t=errText(e),body=$('#cwBody');
   if(/LOGIN_WRONG|LOGIN_LOCK/.test(t)){store('role','');body.innerHTML='<div class="empty err">로그인 정보가 바뀌었습니다. 다시 로그인하세요.</div>';setTimeout(function(){softReload()},1500);return}
   body.innerHTML='<div class="empty err">불러오지 못했습니다: '+esc(t)+'</div>'}
-function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());CW_DAY=date;body.innerHTML='<div class="empty">불러오는 중…</div>';
+// 청소담당자 목록은 이 기기에 담아 둡니다 — 폰에서 서버를 기다리는 몇 초 동안 빈 화면을 보지 않게,
+// 담아 둔 것을 먼저 그려 주고 뒤에서 새로 받아 바꿔 끼웁니다. 화면 버전·담당자·날짜가 키.
+function cwKey(date){return 'cw|'+APP_VER+'|'+(store('cid')||'')+'|'+date}
+function cwCacheSave(d){try{var k=cwKey(d.date);localStorage.setItem(k,JSON.stringify(d));
+  for(var i=localStorage.length-1;i>=0;i--){var n=localStorage.key(i);if(n&&n.indexOf('cw|')===0&&n!==k)localStorage.removeItem(n)}}catch(e){}}   // 날짜가 바뀌면 옛 것은 버림 (칸이 넘치지 않게)
+function cwCacheGet(date){try{var s=localStorage.getItem(cwKey(date));if(!s)return null;var d=JSON.parse(s);return (d&&d.date===date&&d.items)?d:null}catch(e){return null}}
+function cwCacheDone(date,h,rm,done){var d=cwCacheGet(date);if(!d)return;   // 저장한 완료 표시를 담아 둔 것에도 반영
+  d.items.forEach(function(x){if(x.hotel===h&&String(x.room)===String(rm)){x.done=done||'';if(x.card)x.card.done=done||''}});cwCacheSave(d)}
+function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());CW_DAY=date;
+  var old=cwCacheGet(date);
+  if(old)cwCleanDraw(old,true);else body.innerHTML='<div class="empty">불러오는 중…</div>';
   cApi('myClean',date).then(function(d){
+    if(CW_DAY!==date||CTAB!=='clean')return;   // 그 사이에 날짜·메뉴를 바꿨으면 덮어쓰지 않음
     $('#status').textContent=d.name+'님';
     if(d.mgr!==undefined&&(d.mgr?'1':'')!==(store('cmgr')||'')){store('cmgr',d.mgr?'1':'');store('chome',d.home||'');$('#cwTabs').remove();cleanerHome(date);return}   // 관리자 청소담당자면 '현황판' 메뉴 추가
+    cwCacheSave(d);cwCleanDraw(d,false);
+  }).catch(function(e){if(!old)cwErr(e);else{var n=$('#cwStale');if(n)n.innerHTML='<span class="err">새로 받지 못했습니다 — '+esc(errText(e))+'</span>'}})}
+function cwCleanDraw(d,stale){var body=$('#cwBody');
+    $('#status').textContent=d.name+'님';
     CW_CARD={};d.items.forEach(function(x){if(x.card)CW_CARD[d.date+'|'+x.hotel+'|'+x.room]=x.card});   // 카드를 미리 받아 둠
     var sum=function(k){return d.items.reduce(function(a,x){return a+(Number(x[k])||0)},0)},tw=sum('towel'),wa=sum('water');
     var html='<div class="panel-head"><h2>'+esc(d.name)+'님 청소</h2></div>'+
       '<div class="bar"><div class="f"><label for="myDate">날짜</label><input id="myDate" type="date" value="'+esc(d.date)+'"></div>'+
       '<button class="btn" type="button" id="myToday">오늘</button><button class="btn" type="button" id="myTom">내일</button></div>'+
-      '<div class="count cwsum">'+md(d.date)+' · '+d.items.length+'실'+(d.items.length?' <span class="cwneed">— 수건 <b>'+tw+'</b>장 · 물 <b>'+wa+'</b>개</span>':'')+'</div>';   // 오늘 필요한 수건·물 합계
+      '<div class="count cwsum">'+md(d.date)+' · '+d.items.length+'실'+(d.items.length?' <span class="cwneed">— 수건 <b>'+tw+'</b>장 · 물 <b>'+wa+'</b>개</span>':'')+'</div>'+
+      (stale?'<div class="syncbar" id="cwStale">담아 둔 내용입니다 · 새로 받는 중…</div>':'');   // 오늘 필요한 수건·물 합계
     if(!d.items.length)html+='<div class="empty">이 날짜에 배정된 객실이 없습니다.</div>';
     else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':x.turn?'퇴실→입실':'청소';   // 서버가 급한 순서로 보내 줌 (퇴실+입실 → 퇴실 → 입실준비 → 공실점검)
-      return '<div class="task cwcard '+(vac?'vac':prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(vac?'ok':prep?'hold':'x')+'">'+lab+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
+      return '<div class="task cwcard '+(vac?'vac':prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(vac?'ok':prep?'hold':'x')+'">'+lab+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok cwok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
         (x.outPpl!==''?'<div class="sub">퇴실: '+esc(x.outPpl)+'명'+(x.outMemo?' · <b>'+esc(x.outMemo)+'</b>':'')+'</div>':'')+
         (x.inDate?'<div class="sub">다음 입실 '+esc(x.inDate)+': '+esc(x.inPpl)+'명 '+esc(x.inN)+'박'+(x.inMemo?' · <b>'+esc(x.inMemo)+'</b>':'')+'</div>':'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅</div>')+
         '<div class="sub">'+(x.def?'기본 세팅 · ':'')+'수건 <b>'+(x.towel===''?'기본':esc(x.towel)+'장')+'</b> · 물 <b>'+(x.water===''?'기본':esc(x.water)+'개')+'</b></div></div>'}).join('')+'</div>';
@@ -727,7 +744,17 @@ function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());
     $('#myDate').onchange=function(){cwClean(this.value)};
     $('#myToday').onclick=function(){cwClean(ymd(new Date()))};
     $('#myTom').onclick=function(){cwClean(addDays(ymd(new Date()),1))};
-  }).catch(cwErr)}
+}
+// 저장한 객실 하나만 고쳐 그립니다 — 목록을 다시 받으면 서버가 시트를 또 다 읽어 몇 초씩 걸립니다.
+function cwMark(date,h,rm,done){
+  if(date!==CW_DAY)return;
+  var hit=null;[].forEach.call(document.querySelectorAll('#cwBody .cwcard'),function(c){if(c.dataset.h===h&&c.dataset.rm===String(rm))hit=c});
+  if(!hit)return;
+  hit.classList.toggle('cwdone',!!done);
+  var row=hit.querySelector('.row'),tap=row.querySelector('.cwtap'),chk=row.querySelector('.cwok');
+  if(done){if(tap)tap.remove();if(!chk){var s=document.createElement('span');s.className='chip ok cwok';s.style.marginLeft='auto';s.textContent='✓ 완료';row.appendChild(s)}}
+  else{if(chk)chk.remove();if(!tap){var t=document.createElement('span');t.className='cwtap';t.textContent='눌러서 완료 입력 ›';row.appendChild(t)}}
+}
 var CW_DAY='',CW_PER=null,CW_LOADED=false;
 function cwBoard(){   // 관리자(Y) 청소담당자: 청소 현황판 (읽기 전용)
   var body=$('#cwBody'),vc=$('#v-clean');body.innerHTML='<div class="empty" id="cwBLoad">불러오는 중…</div>';
@@ -812,8 +839,11 @@ function cwRoomDraw(d){var box=$('#cwRm');if(!box)return;var PEND={};   // 고�
       return ups.reduce(function(p,u){return p.then(function(){b.textContent='사진 올리는 중 '+(done+1)+'/'+ups.length;
         return go('photo',d.date,d.hotel,d.room,u.name,u.url).then(function(){done++},function(e){fail.push(u.name+': '+errText(e))})})},Promise.resolve());
     }).then(function(){return (ups.length||!saved||!saved.items)?go('room',d.date,d.hotel,d.room):saved}).then(function(n){   // 저장이 이미 새 내용을 돌려주므로, 사진을 올렸을 때만 다시 받음
-      toast(ups.length?'저장했습니다 · 사진 '+done+'장 올림':'저장했습니다');cwRoomDraw(n);
-      if(d.adm){try{renderClean()}catch(e){}}else cwClean(d.date);
+      toast(ups.length?'저장했습니다 · 사진 '+done+'장 올림':'저장했습니다');
+      if(d.adm){cwRoomDraw(n);try{renderClean()}catch(e){}}
+      else{   // 청소담당자: 목록을 다시 받지 않고 그 카드만 고칩니다 (다시 받으면 서버가 시트를 또 다 읽어 몇 초씩 걸림)
+        CW_CARD[d.date+'|'+d.hotel+'|'+d.room]=n;cwMark(d.date,d.hotel,d.room,n&&n.done);cwCacheDone(d.date,d.hotel,d.room,n&&n.done);
+        if(fail.length)cwRoomDraw(n);else closeModal()}   // 사진을 못 올렸을 때만 창을 열어 둡니다
       if(fail.length&&$('#cwErr'))$('#cwErr').textContent='사진을 올리지 못했습니다 — '+fail.join(' / ');
     }).catch(function(e){b.disabled=false;b.textContent='저장';$('#cwErr').textContent=errText(e)})};
 }

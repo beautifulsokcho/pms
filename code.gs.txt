@@ -1687,13 +1687,13 @@ function myClean(cred, date) {
   var name = cleanerLogin_(cred);
   date = date || Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd');
   var recs = svals_('청소실적', 13).filter(function (x) { return x[1] === name && fmt_(x[0]) === date && x[2]; });
-  var res = svals_('예약', 27).filter(function (x) { return x[6] && x[7] && !x[23]; });
-  // 객실마다 예약 2천 건을 다시 훑으면 느려지므로, 호텔|호실로 한 번만 묶어 둡니다 (입실일 순)
+  var plus = function (d, n) { var t = Utilities.parseDate(d, tz_(), 'yyyy-MM-dd'); t.setDate(t.getDate() + n); return Utilities.formatDate(t, tz_(), 'yyyy-MM-dd'); };
+  var lim = plus(date, 5), hotels = {};
+  var res = resDay_(date, lim);   // 그날 퇴실 · 5일 안 입실만 (시트를 통째로 읽지 않습니다)
+  // 객실마다 예약을 다시 훑으면 느려지므로, 호텔|호실로 한 번만 묶어 둡니다 (입실일 순)
   var byRoom = {};
   res.forEach(function (x) { var k = x[1] + '|' + String(x[2]); (byRoom[k] = byRoom[k] || []).push(x); });
   Object.keys(byRoom).forEach(function (k) { byRoom[k].sort(function (a, b) { return fmt_(a[6]) < fmt_(b[6]) ? -1 : 1; }); });
-  var plus = function (d, n) { var t = Utilities.parseDate(d, tz_(), 'yyyy-MM-dd'); t.setDate(t.getDate() + n); return Utilities.formatDate(t, tz_(), 'yyyy-MM-dd'); };
-  var lim = plus(date, 5), hotels = {};
   var items = recs.map(function (x) {
     var h = x[2], room = String(x[3]), kind = String(x[6] || x[5] || ''), memo = String(x[11] || '');
     var mine = byRoom[h + '|' + room] || [];
@@ -1761,7 +1761,7 @@ function manualItems_(hotel, room) {   // 그 객실에 쓰는 '수동' 정산�
 }
 function myRoomData_(name, date, hotel, room) {
   var a = myAssigned_(name, date, hotel, room);
-  var got = svals_('정산입력', 15).map(function (x, k) { return { r: k + 2, x: x }; }).filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[3] && fmt_(o.x[3], false) === date && o.x[4]; });
+  var got = pinDay_(date).filter(function (o) { return o.x[1] === hotel && String(o.x[2]) === String(room) && o.x[4]; });
   return { date: date, hotel: hotel, room: room, kind: a.kind, done: a.done ? String(fmt_(a.done, false)) : '', items: manualItems_(hotel, room).map(function (m) {
     var g = got.find(function (o) { return String(o.x[4]).trim() === m.name; });
     return { name: m.name, price: m.price, on: !!g, mine: !!(g && /^청소담당자/.test(String(g.x[9]))), photo: g ? String(g.x[14] || '') : '' };
@@ -4470,7 +4470,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-22.42e4a7ab';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-22.8aabbb76';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4697,6 +4697,46 @@ function svals_(name, cols) {
 }
 function svDrop_(name) {   // 그 시트에 뭔가 썼으면 캐시를 버림 — 쓴 뒤에 다시 읽으면 새 값이 나와야 하므로
   Object.keys(SV_).forEach(function (k) { if (k.indexOf(name + '|') === 0) delete SV_[k]; });
+  DAY_ = {};
+}
+// ── 그날 쓰는 줄만 읽기 ────────────────────────────────────────────────────────
+// 청소담당자 화면은 '오늘'에 걸리는 줄 몇 개만 필요한데, 시트를 통째로 읽으면
+// 예약 2천 줄(27열) + 정산입력 6천 줄(15열) = 셀 14만 개를 들고 와야 해 폰에서 몇 초씩 걸렸습니다.
+// 그래서 ① 날짜 칸 한 줄만 먼저 읽어 그날 줄이 어디부터 어디까지인지 찾고
+// ② 그 구간만 다시 읽습니다. 새 줄은 시트 끝쪽에 쌓이므로 구간이 짧습니다.
+// (빈 줄을 다시 쓴 예약이 앞쪽에 있으면 구간이 길어지는데, 그때도 지금까지와 같은 양을 읽을 뿐 더 느려지지 않습니다.)
+var DAY_ = {};
+function dayRows_(name, dateCol, cols, hit) {
+  var key = name + '|' + dateCol + '|' + cols + '|' + hit.k;
+  if (DAY_[key]) return DAY_[key];
+  var sh = SpreadsheetApp.getActive().getSheetByName(name), lr = sh ? sh.getLastRow() : 1;
+  if (!sh || lr < 2) return (DAY_[key] = []);
+  var n = lr - 1, nc = Math.min(cols, sh.getMaxColumns());
+  var ds = sh.getRange(2, dateCol, n, hit.w || 1).getValues(), at = [];
+  for (var i = 0; i < n; i++) if (hit.f(ds[i])) at.push(i);
+  if (!at.length) return (DAY_[key] = []);
+  // 걸린 줄들을 '이어진 구간'으로 묶습니다 — 20줄 안으로 떨어져 있으면 한 번에 읽는 게 빠릅니다.
+  // 구간이 너무 여러 개면(옛 줄에 흩어져 있으면) 읽기 횟수가 더 손해라 한 번에 통째로 읽습니다.
+  var runs = [[at[0], at[0]]];
+  for (var a = 1; a < at.length; a++) { var last = runs[runs.length - 1];
+    if (at[a] - last[1] <= 50) last[1] = at[a]; else runs.push([at[a], at[a]]); }
+  if (runs.length > 6) runs = [[at[0], at[at.length - 1]]];
+  var out = [];
+  runs.forEach(function (g) {
+    var vs = sh.getRange(g[0] + 2, 1, g[1] - g[0] + 1, nc).getValues();
+    for (var j = 0; j < vs.length; j++) out.push({ r: g[0] + 2 + j, x: vs[j] });
+  });
+  return (DAY_[key] = out);
+}
+function resDay_(date, lim) {   // 예약: 그날 퇴실 · 오늘~5일 안 입실 (입실 7열 · 퇴실 8열)
+  return dayRows_('예약', 7, 27, { k: date + '~' + lim, w: 2, f: function (p) {
+    var ci = p[0] ? fmt_(p[0], false) : '', co = p[1] ? fmt_(p[1], false) : '';
+    return co === date || (ci && ci >= date && ci <= lim);
+  } }).map(function (o) { return o.x; }).filter(function (x) { return x[6] && x[7] && !x[23]; });
+}
+function pinDay_(date) {   // 정산입력: 그날 줄만 (정산일 4열)
+  return dayRows_('정산입력', 4, 15, { k: date, f: function (p) { return p[0] && fmt_(p[0], false) === date; } })
+    .filter(function (o) { return o.x[3] && fmt_(o.x[3], false) === date; });
 }
 function occScan_(hotel, from, to) {
   var ov = svals_('객실', 30);
