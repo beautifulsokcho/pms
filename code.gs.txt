@@ -2314,6 +2314,37 @@ function smsAskScan_() {   // 조건에 맞고 때가 된 당일예약을 '문�
   if (add.length) ask.getRange(ask.getLastRow() + 1, 1, add.length, 12).setValues(add);
   return add.length;
 }
+// '5분후~3시간후' 기준 문구를 때가 되면 보냅니다 (등록시각 기준 · 오전 예약은 그날 낮 12시).
+// 전에는 이 기준을 「당일예약」 종류에서만 처리해서, 「예약확인」의 기준을 '10분후'로 바꾸면
+// smsAuto_('예약 즉시'만)도 smsTick(입실일·퇴실일만)도 집지 않아 **영영 안 나갔습니다.**
+// (실제로 11-20 저녁부터 예약확인 문자가 한 건도 나가지 않았습니다)
+function smsDelay_() {
+  var c = smsCfg_(); if (!c.on || !smsReady_(c)) return 0;
+  var list = smsTemplates_().filter(function (t) { return t.kind !== SMS_ASK_KIND_ && SMS_OFF_[t.base] > 0; });
+  if (!list.length) return 0;
+  var kinds = {}; list.forEach(function (t) { kinds[t.kind] = 1; });
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh ? sh.getLastRow() : 0; if (lr < 2) return 0;
+  var rows = sh.getRange(2, 1, lr - 1, Math.min(sh.getMaxColumns(), 51)).getValues();
+  var sent = smsSentMap_(), now = new Date(), n = 0;
+  var today = Utilities.formatDate(now, tz_(), 'yyyy-MM-dd');
+  var lo = Utilities.formatDate(new Date(+now - 3 * 864e5), tz_(), 'yyyy-MM-dd');   // 등록한 지 사흘 넘은 것은 건너뜀 (밀린 것을 한꺼번에 쏟지 않게)
+  rows.forEach(function (v, i) {
+    try {
+      var ci = fmt_(v[6], false);
+      if (v[23] || !ci || ci < today) return;                         // 취소됐거나 이미 지난 예약
+      if (!String(v[4] || '').replace(/\D/g, '')) return;             // 연락처 없음 (에어비앤비 등)
+      var reg = smsRegStr_(v); if (!reg || reg.slice(0, 10) < lo) return;
+      var key = smsResKey_(v);
+      Object.keys(kinds).forEach(function (k) {
+        if (sent[key + '|' + k]) return;
+        var t = smsPick_(k, v, list); if (!t) return;
+        var due = smsDueReg_(t, v); if (!due || now < due) return;
+        try { smsDo_(sh, i + 2, k, false, sent); n++; } catch (e) { }
+      });
+    } catch (e) { }
+  });
+  return n;
+}
 function smsAsk(pin) {   // 관리자 화면: 물어볼 당일예약 문자 (먼저 훑고 '대기'만 돌려줌)
   checkPin_(pin); adminOnly_();
   try { smsAskScan_(); } catch (e) { }
@@ -2370,7 +2401,8 @@ function smsTick() {   // 일정 문구 발송: 보낼 시각이 지났고 24시
   try {
     PropertiesService.getScriptProperties().setProperty('SMS_TICK_AT', String(Date.now()));
     try { smsAskScan_(); } catch (e) { }   // 당일예약 '보낼까요?' 목록도 함께 훑음
-    var list = smsTemplates_().filter(function (t) { return t.base === '입실일' || t.base === '퇴실일'; }); if (!list.length) return;
+    try { smsDelay_(); } catch (e) { }     // '5분후~3시간후' 기준 문구 (예약확인 등)
+    var list = smsTemplates_().filter(function (t) { return t.base === '입실일' || t.base === '퇴실일'; }); if (!list.length) return;   // 지연 문구는 위 smsDelay_에서 이미 처리
     var sh = SpreadsheetApp.getActive().getSheetByName('예약'), lr = sh.getLastRow(); if (lr < 2) return;
     var now = new Date(), sent = smsSentMap_(), lo = Utilities.formatDate(new Date(now - 40 * 864e5), tz_(), 'yyyy-MM-dd'), hi = Utilities.formatDate(new Date(+now + 40 * 864e5), tz_(), 'yyyy-MM-dd');
     var vals = sh.getRange(2, 1, lr - 1, 46).getValues();
@@ -4553,7 +4585,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-23.fab3192d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-23.e1990650';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
