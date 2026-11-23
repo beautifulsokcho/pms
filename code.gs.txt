@@ -4585,7 +4585,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-23.e1990650';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.4928206d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -4598,6 +4598,7 @@ function codeSetup() {   // Apps Script 편집기에서 한 번 실행: 권한 �
 function codeTick() {
   try { codeRun_('자동'); } catch (e) { codeLog_('자동', CODE_VER, '', '실패: ' + (e && e.message || e)); }
   try { mailGuard_(); } catch (e) { }   // 메일 확인 트리거가 사라졌으면 다시 겁니다
+  try { tickGuard_(); } catch (e) { }   // 만실 점검·브리핑·달력 등 나머지 트리거도 함께 확인
 }
 // 메일 확인(mailTick) 트리거가 없어지거나 주기가 다르면 다시 겁니다.
 // 2026-11-23: 트리거가 돌지 않아 16시간 동안 메일을 못 읽었고, [메일 확인]을 눌렀을 때만 처리됐습니다.
@@ -4608,6 +4609,35 @@ function mailGuard_() {
   var msg = mailEvery_(MAIL_EVERY_);
   codeLog_('자동', '', '', '메일 트리거 다시 걸기 — ' + msg + ' (있던 개수 ' + ts.length + ')');
   return msg;
+}
+// 때 되면 저절로 도는 일들. [함수, 다시 거는 법] — 하나라도 없어지면 codeTick이 다시 겁니다.
+// 2026-11-23에 메일 트리거가 조용히 사라져 16시간 동안 메일을 못 읽은 일이 있었습니다.
+var TICKS_ = [
+  ['codeTick',         function () { ScriptApp.newTrigger('codeTick').timeBased().everyHours(1).create(); }],
+  ['syncAirbnbTimer',  function () { ScriptApp.newTrigger('syncAirbnbTimer').timeBased().everyHours(1).create(); }],
+  ['nolTick',          function () { ScriptApp.newTrigger('nolTick').timeBased().everyHours(1).create(); }],
+  ['smsTick',          function () { ScriptApp.newTrigger('smsTick').timeBased().everyHours(1).create(); }],
+  ['roomTick',         function () { ScriptApp.newTrigger('roomTick').timeBased().atHour(7).everyDays(1).create(); }],
+  ['occTick',          function () { ScriptApp.newTrigger('occTick').timeBased().atHour(7).nearMinute(30).everyDays(1).create(); }],
+  ['rtTick',           function () { ScriptApp.newTrigger('rtTick').timeBased().atHour(7).nearMinute(40).everyDays(1).create(); }],
+  ['briefTick',        function () { ScriptApp.newTrigger('briefTick').timeBased().atHour(8).nearMinute(0).everyDays(1).create(); }],
+  ['weekTick',         function () { ScriptApp.newTrigger('weekTick').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).create(); }]
+];
+function tickGuard_() {   // 없어진 트리거를 다시 걸고, 무엇을 다시 걸었는지 코드업데이트 기록에 남깁니다
+  var have = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) { have[t.getHandlerFunction()] = (have[t.getHandlerFunction()] || 0) + 1; });
+  var fixed = [];
+  TICKS_.forEach(function (a) {
+    if (have[a[0]]) return;
+    try { a[1](); fixed.push(a[0]); } catch (e) { fixed.push(a[0] + '(실패: ' + (e && e.message || e) + ')'); }
+  });
+  if (fixed.length) codeLog_('자동', '', '', '없어진 트리거 다시 걸기 — ' + fixed.join(', '));
+  return fixed;
+}
+function tickList() {   // 편집기에서 실행: 지금 걸려 있는 트리거 보기
+  var m = {};
+  ScriptApp.getProjectTriggers().forEach(function (t) { var k = t.getHandlerFunction(); m[k] = (m[k] || 0) + 1; });
+  return JSON.stringify(m);
 }
 function codeUpdate(pin) { checkPin_(pin); adminOnly_(); return codeRun_('화면'); }   // 관리 화면 [서버 코드 업데이트]
 function codeLog_(by, from, to, result) {
