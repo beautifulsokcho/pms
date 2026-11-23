@@ -3510,6 +3510,18 @@ function mailNoop_(from, subj) {
   if (/취소|예약 확정|새로운 예약|예약 변경|확정되었습니다/.test(t)) return false;
   return /^RE:|후기|리뷰|대기 중:|예약 요청|메시지|호스팅|팁|수익|할인|추천|설문|이벤트|안내 메일|새 소식/.test(t);
 }
+// 읽을 메일 고르기. 지메일 라벨로 먼저 거릅니다 — 「에어비앤비/예약확정(변경포함)」에
+// 예약 확정·취소됨·예약 변경·대기 중(예약 요청)이 모두 들어옵니다(사용자 필터).
+// 라벨만 믿지 않도록, 라벨이 안 붙어도 제목으로 한 번 더 건집니다.
+// 전에는 '에어비앤비' 라벨 전체(후기·대화·대금지급까지)를 가져와 사흘치 88묶음이 나왔고,
+// 그 쓸데없는 메일이 한 번에 처리할 수를 다 먹어 정작 새 예약·취소가 밀렸습니다 (사흘치 28묶음으로 줄었습니다).
+var MAIL_Q_ = '((label:"에어비앤비/예약확정(변경포함)" OR label:놀호텔 OR from:nol-universe.com)'
+            + ' OR (from:automated@airbnb.com (subject:취소됨 OR subject:"예약 확정" OR subject:"예약 변경" OR subject:"새로운 예약")))'
+            + ' newer_than:3d';
+function mailQuery_() {   // 라벨 이름을 바꾸면 스크립트 속성 MAIL_QUERY에 넣어 덮어쓸 수 있습니다
+  var q = String(PropertiesService.getScriptProperties().getProperty('MAIL_QUERY') || '').trim();
+  return q || MAIL_Q_;
+}
 var MAIL_MAX_ = 60;   // 한 번에 본문까지 읽는 메일 수 (6분 실행 제한 안에 들도록)
 var MAIL_EVERY_ = 5;   // 메일 확인 주기(분). 메일은 즉시 도착하므로 달력(1시간)보다 이쪽을 자주 봅니다.
                        // 지메일 검색 한 번뿐이라 외부 접속(UrlFetch) 할당량을 쓰지 않습니다.
@@ -3537,7 +3549,7 @@ function mailTick() {
 function mailTickRun_() {
   var lg = mailLogSheet_(), done = {}, lr = lg.getLastRow();
   if (lr > 1) lg.getRange(2, 1, lr - 1, 1).getValues().forEach(function (x) { done[String(x[0])] = 1; });
-  var q = '(from:automated@airbnb.com OR from:nol-universe.com OR label:에어비앤비 OR label:놀호텔) newer_than:3d';
+  var q = mailQuery_();
   var msgs = [], ths = GmailApp.search(q, 0, 40);
   // getMessagesForThreads는 메일 묶음 40개의 본문 목록을 한 번에 받아 옵니다.
   // 전에는 묶음마다 t.getMessages()를 불러 지메일을 40번 왕복했고, 그게 '읽는 중'이 오래 걸린 가장 큰 까닭이었습니다.
@@ -4541,7 +4553,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-23.5c3918b2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-23.fab3192d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
