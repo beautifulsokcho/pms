@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 94) { SCHEMA_OK_ = true; return; }
+  if (ver >= 95) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1519,6 +1519,23 @@ function ensureSchema_() {
   if (ver < 94) {   // v94: 메일 확인 트리거를 10분 → 5분으로 (에어비앤비 확정 메일은 즉시 오므로 달력보다 이쪽이 빠릅니다)
     try { codeLog_('v94', '', '', mailEvery_(MAIL_EVERY_)); } catch (e94) { codeLog_('v94', '', '', '트리거를 바꾸지 못함: ' + (e94 && e94.message || e94)); }
     props.setProperty('SCHEMA', '94');
+  }
+  if (ver < 95) {   // v95: 호텔 24열 '리스팅번호 표시 (Y)' — 호실 옆 (07) 같은 리스팅 번호를 붙일 호텔만
+    var hv95 = ss.getSheetByName('호텔');
+    if (hv95) {
+      if (hv95.getMaxColumns() < 24) hv95.insertColumnsAfter(hv95.getMaxColumns(), 24 - hv95.getMaxColumns());
+      if (String(hv95.getRange(1, 24).getValue() || '') === '') hv95.getRange(1, 24).setValue('리스팅번호\n표시 (Y)').setFontWeight('bold');
+      var lr95 = hv95.getLastRow();
+      if (lr95 > 1) {   // 리스팅 번호로 호실을 가려 쓰는 호텔(마리나베이)만 켬 — '판매금액 모름'과 같은 기준
+        var rv95 = hv95.getRange(2, 1, lr95 - 1, 24), vv95 = rv95.getValues(), ch95 = false;
+        vv95.forEach(function (v) {
+          if (String(v[23] || '').trim()) return;
+          if (String(v[22] || '').trim().toUpperCase() === 'Y') { v[23] = 'Y'; ch95 = true; }
+        });
+        if (ch95) rv95.setValues(vv95);
+      }
+    }
+    props.setProperty('SCHEMA', '95');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -4596,7 +4613,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.a790fbaa';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.23e9c0d2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
