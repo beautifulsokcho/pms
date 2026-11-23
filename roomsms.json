@@ -1,6 +1,6 @@
 {
-  "code": 17,
-  "name": "1.16",
+  "code": 18,
+  "name": "1.17",
   "url": "https://beautifulsokcho.github.io/pms/roomsms.apk",
-  "note": "즉시 발송 (FCM) 준비"
+  "note": "앱 설치 권한 제거 (플레이 프로텍트 차단 회피) · 업데이트는 브라우저로 내려받기"
 }
