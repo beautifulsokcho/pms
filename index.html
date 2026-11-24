@@ -548,7 +548,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-24d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-24e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3527,9 +3527,9 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '폰 앱 마지막 확인 <b>'+esc(st.gwSeen||'없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 멈춤</span>':'')+(gs.battery!=null&&gs.battery>=0?' · 배터리 '+esc(gs.battery)+'%':'')+' · 대기 '+(st.gwWait||0)+'건';
     $('#smsForm').innerHTML=(st.on?'':'<p class="err"><b>⚠ 자동 발송이 꺼져 있습니다</b> — 아래 「자동 발송」을 체크하고 [저장]을 누르세요. 그동안 예약 문자가 나가지 않았습니다.</p>')+'<p>'+stat+'</p>'+
       '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
-      '<div class="form"><div class="f s"><label for="qFrom">수면방해 금지 시작</label><input id="qFrom" type="time" value="'+esc((st.quiet||{}).from||'')+'"></div>'+
-      '<div class="f s"><label for="qTo">금지 끝</label><input id="qTo" type="time" value="'+esc((st.quiet||{}).to||'')+'"></div>'+
-      '<div class="f s"><label for="qAt">그때 걸린 문자를 보낼 시각</label><input id="qAt" type="time" value="'+esc((st.quiet||{}).at||'')+'"></div>'+
+      '<div class="form"><div class="f s"><label for="qzFrom">수면방해 금지 시작</label><input id="qzFrom" type="time" value="'+esc((st.quiet||{}).from||'')+'"></div>'+
+      '<div class="f s"><label for="qzTo">금지 끝</label><input id="qzTo" type="time" value="'+esc((st.quiet||{}).to||'')+'"></div>'+
+      '<div class="f s"><label for="qzAt">그때 걸린 문자를 보낼 시각</label><input id="qzAt" type="time" value="'+esc((st.quiet||{}).at||'')+'"></div>'+
       '<div class="f full"><p class="note">보낼 때가 금지 시간 안이면 정해 둔 시각으로 미룹니다. 금지 시간 밖이면 「문자」 시트에 설정한 기준(예: 10분후)을 그대로 따릅니다. 시작·끝을 비우면 금지 시간을 쓰지 않습니다 (새벽에도 바로 나갑니다).</p></div></div>'+
       '<div id="phBox"></div>'+
       '<div class="form"><div class="f full"><label for="smsBlk">문자함에 저장 안 하는 번호 <span class="note">(쉼표로 구분 · 지우면 다시 받음)</span></label><input id="smsBlk" inputmode="tel" value="'+esc((st.blocks||[]).join(', '))+'" placeholder="없음"></div></div>'+
@@ -3557,7 +3557,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
       call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value,
-        quietFrom:$('#qFrom').value,quietTo:$('#qTo').value,quietAt:$('#qAt').value})
+        quietFrom:$('#qzFrom').value,quietTo:$('#qzTo').value,quietAt:$('#qzAt').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
     if($('#smsLogBtn'))$('#smsLogBtn').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
