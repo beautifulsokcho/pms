@@ -435,7 +435,7 @@ body.wide{--pw:min(2600px,100%)}
       <div class="f s"><label for="qCx">취소</label><select id="qCx"><option value="">취소 제외</option><option value="in">취소 포함</option><option value="only">취소만</option></select></div>
     </div>
     <div class="bar barline">
-      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="co">퇴실일</option><option value="reg">등록(취소)일</option></select></div>
+      <div class="f s"><label for="qBase">날짜 기준</label><select id="qBase"><option value="ci">입실일</option><option value="co">퇴실일</option><option value="bk">예약일</option><option value="reg">등록(취소)일</option></select></div>
       <div class="f mo"><label for="qToday" id="qDayL">날짜 (입실일)</label><div class="mpick"><button class="btn" type="button" id="qDPrev" aria-label="전날">‹</button><button class="btn" type="button" id="qToday" style="white-space:nowrap">오늘 <span id="qDayLbl" class="num"></span></button><button class="btn" type="button" id="qDNext" aria-label="다음날">›</button></div></div>
       <div class="f"><label for="qFrom" id="qFromL">입실일 시작</label><input id="qFrom" type="date"></div>
       <div class="f"><label for="qTo" id="qToL">입실일 끝</label><input id="qTo" type="date"></div>
@@ -548,7 +548,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-24e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-24f';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1375,7 +1375,7 @@ function renderRes(){try{occDraw()}catch(e){}
   renderBroken();renderStatus();
   if($('#qRoom').value.trim()){renderCal();return}   // 호실을 고르면 달력 (소유주도)   // 호실을 고르면 자동으로 그 호실 달력
   var h=$('#qHotel').value,rm=$('#qRoom').value.trim(),q=$('#qName').value.trim(),f=$('#qFrom').value,t=$('#qTo').value,pl=$('#qPlat').value,cx=$('#qCx').value,st=$('#qSettle').value;
-  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):bs==='co'?String(v[R.co]):String(v[R.ci])};   // 기간 기준: 입실일 · 퇴실일 · 등록(취소)일
+  var bs=$('#qBase').value,bd=function(v){return bs==='reg'?regDay(v):bs==='co'?String(v[R.co]):bs==='bk'?String(v[R.booked]||'').slice(0,10):String(v[R.ci])};   // 기간 기준: 입실일 · 퇴실일 · 예약일 · 등록(취소)일
   // 등록일 기준인데 '취소 포함·취소만'이면, 취소일이 기간 안에 든 예약도 보여 줍니다
   // (취소일은 등록일과 따로 저장되어, 전에는 등록한 날로만 찾혀 오늘 취소한 건이 안 보였음)
   var inB=function(v){var a=bd(v),ok=(!f||a>=f)&&(!t||a<=t);
@@ -1407,12 +1407,12 @@ function renderRes(){try{occDraw()}catch(e){}
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
   var tr=function(r){var v=r.v;   // 목록: 호실·입실일·퇴실일·인원·숙박일수·플랫폼·고객명·연락처·본인계정만
       return '<tr data-r="'+r.r+'"'+(v[R.cancel]?' class="cx"':'')+'><td><b>'+esc(v[R.room])+'</b>'+(h?'':' <small>'+esc(v[R.hotel])+'</small>')+'</td><td class="num">'+md(v[R.ci])+'</td><td class="num">'+md(v[R.co])+'</td><td class="n">'+esc(v[R.ppl])+'</td><td class="n">'+esc(v[R.n])+'</td>'+
-        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td><td class="num">'+esc(resNoV(v)||v[R.code]||'')+'</td><td class="num">'+regLab(v)+'</td></tr>'};
-  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th><th>예약번호</th><th>등록</th></tr></thead><tbody>'+
-    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="11">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
+        '<td>'+esc(v[R.plat]||'ABNB')+'</td><td>'+esc(v[R.name])+'</td><td>'+esc(v[R.tel])+'</td><td>'+(v[R.own]==='Y'?ownLab(v[R.hotel]):'')+(v[R.cancel]?' <small>취소 '+md(v[R.cancel])+'</small>':'')+'</td><td class="num">'+esc(resNoV(v)||v[R.code]||'')+'</td><td class="num">'+md(v[R.booked])+'</td><td class="num">'+regLab(v)+'</td></tr>'};
+  $('#resList').innerHTML='<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>입실일</th><th>퇴실일</th><th class="n">인원</th><th class="n">숙박일수</th><th>플랫폼</th><th>고객명</th><th>연락처</th><th>본인계정</th><th>예약번호</th><th>예약일</th><th>등록</th></tr></thead><tbody>'+
+    main.slice(0,500).map(tr).join('')+(un.length?'<tr class="secrow"><td colspan="12">미정산 '+un.length+'건 — 객실 정산서 제외, 청소수당 포함</td></tr>'+un.slice(0,300).map(tr).join(''):'')+'</tbody></table></div>';
 }
 ['qHotel','qRoom','qName','qFrom','qTo','qPlat','qSettle','qCx','qView','qSort','qBase'].forEach(function(id){$('#'+id).addEventListener('input',renderRes)});
-function qBaseLbl(){var b=$('#qBase').value,n=b==='reg'?'등록(취소)일':b==='co'?'퇴실일':'입실일';
+function qBaseLbl(){var b=$('#qBase').value,n=b==='reg'?'등록(취소)일':b==='co'?'퇴실일':b==='bk'?'예약일':'입실일';
   $('#qFromL').textContent=n+' 시작';$('#qToL').textContent=n+' 끝';$('#qDayL').textContent='날짜 ('+n+')'}
 // 예약검색 호텔은 고른 것을 기억(다음에도 그 호텔), 호실은 입력칸 + 목록에서 고르기
 function fillQRooms(){var h=$('#qHotel').value,hs=h?[h]:hotels(true),cur=$('#qRoom').value.trim(),o='<option value="">목록</option>';
