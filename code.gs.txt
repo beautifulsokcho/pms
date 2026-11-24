@@ -2311,7 +2311,28 @@ function smsAuto_(rows) {   // 새 예약 저장 직후: 기준 '예약 즉시' 
 function smsDue_(t, v, now) {   // 일정 문구의 보낼 시각 (입실일/퇴실일 + 일 + 시각)
   if ((t.base !== '입실일' && t.base !== '퇴실일') || !t.time) return null;
   var d = fmt_(t.base === '입실일' ? v[6] : v[7], false); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
-  var x = new Date(d + 'T' + (t.time.length === 4 ? '0' + t.time : t.time) + ':00+09:00'); x.setDate(x.getDate() + t.day); return x;
+  var x = new Date(d + 'T' + (t.time.length === 4 ? '0' + t.time : t.time) + ':00+09:00'); x.setDate(x.getDate() + t.day); return smsQuietPush_(x);
+}
+// ── 수면방해 금지 시간 (문자 설정에서 지정) ─────────────────────────────
+// 보낼 때가 이 시간 안이면 정해 둔 시각으로 미룹니다. 금지 시간 밖이면 「문자」 시트의 기준을 그대로 따릅니다.
+// (예전에는 '오전에 등록된 예약은 무조건 그날 낮 12시'로 못박혀 있어 09:30 예약도 12:00까지 기다렸습니다)
+var QUIET_, QUIET_DEF_ = { from: '22:00', to: '08:00', at: '08:00' };
+function smsHm_(s) { var m = String(s == null ? '' : s).trim().match(/^(\d{1,2}):(\d{2})$/); if (!m || +m[1] > 23 || +m[2] > 59) return ''; return (m[1].length === 1 ? '0' + m[1] : m[1]) + ':' + m[2]; }
+function smsQuiet_() {   // {from, to, at} 또는 null(쓰지 않음)
+  if (QUIET_ !== undefined) return QUIET_;
+  var p = PropertiesService.getScriptProperties();
+  if (p.getProperty('SMS_QUIET_V') !== '1') {   // 처음 한 번만 기본값을 넣어 둠 (밤 10시~아침 8시 → 아침 8시)
+    p.setProperty('SMS_QUIET_FROM', QUIET_DEF_.from); p.setProperty('SMS_QUIET_TO', QUIET_DEF_.to); p.setProperty('SMS_QUIET_AT', QUIET_DEF_.at); p.setProperty('SMS_QUIET_V', '1');
+  }
+  var f = smsHm_(p.getProperty('SMS_QUIET_FROM')), t = smsHm_(p.getProperty('SMS_QUIET_TO'));
+  return QUIET_ = (!f || !t || f === t) ? null : { from: f, to: t, at: smsHm_(p.getProperty('SMS_QUIET_AT')) || t };
+}
+function smsInQuiet_(d, q) { var hm = Utilities.formatDate(d, tz_(), 'HH:mm'); return q.from < q.to ? (hm >= q.from && hm < q.to) : (hm >= q.from || hm < q.to); }
+function smsQuietPush_(due, q) {
+  q = q === undefined ? smsQuiet_() : q;
+  if (!q || !due || !smsInQuiet_(due, q)) return due;
+  var c = new Date(Utilities.formatDate(due, tz_(), 'yyyy-MM-dd') + 'T' + q.at + ':00+09:00');
+  return c < due ? new Date(+c + 864e5) : c;
 }
 // ── 당일예약 문자: 등록시각 기준으로 때가 되면 '보낼까요?' 묻고, 관리자가 보류/수정/발송을 고름 ──
 var SMS_OFF_ = { '예약 즉시': 0, '예약즉시': 0, '5분후': 5, '10분후': 10, '20분후': 20, '30분후': 30, '60분후': 60, '2시간후': 120, '3시간후': 180 };
@@ -2322,11 +2343,10 @@ function smsRegStr_(v) {   // 예약 등록시각 (예약 50열) → 'yyyy-MM-dd
   return m[1] + ' ' + (m[2].length === 1 ? '0' + m[2] : m[2]) + ':' + m[3];
 }
 function smsRegAt_(v) { var s = smsRegStr_(v); return s ? new Date(s.slice(0, 10) + 'T' + s.slice(11) + ':00+09:00') : null; }
-function smsDueReg_(t, v) {   // 등록시각 기준 보낼 시각 — 오전 예약은 그날 12시, 오후 예약은 등록시각 + 기준 분
+function smsDueReg_(t, v) {   // 등록시각 기준 보낼 시각 = 등록시각 + 기준 분 (수면방해 금지 시간에 걸리면 정해 둔 시각으로)
   var off = SMS_OFF_[t.base]; if (!off) return null;
   var s = smsRegStr_(v); if (!s) return null;
-  if (+s.slice(11, 13) < 12) return new Date(s.slice(0, 10) + 'T12:00:00+09:00');   // 오전 예약 → 그날 낮 12시
-  return new Date(new Date(s.slice(0, 10) + 'T' + s.slice(11) + ':00+09:00').getTime() + off * 60000);
+  return smsQuietPush_(new Date(new Date(s.slice(0, 10) + 'T' + s.slice(11) + ':00+09:00').getTime() + off * 60000));
 }
 function smsSameDayWhy_(v, rows) {   // 당일예약 조건 — 맞으면 '' , 아니면 안 맞는 까닭
   var ci = fmt_(v[6], false), reg = smsRegStr_(v);
@@ -2864,6 +2884,12 @@ function smsConfig(pin, cfg) {   // 관리자: 문자 설정 보기·저장 (Sec
     if (cfg.from !== undefined) p.setProperty('SOLAPI_FROM', String(cfg.from).replace(/\D/g, ''));
     if (cfg.on !== undefined) p.setProperty('SMS_ON', cfg.on ? 'Y' : 'N');
     if (cfg.relay !== undefined) p.setProperty('SMS_RELAY', String(cfg.relay).trim());
+    if (cfg.quietFrom !== undefined || cfg.quietTo !== undefined || cfg.quietAt !== undefined) {   // 수면방해 금지 시간 (비우면 쓰지 않음)
+      [['quietFrom', 'SMS_QUIET_FROM'], ['quietTo', 'SMS_QUIET_TO'], ['quietAt', 'SMS_QUIET_AT']].forEach(function (x) {
+        if (cfg[x[0]] === undefined) return; var hv = smsHm_(cfg[x[0]]); if (hv) p.setProperty(x[1], hv); else p.deleteProperty(x[1]);
+      });
+      p.setProperty('SMS_QUIET_V', '1'); QUIET_ = undefined;
+    }
     if (cfg.hnames) p.setProperty('SMS_HNAMES', JSON.stringify(cfg.hnames));
     if (cfg.doorFill) { out0.filled = doorFill_(); }
     if (cfg.dual !== undefined) p.setProperty('SMS_DUAL', cfg.dual ? 'Y' : 'N');
@@ -2889,7 +2915,7 @@ function smsConfig(pin, cfg) {   // 관리자: 문자 설정 보기·저장 (Sec
   }
   var c = smsCfg_(), out = { hasKey: !!(c.key && c.secret), keyTail: c.key ? c.key.slice(-4) : '', from: c.from, on: c.on, relay: c.relay, hasRelayToken: !!c.relayToken, via: c.via, gwUser: c.gwUser, hasGwPass: !!c.gwPass, hasGwKey: !!c.gwKey,
     trigger: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'smsTick' || t.getHandlerFunction() === 'smsMorning'; }),
-    chatSms: p.getProperty('CHAT_SMS') === 'Y' ? 'Y' : '' };
+    chatSms: p.getProperty('CHAT_SMS') === 'Y' ? 'Y' : '', quiet: smsQuiet_() || { from: '', to: '', at: '' } };
   if (c.via === 'app') { var pp = PropertiesService.getScriptProperties(); out.hasKey = !!c.gwToken; out.gwToken = c.gwToken; out.gwSeen = pp.getProperty('GW_SEEN') || ''; try { out.gwState = JSON.parse(pp.getProperty('GW_STATE') || '{}'); } catch (e) { out.gwState = {}; } out.gwWait = gwCount_(); out.url = ScriptApp.getService().getUrl(); out.fwd = pp.getProperty('GW_FWD') || ''; out.kw = inboxKw_(pp); out.blocks = smsBlocks_(pp); out.phones = smsPhones_(pp); out.gwDev = pp.getProperty('GW_DEV') || ''; out.devs = gwDevs_(pp); out.phone = pp.getProperty('SMS_PHONE') || ''; out.dual = pp.getProperty('SMS_DUAL') === 'Y'; }
   else if (c.via === 'phone') out.hasKey = !!(c.gwUser && c.gwPass && c.gwKey);
   else if (out.hasKey) { try { var b = solapi_('get', '/cash/v1/balance'); out.balance = Number(b.balance || 0); out.point = Number(b.point || 0); } catch (e) { out.balErr = String(e && e.message || e); } }
@@ -4690,7 +4716,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.5d1dedfd';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.298c5c5d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

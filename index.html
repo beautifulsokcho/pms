@@ -126,6 +126,12 @@ input[readonly]{background:transparent;border-style:dashed;color:var(--muted)}
 .btn.warn{color:var(--warn);border-color:var(--warn)}
 .btn:disabled{opacity:.5;cursor:default}
 .chk{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);padding-bottom:8px}
+details.multi{position:relative;display:inline-block}
+details.multi>summary{cursor:pointer;list-style:none;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);min-width:150px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+details.multi>summary::-webkit-details-marker{display:none}
+details.multi>summary::after{content:' ▾';color:var(--muted)}
+details.multi .mbox{position:absolute;left:0;top:100%;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:170px;max-height:260px;overflow:auto;box-shadow:0 10px 26px rgba(0,0,0,.28)}
+details.multi .mbox .chk{padding:3px 0;white-space:nowrap;color:var(--ink)}
 .chk input{width:auto}
 .count{font-size:13px;color:var(--muted);margin:4px 2px 8px}
 .list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
@@ -542,7 +548,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-24c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-24d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3415,6 +3421,15 @@ function choices(n,c){
     '정산입력':{2:hotels(true),5:rows('정산항목').map(function(r){return r.v[0]}).filter(function(x,i,a){return x&&a.indexOf(x)===i})}};
   return m[n]&&m[n][c];
 }
+// 쉼표로 적던 칸을 체크 목록으로 — 보이는 값은 숨은 input(data-c)에 쉼표로 모아 두어 저장 경로는 그대로
+function multiCell(c,val,list){
+  var cur=String(val==null?'':val).split(/\s*,\s*/).filter(String);
+  var all=list.slice();cur.forEach(function(x){if(all.indexOf(x)<0)all.push(x)});   // 목록에 없는 옛 값도 보여 줌
+  var lab=cur.length?cur.join(', '):'(없음)';
+  return '<details class="multi"><summary title="'+esc(lab)+'">'+esc(lab)+'</summary><div class="mbox">'+
+    all.map(function(o){return '<label class="chk"><input type="checkbox" data-mc="'+c+'" value="'+esc(o)+'"'+(cur.indexOf(o)>=0?' checked':'')+'> '+esc(o)+'</label>'}).join('')+
+    '</div></details><input type="hidden" data-c="'+c+'" value="'+esc(cur.join(','))+'">';
+}
 var A={name:'',dirty:{},added:0};
 $('#aSheet').innerHTML=opts(Object.keys(EDIT),'호텔');
 function adminHotel(){var hc=HCOL[A.name];return hc?$('#aHotel').value:'*'}
@@ -3441,6 +3456,8 @@ function renderAdmin(){
   var list=sh.rows.filter(function(r){return (!by||r.v[hc-1]===h)&&(!q||r.v.join(' ').indexOf(q)>=0)});
   if(n==='객실')list.sort(function(a,b){if((a.r<0)!==(b.r<0))return a.r<0?-1:1;
     return String(a.v[1]).localeCompare(String(b.v[1]))||String(a.v[2]).localeCompare(String(b.v[2]),'ko',{numeric:true})});
+  if(n==='플랫폼')list.sort(function(a,b){if((a.r<0)!==(b.r<0))return a.r<0?-1:1;   // 표시순서대로 (앱의 플랫폼 목록과 같은 차례)
+    return (Number(a.v[3])||9999)-(Number(b.v[3])||9999)||a.r-b.r});
   var vis=function(i){return !(by&&i===hc-1)&&(HIDE[n]||[]).indexOf(i+1)<0};
   var key=KEYCOL[n]||1,base=ORDER[n]||sh.header.map(function(_,i){return i+1});
   var cols=[key].concat(base.filter(function(c){return c!==key})).concat(sh.header.map(function(_,i){return i+1}).filter(function(c){return c!==key&&base.indexOf(c)<0}))
@@ -3454,6 +3471,7 @@ function renderAdmin(){
     var ch=choices(n,c);
     if(n==='청소담당자'&&c===13)return '<td'+cls+'><input data-c="13" type="color" value="'+esc(cleanerColor(r.v[0]))+'" title="표시색"></td>';
     if(ch)return '<td'+cls+'><select data-c="'+c+'">'+opts(ch.indexOf(x)<0&&x!==''?ch.concat([x]):ch,x,'')+'</select></td>';
+    if(n==='문자'&&c===3)return '<td'+cls+'>'+multiCell(3,x,['전체'].concat(platforms()))+'</td>';
     if(n==='문자'&&c===8)return '<td'+cls+'><textarea data-c="8" rows="5" style="min-width:320px;font-size:13px">'+esc(x)+'</textarea></td>';
     if(n==='문자'&&c===7)return '<td'+cls+'><input data-c="7" type="time" value="'+esc(x)+'"></td>';
     var ty=(DATES[n]||[]).indexOf(c)>=0?'date':(NUMS[n]||[]).indexOf(c)>=0?'number':'text';
@@ -3483,7 +3501,7 @@ function renderAdmin(){
   var keepSms=n==='문자'&&$('#aExtra').dataset.for==='문자'&&$('#smsForm');   // 문자 설정은 다시 그리지 않음 (폰에서 주소창이 숨겨질 때마다 다시 불러오던 문제)
   if(!keepSms){$('#aExtra').dataset.for=n;$('#aExtra').innerHTML=n==='달력연결'?'<div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="calSync">지금 달력에서 가져오기</button><label class="chk"><input type="checkbox" id="calAuto"> 1시간마다 자동으로 가져오기</label></div><p class="note" id="calMsg"></p>':'';}
   if(n==='달력연결')calInit();
-  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 5분후~3시간후(등록시각 기준 — 오전 예약은 그날 12시에) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 종류를 「당일예약」으로 하고 기준을 분·시간으로 두면 바로 보내지 않고 「보낼까요?」를 먼저 묻습니다 (입실일=등록일 · 자동등록 · 겹치는 예약 없음 · 연락처 있음일 때만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼은 놀,떠나요처럼 쉼표). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
+  if(n==='문자'){$('#aNote').textContent=list.length+'행 · 종류는 이름을 직접 정합니다. 기준: 예약 즉시(저장 직후) / 5분후~3시간후(등록시각 기준 — 수면방해 금지 시간에 걸리면 문자 설정에 정한 시각으로) / 입실일·퇴실일(+일, 시각에 자동) / 수동(예약 화면에서만). 종류를 「당일예약」으로 하고 기준을 분·시간으로 두면 바로 보내지 않고 「보낼까요?」를 먼저 묻습니다 (입실일=등록일 · 자동등록 · 겹치는 예약 없음 · 연락처 있음일 때만). 일 -1=전날, 0=당일. 호텔·플랫폼이 맞는 문구 중 가장 구체적인 것을 씁니다(플랫폼 칸은 목록에서 골라 체크). 문구 안 {고객명} {호텔}(=호텔 표시 이름) {호실} {입실일} {퇴실일} {숙박} {인원} {비밀번호} {플랫폼}은 자동으로 바뀝니다.';if(!keepSms)smsPanel()}
 }
 // 자동 발송이 꺼져 있을 때 맨 위에 빨간 띠 (관리자·매니저만) — 눌러서 바로 문자 설정으로
 function smsOffBar(){if($('#smsOffBar'))return;
@@ -3509,6 +3527,10 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '폰 앱 마지막 확인 <b>'+esc(st.gwSeen||'없음')+'</b>'+(gs.paused?' · <span class="err">해외 로밍으로 멈춤</span>':'')+(gs.battery!=null&&gs.battery>=0?' · 배터리 '+esc(gs.battery)+'%':'')+' · 대기 '+(st.gwWait||0)+'건';
     $('#smsForm').innerHTML=(st.on?'':'<p class="err"><b>⚠ 자동 발송이 꺼져 있습니다</b> — 아래 「자동 발송」을 체크하고 [저장]을 누르세요. 그동안 예약 문자가 나가지 않았습니다.</p>')+'<p>'+stat+'</p>'+
       '<div class="form"><div class="f"><label for="gwFwd">회송 번호 <span class="note">(발신번호로 오는 문자메시지 수신)</span></label><select id="gwFwd">'+(function(){var L=(st.phones||[]).slice(),f=String(st.fwd||'');if(f&&!L.some(function(x){return x.n===f}))L.unshift({n:f,memo:''});return '<option value="">받지 않음</option>'+L.map(function(x){var t=x.n.length===11?x.n.slice(0,3)+'-'+x.n.slice(3,7)+'-'+x.n.slice(7):x.n;return '<option value="'+esc(x.n)+'"'+(x.n===f?' selected':'')+'>'+esc(t+(x.memo?' · '+x.memo:''))+'</option>'}).join('')})()+'</select></div></div>'+
+      '<div class="form"><div class="f s"><label for="qFrom">수면방해 금지 시작</label><input id="qFrom" type="time" value="'+esc((st.quiet||{}).from||'')+'"></div>'+
+      '<div class="f s"><label for="qTo">금지 끝</label><input id="qTo" type="time" value="'+esc((st.quiet||{}).to||'')+'"></div>'+
+      '<div class="f s"><label for="qAt">그때 걸린 문자를 보낼 시각</label><input id="qAt" type="time" value="'+esc((st.quiet||{}).at||'')+'"></div>'+
+      '<div class="f full"><p class="note">보낼 때가 금지 시간 안이면 정해 둔 시각으로 미룹니다. 금지 시간 밖이면 「문자」 시트에 설정한 기준(예: 10분후)을 그대로 따릅니다. 시작·끝을 비우면 금지 시간을 쓰지 않습니다 (새벽에도 바로 나갑니다).</p></div></div>'+
       '<div id="phBox"></div>'+
       '<div class="form"><div class="f full"><label for="smsBlk">문자함에 저장 안 하는 번호 <span class="note">(쉼표로 구분 · 지우면 다시 받음)</span></label><input id="smsBlk" inputmode="tel" value="'+esc((st.blocks||[]).join(', '))+'" placeholder="없음"></div></div>'+
       '<div class="form"><div class="f full"><label for="smsKw">문자함에 저장할 단어 <span class="note">(쉼표로 구분 · 이 단어가 든 문자와 예약 손님 번호에서 온 문자만 저장·알림, 전화는 저장 안 함)</span></label><input id="smsKw" value="'+esc(st.kw||'에어비앤비,에어비엔비,airbnb,놀,NOL,야놀자,떠나요,써밋,마리나')+'"></div></div>'+
@@ -3523,7 +3545,7 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="insPrev">미리보기 · 명단</button></div><div id="insOut"></div>'+
       '<h4 class="cwh" style="margin-top:14px">대화 알림 문자</h4><p class="note">관리자가 대화방에 글을 남기면 상대에게 「메시지가 있습니다」 문자를 보냅니다 (한 사람에게 1시간에 한 번).</p>'+
       '<label class="chk"><input type="checkbox" id="chatSms"> 대화 알림 문자 보내기</label>'+
-      '<h4 class="cwh" style="margin-top:14px">당일예약 문자</h4><p class="note">종류 「당일예약」 문구를 기준(5분후~3시간후)으로 두면, 입실일=등록일·자동등록·겹치는 예약 없음·연락처 있음인 예약에 한해 때가 됐을 때 「보낼까요?」를 묻습니다. 오전 예약은 그날 12시에 묻습니다.</p>'+
+      '<h4 class="cwh" style="margin-top:14px">당일예약 문자</h4><p class="note">종류 「당일예약」 문구를 기준(5분후~3시간후)으로 두면, 입실일=등록일·자동등록·겹치는 예약 없음·연락처 있음인 예약에 한해 때가 됐을 때 「보낼까요?」를 묻습니다. 수면방해 금지 시간에 걸리면 위에 정한 시각에 묻습니다.</p>'+
       '<div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="askNow">지금 확인</button></div>'+
       '<h4 class="cwh" style="margin-top:14px">바로 보내기</h4><div class="form"><div class="f"><label for="smsTo">받는 번호</label><input id="smsTo" inputmode="tel" placeholder="010-0000-0000 (끝에 # → 두 번째 번호로)"></div>'+
         '<div class="f full"><label for="smsTx">내용</label><textarea id="smsTx" rows="3" placeholder="비우면 시험 문구를 보냅니다"></textarea></div></div>'+
@@ -3534,7 +3556,8 @@ function smsPanel(){var box=$('#aExtra');   // 문자 설정: 객실문자 앱(�
       (ok?'<details style="margin-top:8px"><summary class="note">연결 정보 (폰 앱에 직접 넣을 때)</summary><p class="note">서버 주소: <code style="word-break:break-all">'+esc(url)+'</code><br>연결 비밀번호: <code>'+esc(st.gwToken)+'</code></p><button class="btn" type="button" id="gwNewTok">연결 비밀번호 새로 만들기</button></details>':'')+
       '<p class="note" id="smsMsg"></p>';
     $('#smsSave').onclick=function(){var b=this;b.disabled=true;
-      call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value})
+      call('smsConfig',{via:'app',fwd:$('#gwFwd').value.trim(),on:$('#smsOn').checked,kw:$('#smsKw').value,blocks:$('#smsBlk').value,
+        quietFrom:$('#qFrom').value,quietTo:$('#qTo').value,quietAt:$('#qAt').value})
         .then(function(st2){toast('문자 설정을 저장했습니다');if(st2&&st2.on)smsOffBarHide();else smsOffBar();draw(st2)}).catch(function(e){b.disabled=false;$('#smsMsg').innerHTML='<span class="err">저장하지 못했습니다: '+esc(errText(e))+'</span>'})};
     if($('#askNow'))$('#askNow').onclick=function(){askTick(true)};
     if($('#smsLogBtn'))$('#smsLogBtn').onclick=function(){var b2=this;b2.disabled=true;b2.textContent='불러오는 중…';
@@ -3609,6 +3632,15 @@ $('#aTable').addEventListener('input',function(e){var el=e.target,tr=el.closest(
   row.v[c-1]=el.type==='number'?(el.value===''?'':Number(el.value)):el.value;if(row.pre)delete row.pre[c];
   (A.dirty[r]=A.dirty[r]||{})[c]=row.v[c-1];tr.classList.add('dirty');$('#aSave').disabled=false;
   if(A.name==='객실'&&(c===2||c===3)){var cell=tr.querySelector('[data-auto="1"]');if(cell)cell.textContent=roomId(row.v[1],row.v[2])}});
+$('#aTable').addEventListener('change',function(e){var el=e.target;if(!el.dataset.mc)return;   // 체크 목록 → 숨은 칸에 쉼표로 모아 저장 경로로 흘려보냄
+  var td=el.closest('td'),hid=td.querySelector('input[type=hidden][data-c]');if(!hid)return;
+  var box=[].slice.call(td.querySelectorAll('input[data-mc]'));
+  if(el.checked&&el.value==='전체')box.forEach(function(x){if(x!==el)x.checked=false});
+  else if(el.checked)box.forEach(function(x){if(x.value==='전체')x.checked=false});
+  var picked=box.filter(function(x){return x.checked}).map(function(x){return x.value});
+  hid.value=picked.join(',');
+  var s=td.querySelector('summary');if(s){s.textContent=picked.length?picked.join(', '):'(없음)';s.title=s.textContent}
+  hid.dispatchEvent(new Event('input',{bubbles:true}))});
 $('#aAdd').onclick=function(){
   var n=A.name,sh=S[n],hc=HCOL[n],h=adminHotel();A.added++;var r=-A.added,v=new Array(sh.header.length).fill(''),pre={};
   if(hc&&h!=='*'){v[hc-1]=h;pre[hc]=1}
