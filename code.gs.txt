@@ -2247,6 +2247,14 @@ function smsLogSet_(id, st, err) {
   var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
   for (var i = ids.length - 1; i >= 0; i--) if (String(ids[i][0]) === String(id)) { sh.getRange(i + 2, 9, 1, 3).setValues([[st, Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'), err || '']]); return; }
 }
+function smsLogSetMany_(list) {   // 여러 건을 한꺼번에 — ID 칸을 한 번만 읽는다 (gwDone이 느려 폰이 결과를 두 번 보내지 않게)
+  if (!list || !list.length) return;
+  var sh = SpreadsheetApp.getActive().getSheetByName('문자기록'); if (!sh || sh.getLastRow() < 2) return;
+  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues(), at = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
+  list.forEach(function (x) {
+    for (var i = ids.length - 1; i >= 0; i--) if (String(ids[i][0]) === String(x.id)) { sh.getRange(i + 2, 9, 1, 3).setValues([[x.st, at, x.err || '']]); return; }
+  });
+}
 // 한 예약에 그 종류 문자 보내기 (force = 이미 보냈어도 다시)
 function smsDo_(sh, r, kind, force, sent) {
   var v = sh.getRange(r, 1, 1, 46).getValues()[0], key = smsResKey_(v);
@@ -2669,19 +2677,32 @@ function fcmWake_(why) {   // 발송 폰을 깨움 — 실패해도 조용히 �
     return code === 200;
   } catch (e) { return false; }
 }
+// 폰이 보낸 결과를 알려 옴. **같은 결과가 두 번 올 수 있다** — 이 함수가 느려 폰이 응답을 못 받고 다시 보내면 그렇다.
+// 그래서 ① 이미 '발송'인 줄은 건너뛰고(문자함에 같은 글이 두 줄 생기지 않게) ② 문자함 줄을 한 번에 써서 빠르게 끝낸다.
 function gwDone(token, results) {
   gwAuth_(token);
   var sh = gwSheet_(), lr = sh.getLastRow(); if (lr < 2) return { ok: true };
-  var vals = sh.getRange(2, 1, lr - 1, 10).getValues(), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'), rv = SpreadsheetApp.getActive().getSheetByName('예약');
-  (results || []).forEach(function (res) {
-    for (var i = 0; i < vals.length; i++) if (String(vals[i][0]) === String(res.id)) {
-      var ok = !!res.ok; sh.getRange(i + 2, 5).setValue(ok ? '발송' : '실패'); if (String(vals[i][9]).indexOf('log:') === 0) smsLogSet_(String(vals[i][9]).slice(4), ok ? '발송' : '실패', ok ? '' : String(res.err || '').slice(0, 100)); if (ok && String(vals[i][9]) !== 'fwd') inboxLog_(vals[i][2], vals[i][3], String(vals[i][9]) === 'reply' ? '답장' : '자동'); sh.getRange(i + 2, 7, 1, 2).setValues([[stamp, ok ? '' : String(res.err || '').slice(0, 100)]]);
-      var r = +vals[i][8], cm = String(vals[i][9] || '').split('|');
-      if (r && cm[0] && rv && String(rv.getRange(r, 1).getValue()) === cm[1]) rv.getRange(r, +cm[0]).setValue(stamp + (ok ? ' 발송' : ' 실패: ' + String(res.err || '').slice(0, 60)));
-      break;
-    }
-  });
-  return { ok: true };
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(30000); } catch (e) { return { ok: false, busy: true }; }
+  try {
+    var vals = sh.getRange(2, 1, lr - 1, 10).getValues(), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'), rv = SpreadsheetApp.getActive().getSheetByName('예약');
+    var logs = [], marks = [], dup = 0;
+    (results || []).forEach(function (res) {
+      for (var i = 0; i < vals.length; i++) if (String(vals[i][0]) === String(res.id)) {
+        if (String(vals[i][4]) === '발송') { dup++; break; }   // 이미 보냄으로 적힌 줄 — 두 번째 알림은 버린다
+        var ok = !!res.ok, er = ok ? '' : String(res.err || '').slice(0, 100); vals[i][4] = ok ? '발송' : '실패';
+        sh.getRange(i + 2, 5).setValue(ok ? '발송' : '실패'); sh.getRange(i + 2, 7, 1, 2).setValues([[stamp, er]]);
+        if (String(vals[i][9]).indexOf('log:') === 0) marks.push({ id: String(vals[i][9]).slice(4), st: ok ? '발송' : '실패', err: er });
+        if (ok && String(vals[i][9]) !== 'fwd') logs.push(inboxRow_(vals[i][2], vals[i][3], String(vals[i][9]) === 'reply' ? '답장' : '자동'));
+        var r = +vals[i][8], cm = String(vals[i][9] || '').split('|');
+        if (r && cm[0] && rv && String(rv.getRange(r, 1).getValue()) === cm[1]) rv.getRange(r, +cm[0]).setValue(stamp + (ok ? ' 발송' : ' 실패: ' + er.slice(0, 60)));
+        break;
+      }
+    });
+    smsLogSetMany_(marks);
+    if (logs.length) { var ib = inboxSheet_(); ib.getRange(ib.getLastRow() + 1, 1, logs.length, 10).setValues(logs); }   // appendRow를 줄마다 부르면 6줄에 20초가 걸려 폰이 응답을 못 기다린다
+    return dup ? { ok: true, dup: dup } : { ok: true };
+  } finally { lock.releaseLock(); }
 }
 // ── 문자함: 발송 폰에 온 문자·전화를 앱이 올림(gwInbox) → '문자함' 시트. 관리자 화면에서 읽고 답장(smsReply) → 발송 폰이 보냄
 function inboxSheet_() {
@@ -2734,11 +2755,12 @@ function gwInbox(token, items, dev) {
   if (rows.length) { sh.getRange(sh.getLastRow() + 1, 1, rows.length, 10).setValues(rows); p.setProperty('GW_LAST_IN', String(Date.now())); }
   return { ok: true, n: rows.length };
 }
-function inboxLog_(to, text, note) {   // 보낸 문자(자동 발송·답장)도 문자함에 남김 — 읽음 칸은 비워 두어 관리자가 확인할 때까지 숫자에 들어감
+function inboxRow_(to, text, note) {   // 문자함에 넣을 '보냄' 한 줄 — 읽음 칸은 비워 두어 관리자가 확인할 때까지 숫자에 들어감
   var g = guestOf_(to);
-  inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '보냄', telKey_(to), text,
-    g ? g.hotel : '', g ? g.room : '', g ? g.name : '', '', note || '']);
+  return [Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), '보냄', telKey_(to), text,
+    g ? g.hotel : '', g ? g.room : '', g ? g.name : '', '', note || ''];
 }
+function inboxLog_(to, text, note) { inboxSheet_().appendRow(inboxRow_(to, text, note)); }
 function smsBlocks_(p) { return String(p.getProperty('SMS_BLOCK') || '').split(',').map(telKey_).filter(String); }
 function smsBlock(pin, num, on, purge) {   // 관리자: 이 번호 문자를 문자함에 저장 안 함(on=true) / 다시 받기(false). purge면 이미 저장된 그 번호 줄도 지움
   checkPin_(pin); adminOnly_();
@@ -4668,7 +4690,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.892a4858';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.5d1dedfd';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
