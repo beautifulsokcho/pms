@@ -9,7 +9,7 @@
 var SHEETS = {
   '호텔':     { cols: 23, key: 2, edit: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23], texts: [21] },
   '객실':     { cols: 36, key: 3, edit: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36], dates: [15,16], texts: [3,12,33,34] },   // 1열 객실ID는 시트 수식(호텔 접두어+호실)
-  '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,5] },
+  '플랫폼':   { cols: 5,  key: 1, edit: [1,2,3,4,5] },   // 4 표시순서: 예약 화면 플랫폼 목록의 차례 (작을수록 먼저)
   '청소비요율': { cols: 13, key: 1, edit: [1,2,3,4,5,6,7,8,9,12,13], texts: [2] },
   '예약':     { cols: 54, key: 7, edit: [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,28,30,31,32,33,37,38,39,41,42,43,44,47,48,49,50,51,52,53,54], dates: [6,7,8,24,49], texts: [3,43,50,51,52,53,54] },
   '달력연결': { cols: 8,  key: 4, edit: [1,2,3,4,5,8], texts: [2] },
@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 95) { SCHEMA_OK_ = true; return; }
+  if (ver >= 96) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1536,6 +1536,20 @@ function ensureSchema_() {
       }
     }
     props.setProperty('SCHEMA', '95');
+  }
+  if (ver < 96) {   // v96: 플랫폼 '표시순서'를 손으로 고칠 수 있게 — 머리글에서 '(자동)'을 떼고 빈 칸을 채움
+    var pf96 = ss.getSheetByName('플랫폼');
+    if (pf96) {
+      if (/자동/.test(String(pf96.getRange(1, 4).getValue() || ''))) pf96.getRange(1, 4).setValue('표시순서\n(작을수록 먼저)').setFontWeight('bold');
+      var lr96 = pf96.getLastRow();
+      if (lr96 > 1) {   // 비어 있던 줄은 지금 시트 차례대로 번호를 매겨 둡니다 (그래야 고칠 때 기준이 생김)
+        var rv96 = pf96.getRange(2, 4, lr96 - 1, 1), vv96 = rv96.getValues(), mx96 = 0, ch96 = false;
+        vv96.forEach(function (x) { mx96 = Math.max(mx96, Number(x[0]) || 0); });
+        vv96.forEach(function (x) { if (!Number(x[0])) { x[0] = ++mx96; ch96 = true; } });
+        if (ch96) rv96.setValues(vv96);
+      }
+    }
+    props.setProperty('SCHEMA', '96');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -4613,7 +4627,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.23e9c0d2';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.ff60bf95';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
