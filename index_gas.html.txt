@@ -531,7 +531,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-24b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-24c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -768,7 +768,7 @@ function cwBoard(){   // 관리자(Y) 청소담당자: 청소 현황판 (읽기 
     renderClean()}).catch(function(e){body.innerHTML='<div class="empty err">현황판을 불러오지 못했습니다: '+esc(errText(e))+'</div>'})}
 function cwPeriod(kind){var body=$('#cwBody');
   if(!CW_PER){var t=new Date();CW_PER={m:ymd(t).slice(0,7),p:t.getDate()<=15?P1:P2}}
-  body.innerHTML='<div class="panel-head"><h2>'+(kind==='hist'?'지난 청소 내역':'정산 내역')+'</h2><p>'+(kind==='hist'?'지급기간에 배정받은 청소입니다 (입실 준비 제외).':'청소수당 개인 지급표입니다.')+'</p></div>'+
+  body.innerHTML='<div class="panel-head"><h2>'+(kind==='hist'?'지난 청소 내역':'정산 내역')+'</h2><p>'+(kind==='hist'?'지급기간에 배정받은 청소입니다 (입실 준비·공실 점검 제외 — 수당 0원).':'청소수당 개인 지급표입니다.')+'</p></div>'+
     '<div class="bar"><div class="f"><label for="cwM">지급월</label><input id="cwM" type="month" value="'+esc(CW_PER.m)+'"></div><div class="f"><label for="cwP">지급기간</label><select id="cwP">'+opts([P1,P2],CW_PER.p)+'</select></div></div><div id="cwOut"><div class="empty">불러오는 중…</div></div>';
   var go=function(){CW_PER={m:$('#cwM').value,p:$('#cwP').value};if(!CW_PER.m)return;$('#cwOut').innerHTML='<div class="empty">불러오는 중…</div>';
     cApi(kind==='hist'?'myHistory':'myPay',CW_PER.m,CW_PER.p).then(function(d){$('#status').textContent=d.name+'님';var o=$('#cwOut');

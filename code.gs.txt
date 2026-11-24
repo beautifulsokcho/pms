@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 96) { SCHEMA_OK_ = true; return; }
+  if (ver >= 97) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1550,6 +1550,25 @@ function ensureSchema_() {
       }
     }
     props.setProperty('SCHEMA', '96');
+  }
+  if (ver < 97) {   // v97: 공실점검도 수당 0원 — 입실준비만 0으로 두어, 공실점검이 '기본이 아니면 추가'로 흘러
+    var cs97 = ss.getSheetByName('청소실적');   //      추가 요율(18,000원 등)로 계산되고 있었습니다. 점검은 점검/관리수당(C)으로 따로 받습니다.
+    if (cs97) {
+      var n97 = Math.max(cs97.getLastRow() - 1, 1);
+      var fI97 = cs97.getRange(2, 9, n97, 1).getFormulasR1C1();
+      var out97 = fI97.map(function (x) {
+        var f = String(x[0] || '');
+        if (!f) return [f];
+        if (/공실점검/.test(f)) return [f];                                     // 이미 고쳐진 줄
+        if (/^=IF\(RC7="입실준비",0,/.test(f)) return ['=IF(OR(RC7="입실준비",RC7="공실점검"),0,' + f.slice('=IF(RC7="입실준비",0,'.length)];
+        return ['=IF(OR(RC7="입실준비",RC7="공실점검"),0,' + f.slice(1) + ')'];
+      });
+      cs97.getRange(2, 9, n97, 1).setFormulasR1C1(out97);
+      cs97.getRange(2, 6, n97, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+        .requireValueInList(['기본', '추가', '입실준비', '공실점검'], true).setAllowInvalid(true).build());
+      codeLog_('v97', '', '', '공실점검 수당 0원으로 (청소실적 ' + n97 + '줄 수식 갱신)');
+    }
+    props.setProperty('SCHEMA', '97');
   }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
@@ -2894,10 +2913,10 @@ function payRange_(month, period) {   // 지급월·지급기간 → [시작일,
   var last = Utilities.formatDate(new Date(+month.slice(0, 4), +month.slice(5, 7), 0), tz_(), 'yyyy-MM-dd');
   return period === P2_PAY_ ? [month + '-16', last] : period === P1_PAY_ ? [month + '-01', month + '-15'] : [month + '-01', last];
 }
-// ── 청소담당자: 지난 내역 — 그 지급기간에 나에게 배정된 청소(입실준비 제외)
+// ── 청소담당자: 지난 내역 — 그 지급기간에 나에게 배정된 청소(입실준비·공실점검 제외: 수당이 0원이라 합계가 지급표와 어긋남)
 function myHistory(cred, month, period) {
   var name = cleanerLogin_(cred), rg = payRange_(month, period), cs = SpreadsheetApp.getActive().getSheetByName('청소실적'), lc = cs.getLastRow();
-  var rows = lc > 1 ? cs.getRange(2, 1, lc - 1, 12).getValues().filter(function (x) { var d = fmt_(x[0], false), k = String(x[6] || x[5] || ''); return x[1] === name && x[2] && d >= rg[0] && d <= rg[1] && k !== '입실준비'; })
+  var rows = lc > 1 ? cs.getRange(2, 1, lc - 1, 12).getValues().filter(function (x) { var d = fmt_(x[0], false), k = String(x[6] || x[5] || ''); return x[1] === name && x[2] && d >= rg[0] && d <= rg[1] && k !== '입실준비' && k !== '공실점검'; })
     .map(function (x) { return { date: fmt_(x[0], false), hotel: x[2], room: String(x[3]), ppl: x[4], kind: String(x[6] || x[5] || ''), amt: Number(x[10]) || 0 }; })
     .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.hotel + a.room < b.hotel + b.room ? -1 : 1); }) : [];
   return { name: name, month: month, period: period, from: rg[0], to: rg[1], rows: rows };
@@ -4627,7 +4646,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.ff60bf95';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.8edb4efb';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
