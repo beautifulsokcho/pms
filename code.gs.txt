@@ -2554,6 +2554,7 @@ function inboxKw_(p) {   // 저장 단어 (예전에 저장한 목록에 써밋�
 function inboxKeep_(it, g, p) {
   if (it.type === 'call') return false;
   if (g) return true;
+  if (notiParseSms_(it.text)) return true;   // 떠나요 빅딜 예약 문자 ('떠나요'라는 낱말이 없어 저장 단어로는 걸리지 않음)
   var kw = String(inboxKw_(p)).split(/\s*,\s*/).filter(String), tx = String(it.text || '').toLowerCase();
   return kw.some(function (k) { return tx.indexOf(k.toLowerCase()) >= 0; });
 }
@@ -2759,21 +2760,43 @@ function guestOf_(num) {   // 연락처가 같은 예약 중 오늘과 가장 �
 function gwInbox(token, items, dev) {
   gwAuth_(token);
   var act0 = PropertiesService.getScriptProperties().getProperty('GW_DEV'); if (act0 && String(dev || '') !== act0) return { ok: true, n: 0, standby: true };   // 대기 중인 폰의 문자·전화는 올리지 않음
-  var sh = inboxSheet_(), p = PropertiesService.getScriptProperties(), fwd = telKey_(p.getProperty('GW_FWD') || ''), rows = [], blk = smsBlocks_(p);
+  var sh = inboxSheet_(), p = PropertiesService.getScriptProperties(), fwd = telKey_(p.getProperty('GW_FWD') || ''), rows = [], blk = smsBlocks_(p), regs = [];
+  var lr0 = sh.getLastRow(), seen = {}, atS = function (x) { return x instanceof Date ? Utilities.formatDate(x, tz_(), 'yyyy-MM-dd HH:mm:ss') : String(x || ''); };
+  if (lr0 > 1) sh.getRange(Math.max(2, lr0 - 79), 2, Math.min(80, lr0 - 1), 4).getValues()   // 폰이 같은 문자를 두 번 올려도 두 줄이 되지 않게
+    .forEach(function (x) { seen[atS(x[0]) + '|' + String(x[2]) + '|' + String(x[3]).slice(0, 60)] = 1; });
   (items || []).forEach(function (it) {
     var from = telKey_(it.from) || String(it.from || ''), g = guestOf_(from), at = it.at ? Utilities.formatDate(new Date(+it.at), tz_(), 'yyyy-MM-dd HH:mm:ss') : Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
     var kind = it.type === 'call' ? (it.missed ? '부재중 전화' : '전화 받음') : '받음';
     if (fwd && from === fwd) return;   // 대표님 주 폰에서 온 것은 올리지 않음 (전달 문자에 답하는 경우 등)
     if (!inboxKeep_(it, g, p)) return;   // 손님·예약 관련 아닌 문자는 저장·전달 안 함
     if (blk.indexOf(from) >= 0) return;   // '이 번호 저장 안 함'으로 막은 번호
+    var dk = at + '|' + from + '|' + String(it.text || '').slice(0, 60); if (seen[dk]) return; seen[dk] = 1;
     rows.push([Utilities.getUuid().slice(0, 8), at, kind, from, String(it.text || ''), g ? g.hotel : '', g ? g.room : '', g ? g.name : '', '', '']);
+    var ni = it.type === 'call' ? null : notiParseSms_(it.text);
+    if (ni) regs.push({ it: ni, at: it.at ? +it.at : Date.now(), from: from, text: String(it.text || '') });   // 떠나요 빅딜 예약 문자
     if (fwd) {   // 주 폰으로 전달: '[문의] 써밋베이 1908 유재옥 01012345678: 내용'
       var head = '[' + (it.type === 'call' ? (it.missed ? '부재중' : '통화') : '문의') + '] ' + (g ? g.hotel + ' ' + g.room + ' ' + g.name + ' ' : '') + from;
       gwEnqueue_(fwd, it.type === 'call' ? head : head + ': ' + String(it.text || '').slice(0, 900), { col: 'fwd' });
     }
   });
   if (rows.length) { sh.getRange(sh.getLastRow() + 1, 1, rows.length, 10).setValues(rows); p.setProperty('GW_LAST_IN', String(Date.now())); }
-  return { ok: true, n: rows.length };
+  var reg = 0; if (regs.length) { try { reg = gwSmsReg_(regs); } catch (e) { } }
+  return { ok: true, n: rows.length, reg: reg };
+}
+// 떠나요 빅딜 예약 문자 → 카톡 알림과 같은 길(notiReg_)로 자동등록. 기록·중복 방지는 '알림처리' 시트를 함께 씁니다.
+function gwSmsReg_(regs) {
+  var lg = notiLog_(), done = notiDone_(lg), ctx = null, n = 0;
+  regs.forEach(function (q) {
+    var key = 'sms:' + q.from + ':' + Utilities.formatDate(new Date(q.at), tz_(), 'yyyyMMddHHmm') + ':' + q.it.room + q.it.ci + (q.it.kind === 'cancel' ? 'X' : '');
+    if (done[key]) return;
+    var stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), when = Utilities.formatDate(new Date(q.at), tz_(), 'yyyy-MM-dd HH:mm'), r;
+    try { if (!ctx) ctx = mailCtx_(); r = notiReg_(ctx, q.it, q.at); if (r.changed) ctx = mailCtx_(); }
+    catch (e) { lg.appendRow([key, stamp, when, '떠나요 문자 오류', String(e && e.message || e).slice(0, 200), '', '', q.it.name || '', '', q.text.slice(0, 1000)]); done[key] = 1; return; }
+    lg.appendRow([key, stamp, when, '떠나요 문자' + (q.it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), q.it.name || '', '', q.text.slice(0, 1000)]);
+    done[key] = 1; n++;
+    if (r.warn) { try { notiWarn_(q.it, r, q.at); } catch (e) { } }
+  });
+  return n;
 }
 function inboxRow_(to, text, note) {   // 문자함에 넣을 '보냄' 한 줄 — 읽음 칸은 비워 두어 관리자가 확인할 때까지 숫자에 들어감
   var g = guestOf_(to);
@@ -4489,7 +4512,27 @@ function notiDone_(sh) {
 // 놀 알림은 두 가지로 옵니다 — 긴 'NOL 미리예약' 글과 짧은 요약('[신규예약] [연박] 상품명 / 이*규 / 12.11(금) 15:00 (3박) / 도보').
 // 긴 글이 안 올 때가 있어(폰 알림이 묶이거나 앱이 못 집음) 짧은 요약도 읽어서 처리합니다.
 // 짧은 요약에는 예약번호·연락처가 없으므로, 뒤에 긴 글이 오면 같은 예약으로 보고 빈 칸을 채웁니다.
-function notiParse_(title, text) { return notiParseDdn_(title, text) || notiParseNol_(title, text) || notiParseNol2_('', text); }
+function notiParse_(title, text) { return notiParseDdn_(title, text) || notiParseNol_(title, text) || notiParseSms_(text) || notiParseNol2_('', text); }
+// 떠나요 '빅딜' 예약 문자 — 일부 객실은 카톡 알림톡이 아니라 **문자**로 옵니다 (형식이 아주 다릅니다)
+//   [Web발신] 예약완료 / - 1504호(오션뷰)/12월25일(1박)/2명 / 빅딜유호/0502-1482-5842 / 결제금액:200,000원
+//   [Web발신] 예약취소 / - 1504호(오션뷰)/12월25일(1박)/2명 / …
+// 숙소명·예약번호가 없어 **호실로 호텔을 찾고**(notiPlace_), 취소는 호실·입실일·이름으로 맞춥니다.
+function notiParseSms_(text) {
+  var t = String(text || '').replace(/\r/g, '');
+  var head = t.match(/예약\s*(완료|취소)/); if (!head) return null;
+  var m = t.match(/(\d{3,4})\s*호\s*(?:\(([^)]*)\))?\s*\/\s*(?:(\d{4})\s*년\s*)?(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*\(\s*(\d+)\s*박\s*\)\s*\/\s*(\d+)\s*명/);
+  if (!m) return null;
+  var it = { plat: '떠나요', kind: head[1] === '취소' ? 'cancel' : 'new', resNo: '', place: '', roomName: String(m[2] || '').trim(),
+    room: String(+m[1]), name: '', tel: '', sale: 0, ppl: +m[7] || 0, way: '', sms: true };
+  var now = new Date(), y = m[3] ? +m[3] : now.getFullYear(), d0 = new Date(y, +m[4] - 1, +m[5]);
+  if (!m[3] && d0 < new Date(+now - 60 * 86400000)) d0 = new Date(y + 1, +m[4] - 1, +m[5]);   // 연도가 없으면 지난 두 달보다 앞이면 내년으로
+  it.ci = Utilities.formatDate(d0, tz_(), 'yyyy-MM-dd');
+  it.nights = +m[6] || 1; it.co = notiAdd_(it.ci, it.nights);
+  var w = t.match(/(?:^|\n)\s*([^\n\/]{1,30}?)\s*\/\s*(0\d[\d\-\s]{7,14}\d)\s*(?:\n|$)/);   // '빅딜유호/0502-1482-5842'
+  if (w) { it.name = String(w[1]).replace(/^\s*(?:빅딜|특가|선착순)\s*/, '').trim(); it.tel = notiTel_(w[2]); }
+  it.sale = +String((t.match(/결제\s*금액\s*[:：]?\s*([\d,]+)/) || [])[1] || '').replace(/,/g, '') || 0;
+  return it;
+}
 // 떠나요 카톡 알림톡: [떠나요_예약완료] 펜션명/예약자/객실 : 상품명/2026-12-31(목)/2박/총 2명/총 결제금액:598,000원
 //                    [떠나요_환불 요청 접수 안내] 숙소명/예약번호/예약자/예약내역: - 상품명/12월31일(2박)/2명
 function notiParseDdn_(title, text) {
@@ -4629,13 +4672,13 @@ function notiReg_(ctx, it, at) {
     // 떠나요는 '환불 요청 접수' 단계라 전에는 자동 취소하지 않고 알리기만 했습니다.
     // 실제로는 거의 그대로 승인하시므로(2026-11-24 사용자 결정) 바로 취소하고,
     // 파트너센터 승인이 아직 남아 있다는 것만 문자함으로 일러 둡니다.
-    if (it.plat === '떠나요') {
+    if (it.plat === '떠나요' && !it.sms) {   // 문자로 오는 '예약취소'는 이미 취소가 끝난 것이라 승인할 것이 없습니다
       var td = Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd');
       saveRowsRun_('예약', [{ r: row.r, v: { 24: td, 22: (String(row.v[21] || '') ? row.v[21] + ' / ' : '') + '취소 ' + td + ' (떠나요 환불 요청)' } }]);
       return { result: '취소함 · 파트너센터에서 환불 승인도 해주세요', hotel: row.v[1], room: row.v[2], changed: true, warn: true, ypAsk: true };
     }
     var cd = Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd');
-    saveRowsRun_('예약', [{ r: row.r, v: { 24: cd, 22: (String(row.v[21] || '') ? row.v[21] + ' / ' : '') + '취소 ' + cd + ' (놀 알림)' } }]);
+    saveRowsRun_('예약', [{ r: row.r, v: { 24: cd, 22: (String(row.v[21] || '') ? row.v[21] + ' / ' : '') + '취소 ' + cd + (it.sms ? ' (떠나요 취소 문자)' : ' (놀 알림)') } }]);
     return { result: '취소함', hotel: row.v[1], room: row.v[2], changed: true };
   }
   var live = no ? mailFind_(ctx, function (v) { return !v[23] && hasNo(v); }) : null;
@@ -4716,7 +4759,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-24.298c5c5d';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-24.0e3c4599';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
