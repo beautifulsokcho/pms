@@ -548,7 +548,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-25a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-25b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3904,16 +3904,24 @@ function inboxDraw(d,sel){var box=$('#ibx');if(!box)return;var rows=d.rows||[],t
     return}
   var t=th[sel]||{num:sel,list:[]},sys=!/\d/.test(String(sel));   // 번호가 아닌 묶음 = 자동등록 경고 (답장·차단 없음)
   box.innerHTML='<p><button type="button" class="btn" id="ibxBack">‹ 목록</button> <b>'+(sys?sysName(sel):who(t))+'</b></p>'+
-    (sys?'<p class="note">카톡 알림이 와도 예약이 자동으로 들어가지 않은 건들입니다. 아래 내용을 보고 예약검색에서 확인한 뒤 손으로 넣으세요.</p>':'<p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p>')+
+    (sys?'<p class="note">카톡 알림·문자가 와도 예약이 자동으로 들어가지 않은 건들입니다. 겹치던 예약을 옮기는 등 까닭을 없앤 뒤 <b>[🔁 다시 시도]</b>를 누르면 그 알림으로 다시 넣습니다. 안 되면 예약검색에서 확인하고 손으로 넣으세요.</p>':'<p class="actions" style="justify-content:flex-start;margin:0 0 6px;flex-wrap:wrap"><button type="button" class="btn warn" id="ibxBlock">이 번호 문자 저장 안 함</button><label class="chk"><input type="checkbox" id="ibxPurge" checked> 지금까지 온 이 번호 문자도 지우기</label></p>')+
     ibxSortBar()+'<div class="ibx-msgs" id="ibxMsgs">'+t.list.slice().sort(function(a,b){return (a.at<b.at?-1:a.at>b.at?1:0)*(IBX.sort==='asc'?1:-1)}).map(function(r){var out=r.kind==='보냄',isNew=!r.read;
       var fwOk=!out&&r.kind!=='알림'&&(r.hotel||'')&&(r.room||''),fwDone=/소유주전달/.test(r.note||'');
-      return '<div class="ibx-m'+(out?' out':'')+(isNew?' new':'')+(r.kind==='알림'?' warnmsg':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'&&r.kind!=='알림'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+(out&&r.note?' · '+esc(r.note):'')
-        +(fwOk?' <button type="button" class="linkbtn fwown'+(fwDone?' done':'')+'" data-fw="'+esc(r.id)+'">🏠 '+(fwDone?'소유주에게 전달함 · 다시 전달':'소유주에게 전달')+'</button>':'')+'</small></div>'}).join('')+'</div>'+
+      var rtOk=sys&&String(sel)==='자동등록'&&r.kind==='알림',rtDone=/다시 시도/.test(r.note||'');   // 자동등록 경고만 다시 시도
+      return '<div class="ibx-m'+(out?' out':'')+(isNew?' new':'')+(r.kind==='알림'?' warnmsg':'')+'">'+(r.kind!=='받음'&&r.kind!=='보냄'&&r.kind!=='알림'?'📞 '+esc(r.kind):esc(r.text))+'<small>'+esc(r.at)+((out||r.kind==='알림')&&r.note?' · '+esc(r.note):'')
+        +(fwOk?' <button type="button" class="linkbtn fwown'+(fwDone?' done':'')+'" data-fw="'+esc(r.id)+'">🏠 '+(fwDone?'소유주에게 전달함 · 다시 전달':'소유주에게 전달')+'</button>':'')
+        +(rtOk?' <button type="button" class="linkbtn rtry'+(rtDone?' done':'')+'" data-rt="'+esc(r.id)+'">🔁 '+(rtDone?'한 번 더 시도':'다시 시도')+'</button>':'')+'</small></div>'}).join('')+'</div>'+
     (sys?'':'<div class="f full"><label for="ibxTxt">답장 (발송 폰 번호로 나갑니다)</label><textarea id="ibxTxt" rows="3"></textarea></div><div class="actions" style="justify-content:flex-start"><button class="btn pri" type="button" id="ibxSend">보내기</button><button class="btn" type="button" id="ibxTpl">문구 넣기</button>'+(/Android/i.test(navigator.userAgent)?'<a class="btn" target="_top" href="roomalarm://poll">발송 폰에서 지금 보내기</a>':'')+'</div><p class="note" id="ibxMsg"></p>');
   var mm=$('#ibxMsgs');mm.scrollTop=IBX.sort==='asc'?mm.scrollHeight:0;   // 오래된순이면 맨 아래(최근), 최신순이면 맨 위
   ibxSortBind(sel);
   $('#ibxBack').onclick=function(){inboxOpen(null,true)};
   mm.querySelectorAll('[data-fw]').forEach(function(b){b.onclick=function(){fwdOwnerAsk(b.dataset.fw,sel)}});
+  mm.querySelectorAll('[data-rt]').forEach(function(b){b.onclick=function(){var ol=b.textContent;b.disabled=true;b.textContent='🔁 다시 넣는 중…';
+    call('notiRetry',b.dataset.rt).then(function(r){
+      toast((r.ok?'예약에 넣었습니다':'아직 안 됩니다')+' · '+r.result+(r.room?' ('+r.hotel+' '+r.room+'호)':''));
+      return load(['예약']).then(function(){try{renderRes()}catch(e){}try{renderRecent()}catch(e){}}).catch(function(){})})
+      .then(function(){IBX.data=null;inboxOpen(sel)})
+      .catch(function(e){b.disabled=false;b.textContent=ol;toast(errText(e))})}});
   if(sys){IBX.unread=-1;inboxCount();return}
   $('#ibxBlock').onclick=function(){var b=this;if(b.dataset.ok!=='1'){b.dataset.ok='1';b.textContent='이 번호 문자를 앞으로 저장하지 않을까요? (한 번 더 누르기)';return}
     b.disabled=true;call('smsBlock',sel,true,$('#ibxPurge').checked).then(function(r){toast(sel+' 번호는 앞으로 문자함에 저장하지 않습니다'+(r&&r.deleted?' · 지난 문자 '+r.deleted+'줄 지움':''));inboxOpen()}).catch(function(e){b.disabled=false;toast(errText(e))})};

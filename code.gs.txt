@@ -43,7 +43,7 @@ function doPost(e) {
   var out;
   try {
     var req = JSON.parse(e.postData.contents);
-    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend, admCard: admCard, admCardSave: admCardSave, admCardPhoto: admCardPhoto, admCardAdd: admCardAdd };
+    var fns = { ping: ping, getData: getData, saveRows: saveRows, report: report, syncAirbnb: syncAirbnb, autoSync: autoSync, myClean: myClean, myPin: myPin, myHistory: myHistory, myPay: myPay, myRoom: myRoom, mySave: mySave, myPhoto: myPhoto, ownerPin: ownerPin, ocrImage: ocrImage, smsConfig: smsConfig, smsTest: smsTest, smsSend: smsSend, gwPull: gwPull, gwPhone: gwPhone, gwContacts: gwContacts, gwNoti: gwNoti, gwDone: gwDone, gwInbox: gwInbox, smsInbox: smsInbox, smsInboxClear: smsInboxClear, smsBlock: smsBlock, smsFwdOwner: smsFwdOwner, smsReply: smsReply, smsNow: smsNow, smsConnect: smsConnect, mailSamples: mailSamples, mailRun: mailRun, mailPending: mailPending, mailDone: mailDone, integrated: integrated, exportXlsx: exportXlsx, codeInfo: codeInfo, codeUpdate: codeUpdate, roomCheck: roomCheck, smsAsk: smsAsk, smsAskDo: smsAskDo, nolCheck: nolCheck, nolUndo: nolUndo, chatRooms: chatRooms, chatRead: chatRead, chatSay: chatSay, myChat: myChat, myChatNew: myChatNew, hello: hello, installSms: installSms, smsLogList: smsLogList, blockOk: blockOk, occCheck: occCheck, weekReport: weekReport, ruleCheck: ruleCheck, rtCheck: rtCheck, resVer: resVer, noteTidy: noteTidy, priceHint: priceHint, replyTpl: replyTpl, brief: brief, briefSend: briefSend, admCard: admCard, admCardSave: admCardSave, admCardPhoto: admCardPhoto, admCardAdd: admCardAdd, notiRetry: notiRetry };
     if (!fns[req.fn]) throw new Error('알 수 없는 요청입니다: ' + req.fn);
     out = { result: fns[req.fn].apply(null, [req.pin].concat(req.args || [])) };
   } catch (err) {
@@ -4069,6 +4069,32 @@ function gwNoti(token, items) {
   });
   return { items: out };
 }
+// ── 자동등록 경고 [다시 시도]: 겹치던 예약을 사람이 손으로 풀어 준 뒤, 같은 알림을 그대로 다시 돌립니다 ──
+// 문자함 경고 줄(ID)로 '알림처리' 시트의 원래 알림 글을 찾아 notiParse_ → notiReg_를 다시 탑니다.
+function notiRetry(pin, id) {
+  checkPin_(pin); adminOnly_();
+  var ss = SpreadsheetApp.getActive(), ib = ss.getSheetByName('문자함'); if (!ib || ib.getLastRow() < 2) throw new Error('문자함이 비어 있습니다.');
+  var iv = ib.getRange(2, 1, ib.getLastRow() - 1, 10).getValues(), ir = -1;
+  for (var i = iv.length - 1; i >= 0; i--) if (String(iv[i][0]) === String(id)) { ir = i; break; }
+  if (ir < 0) throw new Error('그 알림을 찾지 못했습니다. 문자함을 새로고침해 주세요.');
+  var row = iv[ir], atS = row[1] instanceof Date ? Utilities.formatDate(row[1], tz_(), 'yyyy-MM-dd HH:mm:ss') : String(row[1] || '');
+  var mn = atS.slice(0, 16), room = String(row[6] || '').trim(), name = String(row[7] || '').trim();
+  var lg = notiLog_(), lr = lg.getLastRow(); if (lr < 2) throw new Error('알림처리 기록이 없습니다.');
+  var from = Math.max(2, lr - 399), lv = lg.getRange(from, 1, lr - from + 1, 10).getValues(), hit = -1;
+  var when = function (x) { return x[2] instanceof Date ? Utilities.formatDate(x[2], tz_(), 'yyyy-MM-dd HH:mm') : String(x[2] || '').slice(0, 16); };
+  for (var j = lv.length - 1; j >= 0; j--) if (String(lv[j][9] || '').trim() && when(lv[j]) === mn && (!name || String(lv[j][7] || '').trim() === name)) { hit = j; break; }
+  if (hit < 0) for (var j2 = lv.length - 1; j2 >= 0; j2--) if (String(lv[j2][9] || '').trim() && (name && String(lv[j2][7] || '').trim() === name) && (!room || String(lv[j2][6] || '').trim() === room)) { hit = j2; break; }
+  if (hit < 0) throw new Error('알림처리 시트에서 원래 알림 글을 찾지 못했습니다. 예약검색에서 손으로 넣어 주세요.');
+  var txt = String(lv[hit][9] || ''), it = notiParse_('', txt);
+  if (!it) throw new Error('원래 알림 글을 읽지 못했습니다. 손으로 넣어 주세요.');
+  var at = gwTime_(atS) || new Date(), r;
+  r = notiReg_(mailCtx_(), it, +at);
+  var stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
+  lg.appendRow(['', stamp, when(lv[hit]), '다시 시도', r.result, r.hotel || '', String(r.room || ''), it.name || '', it.resNo || '', txt.slice(0, 1000)]);
+  ib.getRange(ir + 2, 9, 1, 2).setValues([[r.warn ? '' : stamp, (r.warn ? '다시 시도 실패 · ' : '다시 시도 → ') + r.result]]);
+  if (r.warn) { try { notiWarn_(it, r, +at); } catch (e) { } }   // 아직 안 되면 그 까닭으로 경고를 새로 남김
+  return { ok: !r.warn, result: r.result, hotel: r.hotel || '', room: String(r.room || ''), name: it.name || '', warn: !!r.warn };
+}
 // 알림 자동등록이 안 됐을 때 문자함에 경고로 남김 — 번호 자리에 '자동등록'을 넣어 한 묶음으로 모임
 var NOTI_WARN_NUM_ = '자동등록';
 function notiWarn_(it, r, at) {
@@ -4789,7 +4815,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-25.1faf3c6a';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-25.1c7d9cfe';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
