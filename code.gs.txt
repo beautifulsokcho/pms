@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 99) { SCHEMA_OK_ = true; return; }
+  if (ver >= 100) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1596,6 +1596,28 @@ function ensureSchema_() {
     var n99 = csFill_(ss.getSheetByName('청소실적'), true);
     if (n99) codeLog_('v99', '', '', '청소실적 G·H·I·K 수식을 ' + n99 + '줄 전체에 다시 채움');
     props.setProperty('SCHEMA', '99');
+  }
+  if (ver < 100) {   // v100: 지급표·정산서가 청소실적을 1000행까지만 보고 있었습니다
+    // COUNTIFS('청소실적'!$B$2:$B$1000 …) 처럼 끝 행이 박혀 있어, 시트가 1000행을 넘자
+    // 11/24 이후 줄이 수당 계산에서 통째로 빠졌습니다. 끝을 열어 두어($B$2:$B) 다시는 안 넘치게 합니다.
+    var RE100 = [/('?청소실적'?!\$([A-Z]{1,2})\$2:\$\2)\$1000(?![0-9])/g, /('?수당입력'?!\$([A-Z]{1,2})\$2:\$\2)\$501(?![0-9])/g];
+    var n100 = 0, who100 = [];
+    ss.getSheets().forEach(function (s100) {
+      try {
+        var lr = s100.getLastRow(), lc = s100.getLastColumn();
+        if (lr < 1 || lr > 200 || lc < 1 || lc > 60) return;   // 자료 시트(예약·청소실적)는 건너뜀 — 이런 수식이 없습니다
+        var ff = s100.getRange(1, 1, lr, lc).getFormulas(), hit = 0;
+        for (var r = 0; r < ff.length; r++) for (var c = 0; c < ff[r].length; c++) {
+          var f = ff[r][c]; if (!f || (f.indexOf('청소실적') < 0 && f.indexOf('수당입력') < 0)) continue;
+          var o = f; RE100.forEach(function (re) { o = o.replace(re, '$1'); });
+          if (o === f) continue;
+          s100.getRange(r + 1, c + 1).setFormula(o); n100++; hit++;   // 수식이 있는 칸만 하나씩 — setFormulas는 빈 칸을 지워 버립니다
+        }
+        if (hit) who100.push(s100.getName() + ' ' + hit + '칸');
+      } catch (e) { }
+    });
+    if (n100) codeLog_('v100', '', '', '지급표·정산서 수식의 청소실적·수당입력 범위를 열어 둠 — ' + who100.join(' · '));
+    props.setProperty('SCHEMA', '100');
   }
 }
 // ── 청소실적: 구분(G)·단계(H)·자동금액(I)·최종금액(K) 수식 채우기 ──────────────
@@ -4858,7 +4880,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-26.67a04625';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-26.ba13c1ee';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
