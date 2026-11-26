@@ -284,12 +284,13 @@ textarea.mm:focus{outline:2px solid #1a73e8;outline-offset:-2px}
 .byc{background:#fff;color:#111}.byc th{background:#f1f3f4;color:#333}.byc tr.crow td{color:#111!important}.byc th{color:#333!important}.byc textarea.mm{color:#111}.byc tr.crow.prep td{background:#fff;color:#000}.byc tr.crow.prep td:first-child{font-weight:400}
 #resCount{font-size:17px;font-weight:700;color:var(--ink);margin:10px 0 8px}#resCount .unset{font-size:15px}
 .rstatus{margin-bottom:12px}.rstatus .shead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:6px}.rstatus .shead b{font-size:16px}.rstatus .sdate{width:auto;min-width:150px;padding:6px 8px}.sbox{margin-bottom:10px}.sbox h3{font-size:20px;margin:6px 0 8px}.sbox h3 small{font-size:18px;font-weight:600;color:var(--ink)!important;opacity:1}.sbox h3 small b{font-size:20px;font-weight:800}@media (max-width:600px){.sbox h3{font-size:17px}.sbox h3 small{font-size:15px}.sbox h3 small b{font-size:17px}}.sbox h3 .nw{white-space:nowrap}
-.sbox h3 .sfl{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:2px 10px;margin:2px 2px 2px 0;background:var(--surface);color:inherit;font:inherit;font-size:15px;font-weight:600;cursor:pointer;vertical-align:middle}
-.sbox h3 .sfl b{font-size:16px;font-weight:800}
-.sbox h3 .sfl:hover{border-color:var(--accent)}
-.sbox h3 .sfl.on{background:var(--accent);border-color:var(--accent);color:#fff}
-.sbox h3 .sfl.on b{color:#fff}
-.sbox h3 .sfl.all{font-weight:700;gap:0}
+.sfl{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:2px 10px;margin:2px 2px 2px 0;background:var(--surface);color:inherit;font:inherit;font-size:15px;font-weight:600;cursor:pointer;vertical-align:middle}
+.sfl b{font-size:16px;font-weight:800}
+.sfl:hover{border-color:var(--accent)}
+.sfl.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sfl.on b{color:#fff}
+.sfl.all{font-weight:700;gap:0}
+.cwchips{margin:4px 0 10px}.cwchips .sfl{font-size:16px;padding:6px 13px;margin:3px 4px 3px 0}.cwchips .sfl b{font-size:17px}
 #cCount{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 12px;font-size:16px}
 #cCount .kdate{font-size:19px;font-weight:800;margin-right:4px;color:var(--ink)}
 #cCount .kc{padding:5px 11px;border-radius:999px;font-weight:600;border:1.5px solid transparent;color:#111}#cCount .kc b{font-size:18px;font-weight:800;margin-left:2px}
@@ -543,7 +544,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-27c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-27d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -726,7 +727,7 @@ function cwCacheSave(d){try{var k=cwKey(d.date);localStorage.setItem(k,JSON.stri
 function cwCacheGet(date){try{var s=localStorage.getItem(cwKey(date));if(!s)return null;var d=JSON.parse(s);return (d&&d.date===date&&d.items)?d:null}catch(e){return null}}
 function cwCacheDone(date,h,rm,done){var d=cwCacheGet(date);if(!d)return;   // 저장한 완료 표시를 담아 둔 것에도 반영
   d.items.forEach(function(x){if(x.hotel===h&&String(x.room)===String(rm)){x.done=done||'';if(x.card)x.card.done=done||''}});cwCacheSave(d)}
-function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());CW_DAY=date;
+function cwClean(date){var body=$('#cwBody');if(date&&date!==CW_DAY)CW_FILT='';date=date||CW_DAY||ymd(new Date());CW_DAY=date;
   var old=cwCacheGet(date);
   if(old)cwCleanDraw(old,true);else body.innerHTML='<div class="empty">불러오는 중…</div>';
   cApi('myClean',date).then(function(d){
@@ -735,7 +736,10 @@ function cwClean(date){var body=$('#cwBody');date=date||CW_DAY||ymd(new Date());
     if(d.mgr!==undefined&&(d.mgr?'1':'')!==(store('cmgr')||'')){store('cmgr',d.mgr?'1':'');store('chome',d.home||'');$('#cwTabs').remove();cleanerHome(date);return}   // 관리자 청소담당자면 '현황판' 메뉴 추가
     cwCacheSave(d);cwCleanDraw(d,false);
   }).catch(function(e){if(!old)cwErr(e);else{var n=$('#cwStale');if(n)n.innerHTML='<span class="err">새로 받지 못했습니다 — '+esc(errText(e))+'</span>'}})}
-function cwCleanDraw(d,stale){var body=$('#cwBody');
+var CW_FILT='',CW_DATA=null;   // 청소담당자 화면에서 고른 상태 칩
+function cwLab(x){return x.kind==='공실점검'?'공실 점검':x.kind==='입실준비'?'입실 준비':x.turn?'퇴실→입실':'청소'}
+function cwPass(x){if(!CW_FILT)return true;if(CW_FILT==='남은 것')return !x.done;if(CW_FILT==='완료')return !!x.done;return cwLab(x)===CW_FILT}
+function cwCleanDraw(d,stale){var body=$('#cwBody');CW_DATA=d;
     $('#status').textContent=d.name+'님';
     CW_CARD={};d.items.forEach(function(x){if(x.card)CW_CARD[d.date+'|'+x.hotel+'|'+x.room]=x.card});   // 카드를 미리 받아 둠
     var sum=function(k){return d.items.reduce(function(a,x){return a+(Number(x[k])||0)},0)},tw=sum('towel'),wa=sum('water');
@@ -744,8 +748,17 @@ function cwCleanDraw(d,stale){var body=$('#cwBody');
       '<button class="btn" type="button" id="myToday">오늘</button><button class="btn" type="button" id="myTom">내일</button></div>'+
       '<div class="count cwsum">'+md(d.date)+' · '+d.items.length+'실'+(d.items.length?' <span class="cwneed">— 수건 <b>'+tw+'</b>장 · 물 <b>'+wa+'</b>개</span>':'')+'</div>'+
       (stale?'<div class="syncbar" id="cwStale">담아 둔 내용입니다 · 새로 받는 중…</div>':'');   // 오늘 필요한 수건·물 합계
+    // 그날 객실 상태 칩 — 누르면 그것만 (다시 누르면 전체)
+    var cnt={},doneN=0;d.items.forEach(function(x){var k=cwLab(x);cnt[k]=(cnt[k]||0)+1;if(x.done)doneN++});
+    var leftN=d.items.length-doneN;
+    var cfl=function(k,n,cls){return '<button type="button" class="sfl'+(CW_FILT===k?' on':'')+(cls||'')+'" data-cf="'+esc(k)+'" aria-pressed="'+(CW_FILT===k)+'">'+esc(k)+' <b>'+n+'</b></button>'};
+    if(d.items.length)html+='<div class="cwchips"><button type="button" class="sfl all'+(CW_FILT?'':' on')+'" data-cf="" aria-pressed="'+(!CW_FILT)+'"><b>'+d.items.length+'</b>실</button>'+
+      ['퇴실→입실','청소','입실 준비','공실 점검'].filter(function(k){return cnt[k]}).map(function(k){return cfl(k,cnt[k])}).join('')+
+      (doneN&&leftN?cfl('남은 것',leftN):'')+(doneN?cfl('완료',doneN):'')+'</div>';
+    var show=d.items.filter(cwPass);
     if(!d.items.length)html+='<div class="empty">이 날짜에 배정된 객실이 없습니다.</div>';
-    else html+='<div class="tasks">'+d.items.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':x.turn?'퇴실→입실':'청소';   // 서버가 급한 순서로 보내 줌 (퇴실+입실 → 퇴실 → 입실준비 → 공실점검)
+    else if(!show.length)html+='<div class="empty">「'+esc(CW_FILT)+'」인 객실이 없습니다. 위 칩을 다시 누르면 전체로 돌아갑니다.</div>';
+    else html+='<div class="tasks">'+show.map(function(x){var prep=x.kind==='입실준비',vac=x.kind==='공실점검',lab=vac?'공실 점검':prep?'입실 준비':x.turn?'퇴실→입실':'청소';   // 서버가 급한 순서로 보내 줌 (퇴실+입실 → 퇴실 → 입실준비 → 공실점검)
       return '<div class="task cwcard '+(vac?'vac':prep?'in':'turn')+(x.done?' cwdone':'')+'" data-h="'+esc(x.hotel)+'" data-rm="'+esc(x.room)+'" role="button" tabindex="0"><div class="row"><span class="room">'+esc(x.hotel)+' '+esc(x.room)+'</span><span class="chip '+(vac?'ok':prep?'hold':'x')+'">'+lab+'</span>'+(x.bed?'<span class="chip'+(x.bed==='교체필요'?' x':'')+'">'+esc(x.bed)+'</span>':'')+(x.done?'<span class="chip ok cwok" style="margin-left:auto">✓ 완료</span>':'<span class="cwtap">눌러서 완료 입력 ›</span>')+'</div>'+
         (x.outPpl!==''?'<div class="sub">퇴실: '+esc(x.outPpl)+'명'+(x.outMemo?' · <b>'+esc(x.outMemo)+'</b>':'')+'</div>':'')+
         (x.inDate?'<div class="sub">다음 입실 '+esc(x.inDate)+': '+esc(x.inPpl)+'명 '+esc(x.inN)+'박'+(x.inMemo?' · <b>'+esc(x.inMemo)+'</b>':'')+'</div>':'<div class="sub">5일 안 입실 예약 없음 · 기본 세팅</div>')+
@@ -753,6 +766,7 @@ function cwCleanDraw(d,stale){var body=$('#cwBody');
     Object.keys(d.notices||{}).forEach(function(h){html+='<div class="notice"><div class="nview" style="display:block"><b>'+esc(h)+' 공지</b>\n'+esc(d.notices[h])+'</div></div>'});
     body.innerHTML=html;
     body.querySelectorAll('.cwcard').forEach(function(c){c.onclick=function(){cwRoom(d.date,c.dataset.h,c.dataset.rm)}});
+    body.querySelectorAll('[data-cf]').forEach(function(b){b.onclick=function(){CW_FILT=CW_FILT===b.dataset.cf?'':b.dataset.cf;cwCleanDraw(d,stale)}});
     $('#myDate').onchange=function(){cwClean(this.value)};
     $('#myToday').onclick=function(){cwClean(ymd(new Date()))};
     $('#myTom').onclick=function(){cwClean(addDays(ymd(new Date()),1))};
@@ -760,6 +774,8 @@ function cwCleanDraw(d,stale){var body=$('#cwBody');
 // 저장한 객실 하나만 고쳐 그립니다 — 목록을 다시 받으면 서버가 시트를 또 다 읽어 몇 초씩 걸립니다.
 function cwMark(date,h,rm,done){
   if(date!==CW_DAY)return;
+  if(CW_DATA&&CW_DATA.date===date){var it=CW_DATA.items.filter(function(x){return x.hotel===h&&String(x.room)===String(rm)})[0];
+    if(it){it.done=!!done;cwCleanDraw(CW_DATA,false);return}}   // 담아 둔 목록에서 바로 다시 그림 (칩 숫자·거르기까지 맞음, 서버는 안 부름)
   var hit=null;[].forEach.call(document.querySelectorAll('#cwBody .cwcard'),function(c){if(c.dataset.h===h&&c.dataset.rm===String(rm))hit=c});
   if(!hit)return;
   hit.classList.toggle('cwdone',!!done);
