@@ -554,7 +554,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-27a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-27c';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1338,11 +1338,13 @@ function renderBroken(){var b=(S['예약']&&S['예약'].broken)||[],el=$('#resBr
 // 객실현황판(예약검색 맨 위, 항상 표시): 호텔별 모든 객실을 작은 카드로. 날짜만 바꿀 수 있음 (‹ 오늘 ›)
 var SDAY='';
 $('#resStatus').addEventListener('change',function(e){var el=e.target;if(!el.classList.contains('sdate')||!/^\d{4}-\d{2}-\d{2}$/.test(el.value))return;setDay(el.value)});   // 날짜 직접 선택·입력 → 아래 검색도 같은 날   // 날짜 직접 선택·입력
-var SFILT='';   // 객실현황에서 고른 상태 (당일입실·퇴실→입실·퇴실·재실·공실·자가), 빈값이면 전체
+var SFILT='',SFSET=null,SFROOMS=[];   // 객실현황에서 고른 상태 (당일입실·퇴실→입실·퇴실·재실·공실·자가), 빈값이면 전체
+// SFSET = 그 상태에 해당하는 예약 행번호 · SFROOMS = 그 호실 목록 (아래 검색 목록도 같이 거릅니다)
 $('#resStatus').addEventListener('click',function(e){var b=e.target.closest('[data-sd]');if(b){var n=+b.dataset.sd;setDay(n?addDays(SDAY||ymd(new Date()),n):ymd(new Date()));return}
-  var f=e.target.closest('[data-sf]');if(f){SFILT=SFILT===f.dataset.sf?'':f.dataset.sf;renderStatus();return}   // 상태 칩 → 그 객실만 (다시 누르면 전체)
+  var f=e.target.closest('[data-sf]');if(f){SFILT=SFILT===f.dataset.sf?'':f.dataset.sf;renderRes();return}   // 상태 칩 → 객실현황과 아래 목록을 함께 거름 (다시 누르면 전체)
   openCard(e)});   // 날짜 버튼 → 아래 검색 날짜도 같이
 function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소유주는 객실현황 없음
+  SFSET=SFILT?{}:null;SFROOMS=[];
   var d=SDAY||ymd(new Date()),hs=$('#qHotel').value?[$('#qHotel').value]:hotels(),now=ymd(new Date());
   var res=rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&v[R.ci]&&v[R.co]});
   var S2={'당일입실':'st-in','퇴실→입실':'st-turn','퇴실':'st-out','재실':'st-stay','공실':'st-vac','자가':'st-self'},tot={};
@@ -1363,6 +1365,7 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
       var nxt=nx&&nx!==stay?(nx.v[R.ci]===d?'':md(nx.v[R.ci]).replace(/\(.\)/,'')+' ')+esc(nx.v[R.ppl])+'명 '+esc(nx.v[R.n])+'박':'';
       var tr=inn||stay||nx||out;
       var cur=stay||inn||out,lab=cur?roomLab(cur.v):(roomLno(h,rm)?rm+'('+roomLno(h,rm)+')':rm);if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
+      if(SFILT&&st===SFILT){SFROOMS.push(rm);[inn,out,stay].forEach(function(x){if(x)SFSET[x.r]=1})}   // 아래 검색 목록도 같은 것만 보이게
       if(SFILT&&st!==SFILT)return '';   // 상태 칩을 고르면 그 객실만
       return '<button type="button" class="scard '+S2[st]+'"'+(tr?' data-r="'+tr.r+'"':'')+'><span class="sr">'+esc(lab)+'</span><span class="ss">'+st+'</span>'+
         (info?'<span class="si">'+info+'</span>':'')+'<span class="si">'+(nxt||(st==='재실'?'':'예약 없음'))+'</span></button>'}).join('');
@@ -1400,7 +1403,7 @@ function renderRes(){try{occDraw()}catch(e){}
     if(h&&v[R.hotel]!==h)return false;
     if(rm&&String(v[R.room]).indexOf(rm)<0)return false;
     if(q&&(String(v[R.name])+String(v[R.tel])+resNosV(v).join(' ')+String(v[R.code]||'')).toUpperCase().indexOf(q.toUpperCase())<0)return false;   // 이름·번호 외에 예약번호·에어비앤비 코드로도 찾음
-    if(!inB(v))return false;             // 기간은 고른 기준(입실일·퇴실일·등록(취소)일)
+    if(!SFILT&&!inB(v))return false;     // 기간은 고른 기준(입실일·퇴실일·등록(취소)일) — 상태 칩을 고르면 그날 기준이라 기간은 보지 않음
     if(st==='on'&&v[R.excl]==='Y')return false;
     if(st==='un'&&v[R.excl]!=='Y')return false;
     if(pl&&(v[R.plat]||'ABNB')!==pl)return false;
@@ -1411,11 +1414,14 @@ function renderRes(){try{occDraw()}catch(e){}
     if(so==='room'||so==='roomd')return ho||(so==='room'?rm:-rm)||ci;   // 호실 순서: 호텔 → 호실 → 입실일
     if(so==='regd'||so==='rega'){var rg=regAt(a.v).localeCompare(regAt(b.v))||(a.r-b.r);return so==='rega'?rg:-rg}   // 등록시각 순 (같으면 저장된 차례)
     var d=ci||ho||rm;return so==='asc'?d:-d});
+  if(SFILT&&SFSET)list=list.filter(function(r){return SFSET[r.r]});   // 객실현황에서 고른 상태의 예약만
   // 미정산(정산 제외) 예약은 따로 모아 아래에 표시 — 입금 합계에서도 빠짐
   var main=list.filter(function(r){return r.v[R.excl]!=='Y'}),un=list.filter(function(r){return r.v[R.excl]==='Y'});
   var sum=main.reduce(function(s,r){return s+shownFin(r.v)},0);
-  $('#resCount').innerHTML=cx==='only'?'취소된 예약 '+list.length+'건':main.length+'건 · 입금 합계 '+won(sum)+'원'+(un.length?' · <b class="unset">미정산 '+un.length+'건</b>':'');
-  if(!list.length){$('#resList').className='list';$('#resList').innerHTML='<div class="empty">조건에 맞는 예약이 없습니다. 조건을 바꾸거나 새 예약을 입력하세요.</div>';return}
+  var sfh=SFILT?'<b class="warnc">「'+esc(SFILT)+'」</b> '+md(SDAY||ymd(new Date()))+' '+SFROOMS.length+'실 · ':'';
+  $('#resCount').innerHTML=sfh+(cx==='only'?'취소된 예약 '+list.length+'건':main.length+'건 · 입금 합계 '+won(sum)+'원'+(un.length?' · <b class="unset">미정산 '+un.length+'건</b>':''));
+  if(!list.length){$('#resList').className='list';
+    $('#resList').innerHTML='<div class="empty">'+(SFILT?(SFROOMS.length?'「'+esc(SFILT)+'」 '+SFROOMS.length+'실 — '+esc(SFROOMS.join(' · '))+'호<br>예약이 걸려 있지 않은 상태라 목록에 보여 줄 예약이 없습니다. 위 칩을 다시 누르면 전체로 돌아갑니다.':'「'+esc(SFILT)+'」인 객실이 없습니다.'):'조건에 맞는 예약이 없습니다. 조건을 바꾸거나 새 예약을 입력하세요.')+'</div>';return}
   var tbl=$('#qView').value==='table';$('#resList').className=tbl?'':'list';
   var unHead='<div class="sechead">미정산 '+un.length+'건 <span>객실 정산서에는 들어가지 않고, 청소배정·청소수당에는 그대로 들어갑니다</span></div>';
   if(!tbl){$('#resList').innerHTML=main.slice(0,300).map(cardHtml).join('')+(un.length?unHead+un.slice(0,200).map(cardHtml).join(''):'');return}
