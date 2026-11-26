@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 98) { SCHEMA_OK_ = true; return; }
+  if (ver >= 99) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1592,6 +1592,39 @@ function ensureSchema_() {
     }
     props.setProperty('SCHEMA', '98');
   }
+  if (ver < 99) {   // v99: 청소실적 구분·단계·자동금액·최종금액 수식이 줄 끝에서 끊겨, 11/24쯤부터 새 줄이 빈칸·#ERROR!로 남았습니다
+    var n99 = csFill_(ss.getSheetByName('청소실적'), true);
+    if (n99) codeLog_('v99', '', '', '청소실적 G·H·I·K 수식을 ' + n99 + '줄 전체에 다시 채움');
+    props.setProperty('SCHEMA', '99');
+  }
+}
+// ── 청소실적: 구분(G)·단계(H)·자동금액(I)·최종금액(K) 수식 채우기 ──────────────
+// 이 네 칸은 처음에 사람이 손으로 채워 내려 둔 수식이라, 시트가 그 아래로 자라면
+// 새 줄에는 수식이 없어 구분·금액이 아예 비게 됩니다(2026-11-24 이후 실제로 그랬습니다).
+// 맨 끝 줄에 수식이 없을 때만, 수식이 살아 있는 줄을 본으로 삼아 끝까지 다시 채웁니다.
+function csFill_(sh, force) {
+  try {
+    if (!sh) return 0;
+    var mx = sh.getMaxRows(); if (mx < 3) return 0;
+    if (!force && sh.getRange(mx, 7).getFormula()) return 0;
+    var fg = sh.getRange(2, 7, mx - 1, 1).getFormulasR1C1(), tpl = -1;
+    for (var i = fg.length - 1; i >= 0; i--) if (String(fg[i][0] || '').indexOf('수당설정') >= 0) { tpl = i + 2; break; }
+    if (tpl < 0) return 0;
+    var row = sh.getRange(tpl, 7, 1, 5).getFormulasR1C1()[0];   // G H I J K (J 수동금액은 사람이 넣는 칸)
+    [7, 8, 9, 11].forEach(function (c) {
+      var f = row[c - 7]; if (!f) return;
+      var arr = []; for (var k = 2; k <= mx; k++) arr.push([f]);
+      sh.getRange(2, c, mx - 1, 1).setFormulasR1C1(arr);
+    });
+    var nf = sh.getRange(tpl, 9, 1, 3).getNumberFormats()[0];
+    sh.getRange(2, 9, mx - 1, 1).setNumberFormat(nf[0]);
+    sh.getRange(2, 10, mx - 1, 1).setNumberFormat(nf[1]);
+    sh.getRange(2, 11, mx - 1, 1).setNumberFormat(nf[2]);
+    sh.getRange(2, 6, mx - 1, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+      .requireValueInList(['기본', '추가', '입실준비', '공실점검'], true).setAllowInvalid(true).build());
+    SpreadsheetApp.flush();   // 바로 뒤에서 값을 다시 읽으므로 계산을 끝내 둠
+    return mx - 1;
+  } catch (e) { return 0; }
 }
 // 비고에 적혀 있던 놀·놀호텔·떠나요 예약번호 꺼내기 / 지우기 (이제는 51열에 따로 둠)
 var NO_RE_ = /(?:놀호텔|놀|떠나요)\s*예약번호\s*(\d{6,})/;
@@ -3396,6 +3429,7 @@ function saveRowsRun_(name, items) {
     }
   } finally { lock.releaseLock(); }
   if (name === '예약') { var nw = savedRows.filter(function (r, k) { return !items[k].r && items[k].v && items[k].v[7]; }); if (nw.length) { smsAuto_(nw); try { ownerSms_(nw); } catch (e) { } } }   // 새 예약 → 예약확인 문자 · 소유주 알림 (문자 설정이 켜져 있을 때)
+  if (name === '청소실적') { try { csFill_(sh); } catch (e) { } }   // 시트가 자라 새 줄에 수식이 없으면 끝까지 다시 채움
   var out = getDataRun_([name])[name];
   out.saved = savedRows; out.file = SpreadsheetApp.getActive().getName();   // 어느 파일·몇 행에 저장했는지 (화면에 표시)
   return out;
@@ -4824,7 +4858,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-26.54b21ca4';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-26.67a04625';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
