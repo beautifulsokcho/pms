@@ -284,6 +284,12 @@ textarea.mm:focus{outline:2px solid #1a73e8;outline-offset:-2px}
 .byc{background:#fff;color:#111}.byc th{background:#f1f3f4;color:#333}.byc tr.crow td{color:#111!important}.byc th{color:#333!important}.byc textarea.mm{color:#111}.byc tr.crow.prep td{background:#fff;color:#000}.byc tr.crow.prep td:first-child{font-weight:400}
 #resCount{font-size:17px;font-weight:700;color:var(--ink);margin:10px 0 8px}#resCount .unset{font-size:15px}
 .rstatus{margin-bottom:12px}.rstatus .shead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:6px}.rstatus .shead b{font-size:16px}.rstatus .sdate{width:auto;min-width:150px;padding:6px 8px}.sbox{margin-bottom:10px}.sbox h3{font-size:20px;margin:6px 0 8px}.sbox h3 small{font-size:18px;font-weight:600;color:var(--ink)!important;opacity:1}.sbox h3 small b{font-size:20px;font-weight:800}@media (max-width:600px){.sbox h3{font-size:17px}.sbox h3 small{font-size:15px}.sbox h3 small b{font-size:17px}}.sbox h3 .nw{white-space:nowrap}
+.sbox h3 .sfl{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;border:1px solid var(--line);border-radius:999px;padding:2px 10px;margin:2px 2px 2px 0;background:var(--surface);color:inherit;font:inherit;font-size:15px;font-weight:600;cursor:pointer;vertical-align:middle}
+.sbox h3 .sfl b{font-size:16px;font-weight:800}
+.sbox h3 .sfl:hover{border-color:var(--accent)}
+.sbox h3 .sfl.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sbox h3 .sfl.on b{color:#fff}
+.sbox h3 .sfl.all{font-weight:700;gap:0}
 #cCount{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:10px 0 12px;font-size:16px}
 #cCount .kdate{font-size:19px;font-weight:800;margin-right:4px;color:var(--ink)}
 #cCount .kc{padding:5px 11px;border-radius:999px;font-weight:600;border:1.5px solid transparent;color:#111}#cCount .kc b{font-size:18px;font-weight:800;margin-left:2px}
@@ -537,7 +543,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-26a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-27a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1321,7 +1327,10 @@ function renderBroken(){var b=(S['예약']&&S['예약'].broken)||[],el=$('#resBr
 // 객실현황판(예약검색 맨 위, 항상 표시): 호텔별 모든 객실을 작은 카드로. 날짜만 바꿀 수 있음 (‹ 오늘 ›)
 var SDAY='';
 $('#resStatus').addEventListener('change',function(e){var el=e.target;if(!el.classList.contains('sdate')||!/^\d{4}-\d{2}-\d{2}$/.test(el.value))return;setDay(el.value)});   // 날짜 직접 선택·입력 → 아래 검색도 같은 날   // 날짜 직접 선택·입력
-$('#resStatus').addEventListener('click',function(e){var b=e.target.closest('[data-sd]');if(b){var n=+b.dataset.sd;setDay(n?addDays(SDAY||ymd(new Date()),n):ymd(new Date()));return}openCard(e)});   // 날짜 버튼 → 아래 검색 날짜도 같이
+var SFILT='';   // 객실현황에서 고른 상태 (당일입실·퇴실→입실·퇴실·재실·공실·자가), 빈값이면 전체
+$('#resStatus').addEventListener('click',function(e){var b=e.target.closest('[data-sd]');if(b){var n=+b.dataset.sd;setDay(n?addDays(SDAY||ymd(new Date()),n):ymd(new Date()));return}
+  var f=e.target.closest('[data-sf]');if(f){SFILT=SFILT===f.dataset.sf?'':f.dataset.sf;renderStatus();return}   // 상태 칩 → 그 객실만 (다시 누르면 전체)
+  openCard(e)});   // 날짜 버튼 → 아래 검색 날짜도 같이
 function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소유주는 객실현황 없음
   var d=SDAY||ymd(new Date()),hs=$('#qHotel').value?[$('#qHotel').value]:hotels(),now=ymd(new Date());
   var res=rows('예약').filter(function(r){var v=r.v;return !v[R.cancel]&&v[R.ci]&&v[R.co]});
@@ -1343,11 +1352,15 @@ function renderStatus(){if(OWNER){$('#resStatus').innerHTML='';return}   // 소�
       var nxt=nx&&nx!==stay?(nx.v[R.ci]===d?'':md(nx.v[R.ci]).replace(/\(.\)/,'')+' ')+esc(nx.v[R.ppl])+'명 '+esc(nx.v[R.n])+'박':'';
       var tr=inn||stay||nx||out;
       var cur=stay||inn||out,lab=cur?roomLab(cur.v):(roomLno(h,rm)?rm+'('+roomLno(h,rm)+')':rm);if(isSubRoom(rm)&&!/\(/.test(rm)){var orw=rows('객실').find(function(x){return x.v[1]===h&&String(x.v[2])===rm});if(orw&&orw.v[5])lab=rm+'('+orw.v[5]+')'}   // 대체객실 옆에 소유주 이름
+      if(SFILT&&st!==SFILT)return '';   // 상태 칩을 고르면 그 객실만
       return '<button type="button" class="scard '+S2[st]+'"'+(tr?' data-r="'+tr.r+'"':'')+'><span class="sr">'+esc(lab)+'</span><span class="ss">'+st+'</span>'+
         (info?'<span class="si">'+info+'</span>':'')+'<span class="si">'+(nxt||(st==='재실'?'':'예약 없음'))+'</span></button>'}).join('');
-    var sum=['당일입실','퇴실→입실','퇴실','재실','공실','자가'].filter(function(k){return cnt[k]}).map(function(k){return '<span class="nw">'+k+' <b>'+cnt[k]+'</b></span>'}).join(' · ');
-    return '<div class="sbox"><h3>'+esc(h)+' <small><b>'+rooms.filter(function(x){return !isSubRoom(x)}).length+'</b>실 · '+sum+'</small></h3><div class="sgrid">'+cards+'</div></div>'}).join('');
-  $('#resStatus').innerHTML='<div class="shead"><b>객실현황</b><div class="mpick"><button class="btn" type="button" data-sd="-1" aria-label="전날">‹</button><button class="btn'+(d===now?'':' pri')+'" type="button" data-sd="0">오늘 <span class="num">'+md(d)+'</span></button><button class="btn" type="button" data-sd="1" aria-label="다음날">›</button></div><input type="date" class="sdate" aria-label="날짜 고르기" value="'+d+'"><span class="note">카드를 누르면 그 예약을 엽니다</span></div>'+(html||'<div class="empty">객실이 없습니다.</div>');
+    var nAll=rooms.filter(function(x){return !isSubRoom(x)}).length;
+    var sum=['당일입실','퇴실→입실','퇴실','재실','공실','자가'].filter(function(k){return cnt[k]}).map(function(k){
+      return '<button type="button" class="sfl'+(SFILT===k?' on':'')+'" data-sf="'+esc(k)+'" aria-pressed="'+(SFILT===k)+'">'+k+' <b>'+cnt[k]+'</b></button>'}).join('');
+    return '<div class="sbox"><h3>'+esc(h)+' <small><button type="button" class="sfl all'+(SFILT?'':' on')+'" data-sf="" aria-pressed="'+(!SFILT)+'"><b>'+nAll+'</b>실</button>'+sum+'</small></h3>'+
+      '<div class="sgrid">'+(cards||'<div class="empty" style="grid-column:1/-1">'+esc(h)+'에 「'+esc(SFILT)+'」인 객실이 없습니다.</div>')+'</div></div>'}).join('');
+  $('#resStatus').innerHTML='<div class="shead"><b>객실현황</b><div class="mpick"><button class="btn" type="button" data-sd="-1" aria-label="전날">‹</button><button class="btn'+(d===now?'':' pri')+'" type="button" data-sd="0">오늘 <span class="num">'+md(d)+'</span></button><button class="btn" type="button" data-sd="1" aria-label="다음날">›</button></div><input type="date" class="sdate" aria-label="날짜 고르기" value="'+d+'"><span class="note">카드를 누르면 그 예약을 엽니다 · 위 칩을 누르면 그 상태 객실만 봅니다</span></div>'+(html||'<div class="empty">객실이 없습니다.</div>');
 }
 var RESALL=false;
 function resNeedAll(from,after){   // 첫 화면은 최근 예약만 받아 두므로, 그보다 지난 기간을 보려 하면 전체를 한 번 더 받아 옴
