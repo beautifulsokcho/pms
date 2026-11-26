@@ -2860,9 +2860,18 @@ function smsInbox(pin, opt) {   // 관리자: 문자함 (최근 400줄) · opt.r
     if (ch) sh.getRange(2, 9, lr - 1, 1).setValues(rd);   // 한 줄씩 쓰면 느려서 한 번에 씀
     if (!opt.count) return { ok: true, n: lr - 1 };   // 읽음 처리만 할 때는 목록을 다시 보내지 않음
   }
-  if (opt.count) { if (lr < 2) return { unread: 0, warn: 0, sent: 0 };
-    var cv0 = sh.getRange(2, 3, lr - 1, 7).getValues().filter(function (x) { return x[6] !== 'Y'; }), cv = cv0.filter(function (x) { return x[0] !== '보냄'; });
-    return { unread: cv.length, warn: cv.filter(function (x) { return x[0] === '알림'; }).length, sent: cv0.length - cv.length }; }
+  if (opt.count) { if (lr < 2) return { unread: 0, warn: 0, sent: 0, hold: [] };
+    var av = sh.getRange(2, 1, lr - 1, 10).getValues();
+    var cv0 = av.filter(function (x) { return x[8] !== 'Y'; }), cv = cv0.filter(function (x) { return x[2] !== '보냄'; });
+    // 아직 예약에 못 들어간 건 (새 예약 화면의 「등록 보류」 단추) — 취소 확인·환불 승인 같은 다른 경고는 뺌
+    var hold = cv.filter(function (x) { return x[2] === '알림' && String(x[3]) === NOTI_WARN_NUM_ && /^\[자동등록 실패\]/.test(String(x[4] || '')); })
+      .slice(-20).map(function (x) {
+        var t = String(x[4] || ''), l1 = t.split('\n')[0];
+        return { id: String(x[0]), at: x[1] instanceof Date ? Utilities.formatDate(x[1], tz_(), 'yyyy-MM-dd HH:mm') : String(x[1]).slice(0, 16),
+          hotel: String(x[5] || ''), room: String(x[6] || ''), name: String(x[7] || ''),
+          why: l1.replace(/^\[자동등록 실패\]\s*/, ''), text: t.slice(0, 1200) };
+      });
+    return { unread: cv.length, warn: cv.filter(function (x) { return x[2] === '알림'; }).length, sent: cv0.length - cv.length, hold: hold }; }
   var from = Math.max(2, lr - (Number(opt.n) || 250) + 1), vals = lr >= 2 ? sh.getRange(from, 1, lr - from + 1, 10).getValues() : [];
   return { rows: vals.map(function (v) { return { id: String(v[0]), at: v[1] instanceof Date ? Utilities.formatDate(v[1], tz_(), 'yyyy-MM-dd HH:mm') : String(v[1]).slice(0, 16), kind: v[2], num: /^[0-9]+$/.test(String(v[3])) ? telKey_(v[3]) : String(v[3]), text: String(v[4]).slice(0, 1500), hotel: v[5], room: String(v[6]), name: String(v[7]), read: v[8] === 'Y', note: String(v[9] || '') }; }), seen: PropertiesService.getScriptProperties().getProperty('GW_SEEN') || '' };
 }
@@ -4815,7 +4824,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-25.1c7d9cfe';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-26.54b21ca4';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

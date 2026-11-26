@@ -403,7 +403,7 @@ body.wide{--pw:min(2600px,100%)}
       <div id="pasteOut"></div>
     </div>
     <div class="newbox" id="newBox"></div>
-    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recOpen" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
+    <div class="rechead"><h3 class="recent-h" id="recentH">최근 입력</h3><button type="button" class="btn" id="recAuto" hidden></button><button type="button" class="btn" id="recOpen" hidden></button><button type="button" class="btn" id="recHold" hidden></button><button type="button" class="btn" id="recNote" hidden>비고 정리</button><button type="button" class="btn" id="recAll" hidden>최근 입력 보기</button></div>
     <div class="bar recbar" id="recBar">
       <div class="f mo"><label for="recDate">등록(취소)일</label><div class="mpick"><button class="btn" type="button" id="recPrev" aria-label="전날">‹</button><input id="recDate" type="date"><button class="btn" type="button" id="recNext" aria-label="다음날">›</button></div></div>
       <div class="f mo"><label for="recTo">등록일 끝 <span class="note">(비우면 하루만 · 둘 다 비우면 전체)</span></label><input id="recTo" type="date"></div>
@@ -548,7 +548,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-25b';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-26a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -1171,6 +1171,7 @@ function renderRecent(){try{occDraw()}catch(e){}
   var ab=$('#recAuto'),al=$('#recAll'),regs=autoRegs(),nm=regs.filter(function(r){return autoMiss(r.v).length}).length,nb=regs.filter(function(r){return needBlk(r.v)}).length;
   var regsAll=autoRegs(true).length;
   var nb2=$('#recNote');if(nb2)nb2.hidden=!regs.length||!!ROLE;
+  try{holdBtn()}catch(e){}   // 자동등록 보류 단추 (문자함 확인 때 받아 둔 목록)
   var ob=$('#recOpen'),ops=openRegs(),opsAll=openRegs(true).length;   // 취소되어 방을 다시 풀어야 하는 예약
   // 다른 호텔에 남은 건수도 단추에 적습니다 — 고른 호텔만 보여 주다 보니, 안 그러면 다른 호텔 건을 영영 모를 수 있습니다
   if(ob){ob.hidden=!ops.length&&!opsAll;ob.textContent='🔓 방풀기 확인 '+ops.length+'건'+(opsAll>ops.length?' · 다른 호텔 '+(opsAll-ops.length)+'건':'');ob.classList.add('miss')}
@@ -3784,7 +3785,7 @@ function inboxInit(){var b=$('#inboxBtn');b.hidden=false;b.onclick=function(){if
   var tick=function(){if(ROLE||!store('pin'))return;call('smsInbox',{count:true}).then(function(r){var n=r&&r.unread||0,w=r&&r.warn||0,sn=r&&r.sent||0,t=n+sn,bd=$('#inboxN');
       bd.hidden=!t;bd.textContent=t;bd.classList.toggle('warnbd',!!w);   // 받은 문자 + 아직 확인 안 한 보낸 문자(자동 발송)
       if(IBX.unread>=0&&(n>IBX.unread||sn>IBX.sent))inboxNotify(n-IBX.unread,w>IBX.warn?w-IBX.warn:0,sn-IBX.sent);
-      IBX.unread=n;IBX.warn=w;IBX.sent=sn}).catch(function(){})};
+      IBX.unread=n;IBX.warn=w;IBX.sent=sn;IBX.hold=(r&&r.hold)||[];try{holdBtn()}catch(e){}}).catch(function(){})};
   var tick2=function(){tick();askTick()};
   tick2();clearInterval(IBX.t);IBX.t=setInterval(tick2,60000);   // 1분마다 새 문의·당일예약 문자 확인 (이 화면이 열려 있는 동안)
   if(!IBX.vis){IBX.vis=1;document.addEventListener('visibilitychange',function(){if(!document.hidden&&IBX.tick)IBX.tick()})}IBX.tick=tick2}
@@ -3815,7 +3816,31 @@ function inboxOpen(sel,cached){
     if(sel)call('smsInbox',{read:sel}).then(function(){inboxCount()}).catch(function(){})})
     .catch(function(e){$('#ibx').innerHTML='<p class="err">'+esc(errText(e))+'</p>'})}
 function inboxCount(){call('smsInbox',{count:true}).then(function(r){var n=r.unread||0,w=r.warn||0,sn=r.sent||0,t=n+sn,bd=$('#inboxN');
-  if(bd){bd.hidden=!t;bd.textContent=t;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w;IBX.sent=sn}).catch(function(){})}
+  if(bd){bd.hidden=!t;bd.textContent=t;bd.classList.toggle('warnbd',!!w)}IBX.unread=n;IBX.warn=w;IBX.sent=sn;
+  IBX.hold=r.hold||[];try{holdBtn()}catch(e){}}).catch(function(){})}
+// ── 자동등록이 막혀 예약에 못 들어간 건 — 새 예약 화면 단추 (문자함 경고에서 가져옴)
+function holdBtn(){var b=$('#recHold');if(!b)return;var L=(IBX.hold||[]);
+  if(!L.length||ROLE){b.hidden=true;return}
+  var rooms=L.map(function(x){return x.room}).filter(function(x,i,a){return x&&a.indexOf(x)===i});
+  var allOv=L.every(function(x){return /겹침/.test(x.why||'')});
+  b.hidden=false;b.classList.add('miss');
+  b.textContent='⚠ '+(allOv?'겹침으로 보류된 예약':'자동등록 보류')+(L.length>1?' '+L.length+'건':'')+(rooms.length?' — '+rooms.join(' · ')+'호':'');
+  b.onclick=holdOpen}
+function holdOpen(){var L=(IBX.hold||[]);
+  if(!L.length){toast('보류된 예약이 없습니다');return}
+  modal('<h3>자동등록이 보류된 예약 '+L.length+'건</h3>'+
+    '<p class="note">알림·문자는 왔지만 예약에 들어가지 못한 건입니다. 겹치던 예약을 옮기는 등 까닭을 없앤 뒤 <b>[🔁 다시 시도]</b>를 누르면 그 알림으로 바로 넣습니다.</p>'+
+    '<div class="ibx-msgs" id="hdList">'+L.slice().reverse().map(function(x){
+      return '<div class="ibx-m warnmsg" style="max-width:100%">'+esc(x.text)+'<small>'+esc(x.at)+
+        ' <button type="button" class="linkbtn" data-hd="'+esc(x.id)+'">🔁 다시 시도</button></small></div>'}).join('')+'</div>'+
+    '<div class="actions"><button class="btn" type="button" id="hdClose">닫기</button></div>');
+  $('#hdClose').onclick=closeModal;
+  $('#hdList').querySelectorAll('[data-hd]').forEach(function(bt){bt.onclick=function(){var ol=bt.textContent;bt.disabled=true;bt.textContent='🔁 다시 넣는 중…';
+    call('notiRetry',bt.dataset.hd).then(function(r){
+      toast((r.ok?'예약에 넣었습니다':'아직 안 됩니다')+' · '+r.result+(r.room?' ('+r.hotel+' '+r.room+'호)':''));
+      return load(['예약']).then(function(){try{renderRes()}catch(e){}try{renderRecent()}catch(e){}}).catch(function(){})})
+      .then(function(){closeModal();inboxCount()})
+      .catch(function(e){bt.disabled=false;bt.textContent=ol;toast(errText(e))})}})}
 function ibxSortBar(list){var k=IBX.kind||'all',o=function(v,t){return '<option value="'+v+'"'+(k===v?' selected':'')+'>'+t+'</option>'};
   return '<div class="ibxbar"><label for="ibxSort" class="note">보는 순서</label><select id="ibxSort"><option value="desc"'+(IBX.sort==='asc'?'':' selected')+'>최신순</option><option value="asc"'+(IBX.sort==='asc'?' selected':'')+'>오래된순</option></select>'+
     (list?'<label for="ibxKind" class="note">보기</label><select id="ibxKind">'+o('all','전체')+o('in','받은 문자')+o('out','보낸 문자')+o('warn','자동등록·알림')+'</select><button class="btn" type="button" id="ibxReload" title="서버에서 다시 읽기">새로고침</button>':'')+'</div>'}
