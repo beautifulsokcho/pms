@@ -2929,12 +2929,13 @@ function gwSmsReg_(regs) {
   var lg = notiLog_(), done = notiDone_(lg), ctx = null, n = 0;
   regs.forEach(function (q) {
     var key = 'sms:' + q.from + ':' + Utilities.formatDate(new Date(q.at), tz_(), 'yyyyMMddHHmm') + ':' + q.it.room + q.it.ci + (q.it.kind === 'cancel' ? 'X' : '');
-    if (done[key]) return;
+    var ck = notiCKey_(q.it);
+    if (done[key] || notiSeen_(done, ck)) { done[key] = 1; return; }
     var stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), when = Utilities.formatDate(new Date(q.at), tz_(), 'yyyy-MM-dd HH:mm'), r;
     try { if (!ctx) ctx = mailCtx_(); r = notiReg_(ctx, q.it, q.at); if (r.changed) ctx = mailCtx_(); }
     catch (e) { lg.appendRow([key, stamp, when, '떠나요 문자 오류', String(e && e.message || e).slice(0, 200), '', '', q.it.name || '', '', q.text.slice(0, 1000)]); done[key] = 1; return; }
-    lg.appendRow([key, stamp, when, '떠나요 문자' + (q.it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), q.it.name || '', '', q.text.slice(0, 1000)]);
-    done[key] = 1; n++;
+    lg.appendRow([key + (ck ? ' ' + ck : ''), stamp, when, '떠나요 문자' + (q.it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), q.it.name || '', '', q.text.slice(0, 1000)]);
+    done[key] = 1; notiMark_(done, ck); n++;
     if (r.warn) { try { notiWarn_(q.it, r, q.at); } catch (e) { } }
   });
   return n;
@@ -4178,12 +4179,20 @@ function gwNoti(token, items) {
       out.push({ key: key, skip: true }); return;
     }
     if (key && done[key]) { out.push({ key: key, ok: true, msg: '이미 처리함' }); return; }
+    var ck = notiCKey_(it);
+    if (notiSeen_(done, ck)) {   // 같은 알림이 그대로 또 옴 (알림창을 다시 읽은 경우) — 취소를 두 번 실행하지 않게
+      try { lg.appendRow([key, Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'), Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'),
+        (it.plat === '떠나요' ? '떠나요' : '놀') + (it.kind === 'cancel' ? ' 취소' : ' 예약'), '같은 알림이 또 와서 건너뜀', '', String(it.room || ''), it.name || '', it.resNo || '', String(txt).slice(0, 1000)]); } catch (e) { }
+      if (key) done[key] = 1;
+      out.push({ key: key, ok: true, msg: '이미 처리함 (같은 알림)' }); return;
+    }
     var r;
     try { if (!ctx) ctx = mailCtx_(); r = notiReg_(ctx, it, at); if (r.changed) ctx = mailCtx_(); }
     catch (e) { out.push({ key: key, err: String(e && e.message || e) }); return; }
     var stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss');
-    lg.appendRow([key, stamp, Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'), (it.plat === '떠나요' ? '떠나요' : '놀') + (it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), it.name || '', it.resNo || '', String(txt).slice(0, 1000)]);
+    lg.appendRow([(key ? key + ' ' : '') + ck, stamp, Utilities.formatDate(new Date(at), tz_(), 'yyyy-MM-dd HH:mm'), (it.plat === '떠나요' ? '떠나요' : '놀') + (it.kind === 'cancel' ? ' 취소' : ' 예약'), r.result, r.hotel || '', String(r.room || ''), it.name || '', it.resNo || '', String(txt).slice(0, 1000)]);
     if (key) done[key] = 1;
+    notiMark_(done, ck);
     if (r.warn) { try { notiWarn_(it, r, at); } catch (e) { } }   // 자동등록이 안 된 알림은 문자함에 경고로 남김 (관리자가 바로 보고 처리)
     out.push({ key: key, ok: !r.warn, warn: !!r.warn, result: r.result, room: r.hotel ? r.hotel + ' ' + r.room : '', name: it.name || '',
       msg: r.result + (r.hotel ? ' · ' + r.hotel + ' ' + r.room : '') + (it.name ? ' ' + it.name : '') });   // 폰 앱이 표로 보여 줄 수 있게 칸을 나눠서도 보냄
@@ -4224,18 +4233,21 @@ function notiWarn_(it, r, at) {
   // 취소 알림이 막힌 것은 '등록 실패'가 아니라 '취소를 못 했다'는 뜻이라, 제목과 할 일을 달리 적습니다
   var cx = it.kind === 'cancel';
   var yp = !!r.ypAsk;   // 떠나요: 우리 장부는 취소했고, 파트너센터 승인만 남음
-  var lines = [(yp ? '[떠나요 환불 승인 필요] ' : cx ? '[취소 확인 필요] ' : '[자동등록 실패] ') + String(r.result).replace(/^자동등록 실패 · /, '')];
+  var al = r.also;      // 같은 손님이 같은 날 다른 호실에도 예약이 있음 (방을 옮긴 것일 수 있음)
+  var lines = [(yp ? '[떠나요 환불 승인 필요] ' : al ? '[같은 손님 두 호실 확인] ' : cx ? '[취소 확인 필요] ' : '[자동등록 실패] ') + String(r.result).replace(/^자동등록 실패 · /, '')];
   lines.push(pn + ' ' + (cx ? '취소 알림' : '예약 알림') + (it.resNo ? ' · 예약번호 ' + it.resNo : ''));
   lines.push((r.hotel || it.place || '') + ' ' + (r.room || it.room || '호실 모름') + '호 · ' + d(it.ci) + '~' + d(it.co) + (it.nights ? ' (' + it.nights + '박)' : ''));
   lines.push((it.name || '이름 없음') + (it.tel ? ' ' + it.tel : '') + (it.sale ? ' · ' + Number(it.sale).toLocaleString() + '원' : ''));
   if (r.dup) lines.push('→ 이미 있는 예약: ' + d(r.dup.ci) + '~' + d(r.dup.co) + ' ' + (r.dup.name || '이름 없음') + (r.dup.plat ? ' (' + r.dup.plat + ')' : '') + ' · 예약 시트 ' + r.dup.row + '행');
   if (r.dup && r.dup.auto) lines.push('→ 그 예약도 자동등록된 것이라, 같은 예약인데 날짜만 다르게 들어갔을 수 있습니다.');
-  lines.push(yp ? '→ 이 예약은 장부에서 이미 취소했습니다. 떠나요 파트너센터에서 환불 승인만 해주세요. (승인하지 않기로 하셨으면 예약검색에서 취소를 되돌리세요)'
+  if (al) lines.push('→ 같은 날 ' + al.room + '호에도 이 손님 예약이 살아 있습니다 (예약 시트 ' + al.row + '행). 방을 옮긴 것이면 그 예약을 취소해 주세요.');
+  lines.push(al ? '→ 두 호실을 다 쓰는 예약이면 그대로 두셔도 됩니다.'
+    : yp ? '→ 이 예약은 장부에서 이미 취소했습니다. 떠나요 파트너센터에서 환불 승인만 해주세요. (승인하지 않기로 하셨으면 예약검색에서 취소를 되돌리세요)'
     : cx ? '→ 놀에서 취소된 예약입니다. 예약검색에서 위 호실·날짜를 찾아 취소해 주세요. (그 예약이 이미 취소돼 있으면 그냥 두셔도 됩니다)'
     : /날짜|퇴실일/.test(String(r.result)) ? '→ 예약검색에서 그 예약을 열어 날짜를 맞춰 주세요.'
     : r.dup ? '→ 예약검색에서 그 호실·날짜를 확인하고, 맞으면 손으로 넣으세요.' : '→ 새 예약 화면에서 손으로 넣으세요.');
   inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(at || Date.now()), tz_(), 'yyyy-MM-dd HH:mm:ss'),
-    '알림', NOTI_WARN_NUM_, lines.join('\n'), r.hotel || '', String(r.room || it.room || ''), it.name || '', '', yp ? '떠나요 환불 승인 필요' : cx ? '취소 확인 필요' : '자동등록 경고']);
+    '알림', NOTI_WARN_NUM_, lines.join('\n'), r.hotel || '', String(r.room || it.room || ''), it.name || '', '', yp ? '떠나요 환불 승인 필요' : al ? '같은 손님 두 호실 확인' : cx ? '취소 확인 필요' : '자동등록 경고']);
 }
 // ── 입실 점검: 비고에 적힌 호실과 실제 배정된 호실이 다르면 문자함으로 알림 (손님에게 잘못 안내하는 일을 막음)
 function noteRooms_(s, set) {   // 비고에서 호실로 보이는 번호 — '○○호'는 그대로, 번호만 있는 것은 그 호텔에 실제 있는 호실일 때만
@@ -4683,9 +4695,30 @@ function notiLog_() {
 }
 function notiDone_(sh) {
   var lr = sh.getLastRow(), m = {};
-  if (lr > 1) sh.getRange(Math.max(2, lr - 499), 1, Math.min(lr - 1, 500), 1).getValues().forEach(function (x) { if (x[0]) m[String(x[0])] = 1; });
+  if (lr > 1) sh.getRange(Math.max(2, lr - 499), 1, Math.min(lr - 1, 500), 1).getValues().forEach(function (x) {
+    String(x[0] || '').split(/\s+/).filter(String).forEach(function (k) {
+      m[k] = 1;
+      var o = notiOpp_(k); if (o) delete m[o];   // 뒤에 반대 알림(예약↔취소)이 왔으면 앞의 것은 처리된 것으로 치지 않음
+    });
+  });
   return m;
 }
+// 같은 알림이 그대로 또 들어오는 것을 막는 '내용 열쇠'. 폰이 알림창을 다시 읽으면 같은 글이 또 올라옵니다.
+// 이름은 가려져 올 때가 있어(이*빈) 빼고, 플랫폼·예약/취소·호실·입실일만 봅니다.
+function notiCKey_(it) {
+  if (!it || !it.ci) return '';
+  // 호실은 알림을 읽은 뒤에야 정해질 때가 많아(상품명에서 찾음), 글에 적힌 상품명을 그대로 씁니다
+  var k = String(it.room || it.roomName || '').replace(/\s+/g, '');
+  return k ? 'c:' + (it.plat || '놀') + '|' + (it.kind === 'cancel' ? 'cancel' : 'new') + '|' + k + '|' + it.ci : '';
+}
+function notiOpp_(k) {
+  if (String(k).indexOf('c:') !== 0) return '';
+  if (k.indexOf('|cancel|') > 0) return k.replace('|cancel|', '|new|');
+  if (k.indexOf('|new|') > 0) return k.replace('|new|', '|cancel|');
+  return '';
+}
+function notiSeen_(done, ck) { if (!ck) return false; return !!done[ck]; }
+function notiMark_(done, ck) { if (!ck) return; done[ck] = 1; var o = notiOpp_(ck); if (o) delete done[o]; }
 // 놀 알림은 두 가지로 옵니다 — 긴 'NOL 미리예약' 글과 짧은 요약('[신규예약] [연박] 상품명 / 이*규 / 12.11(금) 15:00 (3박) / 도보').
 // 긴 글이 안 올 때가 있어(폰 알림이 묶이거나 앱이 못 집음) 짧은 요약도 읽어서 처리합니다.
 // 짧은 요약에는 예약번호·연락처가 없으므로, 뒤에 긴 글이 오면 같은 예약으로 보고 빈 칸을 채웁니다.
@@ -4932,6 +4965,13 @@ function notiReg_(ctx, it, at) {
     if (ov) return { result: '자동등록 실패 · 중복예약(객실 겹침)', hotel: pp.hotel, room: it.room, warn: true,
       dup: { ci: mailYmd_(ov.v[6]), co: mailYmd_(ov.v[7]), name: String(ov.v[3] || ''), plat: String(ov.v[10] || ''), row: ov.r, auto: /자동등록/.test(String(ov.v[21] || '')) } };
   }
+  // 같은 손님이 같은 날 다른 호실에도 살아 있는 예약이 있으면 '방을 옮긴 것'일 수 있어 알려 줍니다
+  // (2026-11-27 이은빈: 2003 취소 → 2001 예약인데 알림이 다시 들어와 두 호실이 모두 살아날 뻔했습니다)
+  var alsoRow = String(it.name || '').trim() ? mailFind_(ctx, function (v) {
+    if (v[23] || String(v[1]) !== pp.hotel || String(v[2]) === it.room) return false;
+    if (mailYmd_(v[6]) !== it.ci) return false;
+    var a0 = String(v[3] || '').trim(); return !!a0 && nameEq(a0, it.name);
+  }) : null;
   var pn = pp.plat === '놀호텔' ? '놀호텔' : pp.plat === '떠나요' ? '떠나요' : '놀';
   var note = [it.plat === '떠나요' ? String(it.roomName || '').trim() : String(it.roomName || '').replace(/\(.*$/, '').trim(), it.way,
     it.brief ? '알림 자동등록 (요약 · 이름·연락처 확인)' : '알림 자동등록'].filter(String).join(' / ');
@@ -4939,10 +4979,13 @@ function notiReg_(ctx, it, at) {
   if (blkNeed_(pp.hotel, it.ci)) nv[52] = '확인필요';   // 다른 플랫폼 방막기 확인 (지난 예약·안 쓰는 호텔은 빼고)
   if (it.tel) nv[5] = it.tel;
   if (it.sale) nv[12] = it.sale;
-  if (cx) { nv[1] = cx.v[0]; nv[24] = ''; nv[22] = note + ' / 취소 되돌림 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'); saveRowsRun_('예약', [{ r: cx.r, v: nv }]); return { result: '취소 되돌림', hotel: pp.hotel, room: it.room, changed: true }; }
+  var also = alsoRow ? { room: String(alsoRow.v[2]), ci: mailYmd_(alsoRow.v[6]), co: mailYmd_(alsoRow.v[7]), row: alsoRow.r } : null;
+  if (cx) { nv[1] = cx.v[0]; nv[24] = ''; nv[22] = note + ' / 취소 되돌림 ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd'); saveRowsRun_('예약', [{ r: cx.r, v: nv }]);
+    return { result: '취소 되돌림' + (also ? ' · 같은 손님이 ' + also.room + '호에도 예약 있음' : ''), hotel: pp.hotel, room: it.room, changed: true, warn: !!also, also: also }; }
   nv[1] = mailNewId_();
   saveRowsRun_('예약', [{ r: null, v: nv }]);
-  return { result: '등록함' + (it.rtWhy ? ' · ' + it.rtWhy : ''), hotel: pp.hotel, room: it.room, changed: true };
+  return { result: '등록함' + (it.rtWhy ? ' · ' + it.rtWhy : '') + (also ? ' · 같은 손님이 ' + also.room + '호에도 예약 있음' : ''),
+    hotel: pp.hotel, room: it.room, changed: true, warn: !!also, also: also };
 }
 
 // ── 서버 코드 자동 업데이트 (깃허브 → Apps Script) ──────────────────────────
@@ -4950,7 +4993,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-27.18259158';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-27.558021d8';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
