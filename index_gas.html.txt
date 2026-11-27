@@ -544,7 +544,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-27d';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-27e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -3106,13 +3106,14 @@ function occDays(hotel,days){
   var res=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===hotel&&v[R.ci]&&v[R.co]&&!v[R.cancel]&&!isSubst(v)&&!self[String(v[R.room]).trim()]});
   var out=[],d=ymd(new Date());
   for(var i=0;i<(days||45);i++){
-    var n=0,b=0,seen={};
-    rs.forEach(function(r){var s2=ymd2(r.v[14]),e=ymd2(r.v[15]);if((!s2||s2<=d)&&(!e||e>=d))n++});
-    res.forEach(function(r){var v=r.v,c1=ymd2(v[R.ci]),c2=ymd2(v[R.co]),rm=String(v[R.room]);if(c1<=d&&d<c2&&!seen[rm]){seen[rm]=1;b++}});
+    var n=0,b=0,seen={},free=[];
+    res.forEach(function(r){var v=r.v,c1=ymd2(v[R.ci]),c2=ymd2(v[R.co]),rm=String(v[R.room]).trim();if(c1<=d&&d<c2&&!seen[rm]){seen[rm]=1;b++}});
+    rs.forEach(function(r){var s2=ymd2(r.v[14]),e=ymd2(r.v[15]),rm=String(r.v[2]).trim();if((!s2||s2<=d)&&(!e||e>=d)){n++;if(!seen[rm])free.push(rm)}});   // 예약이 없는 호실 = 공실
+    free.sort(function(a,c){return (Number(a)||0)-(Number(c)||0)||String(a).localeCompare(String(c))});
     var pct=n?Math.round(b*1000/n)/10:0,left=Math.max(0,n-b);
     var lab=left===0&&n?'만실':left===1&&n?'만실-1':pct>=90?'만실 임박':pct>=80?'예약율 '+pct+'%':'';
     var cls=left===0&&n?'l99':left===1||pct>=90?'l90':'l80';
-    if(lab)out.push({d:d,rooms:n,booked:b,left:left,pct:pct,lab:lab,cls:cls});
+    if(lab)out.push({d:d,rooms:n,booked:b,left:left,pct:pct,lab:lab,cls:cls,free:free});
     d=addDays(d,1);
   }
   return out;
@@ -3134,11 +3135,12 @@ function occOpen(h,d){   // 그 날짜 입실목록 (그날 묵는 예약도 함
       .sort(function(a,b){return (Number(a.v[R.room])||0)-(Number(b.v[R.room])||0)});
   var stay=rows('예약').filter(function(r){var v=r.v;return v[R.hotel]===h&&!v[R.cancel]&&!isSubst(v)&&ymd2(v[R.ci])<d&&d<ymd2(v[R.co])})
       .sort(function(a,b){return (Number(a.v[R.room])||0)-(Number(b.v[R.room])||0)});
-  var o=(occDays(h,45).filter(function(x){return x.d===d})[0])||{rooms:0,booked:0,left:0,pct:0,lab:''};
+  var o=(occDays(h,45).filter(function(x){return x.d===d})[0])||{rooms:0,booked:0,left:0,pct:0,lab:'',free:[]};
   var line=function(r){var v=r.v;return '<tr data-r="'+r.r+'"><td class="nw"><b>'+esc(roomLab(v))+'</b></td><td class="nw">'+esc(v[R.name]||'(이름 없음)')+'</td><td class="nw">'+esc(md(v[R.ci]))+' → '+esc(md(v[R.co]))+'</td><td class="n">'+esc(v[R.n])+'박</td><td class="n">'+esc(v[R.ppl])+'명</td><td class="nw">'+esc(v[R.plat]||'')+'</td><td>'+esc(v[R.memo]||'')+'</td></tr>'};
   var tbl=function(L){return '<div class="scroll"><table class="restable"><thead><tr><th>호실</th><th>고객</th><th>기간</th><th>박</th><th>인원</th><th>플랫폼</th><th>메모</th></tr></thead><tbody>'+L.map(line).join('')+'</tbody></table></div>'};
   modal('<h3>'+esc(h)+' '+esc(md(d))+' · '+esc(o.lab||'예약율 '+o.pct+'%')+'</h3>'+
     '<p class="note">예약 <b>'+o.booked+'</b> / 객실 '+o.rooms+'실 · 가동 '+o.pct+'% · <b>남은 방 '+o.left+'실</b></p>'+
+    ((o.free||[]).length?'<p class="note">공실 '+(o.free||[]).map(function(rm){return '<span class="chip">'+esc(rm)+'호</span>'}).join(' ')+'</p>':'')+
     '<h4 class="cwh">이 날 입실 ('+inn.length+'건)</h4>'+(inn.length?tbl(inn):'<div class="empty">이 날 입실하는 예약이 없습니다.</div>')+
     (stay.length?'<h4 class="cwh" style="margin-top:10px">이어서 묵는 예약 ('+stay.length+'건)</h4>'+tbl(stay):'')+
     '<div class="actions"><button class="btn" type="button" id="occGoRes">예약검색에서 보기</button><button class="btn" type="button" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">닫기</button></div>');
@@ -3163,7 +3165,8 @@ $('#occBtn').onclick=function(){var b=this,h=$('#qHotel').value||defHotel();b.di
        ['상태',function(x){return x.level==='만실'?'<span class="chip x">만실</span>':x.level==='만실 임박'?'<span class="chip x">만실 임박</span>':'<span class="chip hold">만실 주의</span>'},' class="nw"'],
        ['예약/객실',function(x){return x.booked+' / '+x.rooms},' class="n"'],
        ['가동률',function(x){return x.pct+'%'},' class="n"'],
-       ['남은 방',function(x){return '<b>'+x.left+'</b>'},' class="n"']])})
+       ['남은 방',function(x){return '<b>'+x.left+'</b>'},' class="n"'],
+       ['공실 호실',function(x){var f=x.free||[];return f.length?f.map(function(rm){return '<span class="chip">'+esc(rm)+'호</span>'}).join(' '):'<span class="muted">—</span>'},'']])})
     .catch(function(e){toast(errText(e))}).then(function(){b.disabled=false;b.textContent='만실 점검'})};
 $('#sAiPrice').onclick=function(){if(OWNER){toast('관리자·매니저만 쓸 수 있습니다');return}var b=this,h=$('#sHotel').value;b.disabled=true;b.textContent='보는 중…';
   call('priceHint',h,45).then(function(r){

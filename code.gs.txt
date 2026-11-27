@@ -296,7 +296,7 @@ function ensureSchema_() {
   if (SCHEMA_OK_) return;
   var props = PropertiesService.getScriptProperties();
   var ver = +(props.getProperty('SCHEMA') || 1);
-  if (ver >= 101) { SCHEMA_OK_ = true; return; }
+  if (ver >= 102) { SCHEMA_OK_ = true; return; }
   var ss = SpreadsheetApp.getActive();
   if (ver < 38) {   // 이 버전 이전 DB에서만 실행 (이미 적용된 변경은 다시 하지 않음)
   if (!ss.getSheetByName('수건규칙')) {
@@ -1623,6 +1623,33 @@ function ensureSchema_() {
     try { var r101 = rngGuard_(); if (r101.length) codeLog_('v101', '', '', '수식 끝 행 맞춤 — ' + r101.join(' · ')); } catch (e) { }
     props.setProperty('SCHEMA', '101');
   }
+  if (ver < 102) {   // v102: 문자기록 12열 '예약번호' — 안심번호(050)로 보낸 뒤 실번호(010)로 바뀌어도 같은 예약에 두 번 안 보내게
+    var lg102 = ss.getSheetByName('문자기록');
+    if (lg102) {
+      if (lg102.getMaxColumns() < 12) lg102.insertColumnsAfter(lg102.getMaxColumns(), 12 - lg102.getMaxColumns());
+      lg102.getRange('L:L').setNumberFormat('@');
+      if (String(lg102.getRange(1, 12).getValue() || '') === '') lg102.getRange(1, 12).setValue('예약번호').setFontWeight('bold');
+      // 이미 쌓인 기록에도 예약번호를 채웁니다 — 예약ID로 예약 시트 51열을 찾아서 (앞으로 보낼 문자가 옛 기록을 알아보게)
+      var lr102 = lg102.getLastRow();
+      if (lr102 > 1) {
+        var rv102 = ss.getSheetByName('예약'), no102 = {};
+        if (rv102 && rv102.getLastRow() > 1 && rv102.getMaxColumns() >= 51) {
+          rv102.getRange(2, 1, rv102.getLastRow() - 1, 51).getValues().forEach(function (v) {
+            var id = String(v[0] || '').trim(), n = String(v[50] == null ? '' : v[50]).trim();
+            if (id && n) no102[id] = n;
+          });
+        }
+        var keys102 = lg102.getRange(2, 3, lr102 - 1, 1).getValues(), cur102 = lg102.getRange(2, 12, lr102 - 1, 1).getValues(), ch102 = 0;
+        for (var i102 = 0; i102 < keys102.length; i102++) {
+          if (String(cur102[i102][0] || '').trim()) continue;
+          var hit102 = no102[String(keys102[i102][0] || '').trim()];
+          if (hit102) { cur102[i102][0] = hit102; ch102++; }
+        }
+        if (ch102) { lg102.getRange(2, 12, lr102 - 1, 1).setValues(cur102); codeLog_('v102', '', '', '문자기록 예약번호 ' + ch102 + '줄 채움'); }
+      }
+    }
+    props.setProperty('SCHEMA', '102');
+  }
 }
 // ── 청소실적: 구분(G)·단계(H)·자동금액(I)·최종금액(K) 수식 채우기 ──────────────
 // 이 네 칸은 처음에 사람이 손으로 채워 내려 둔 수식이라, 시트가 그 아래로 자라면
@@ -2150,35 +2177,68 @@ function ctGroup_(hotel) {   // '<호텔> 고객관리' 그룹 (없으면 만들
   p.setProperty(key, g.resourceName);
   return g.resourceName;
 }
-function ctHas_(tel) {   // 주소록에 이미 있는 번호인지 (못 찾으면 false — 중복은 예약 54열로도 막음)
+// 주소록에서 그 번호를 가진 연락처 **주소**를 돌려줍니다 (못 찾으면 '' — 중복은 예약 54열로도 막음).
+// 주소를 돌려주는 까닭: 나중에 번호가 050→010으로 바뀌었을 때 **그 연락처를 찾아 고치려면** 주소가 있어야 합니다.
+function ctFind_(tel) {
   try {
     var r = ctApi_('get', 'https://people.googleapis.com/v1/people:searchContacts?pageSize=10&readMask=phoneNumbers&query=' + encodeURIComponent(telShow_(tel)));
-    return (r.results || []).some(function (x) {
+    var hit = (r.results || []).filter(function (x) {
       return (((x.person || {}).phoneNumbers) || []).some(function (ph) { return telKey_(ph.value) === tel; });
-    });
-  } catch (e) { return false; }
+    })[0];
+    return hit ? String((hit.person || {}).resourceName || '') : '';
+  } catch (e) { return ''; }
 }
-function ctAdd_(hotel, room, who, tel, note) {
-  var grp = ctGroup_(hotel);
-  var person = ctApi_('post', 'https://people.googleapis.com/v1/people:createContact', {
-    names: [{ givenName: who || telShow_(tel) }],
+var CT_FIELDS_ = 'names,phoneNumbers,organizations,biographies';
+function ctWho_(who, plat) {   // 주소록에 보일 이름 — 이름과 플랫폼 사이는 한 칸
+  return [String(who || '').trim(), String(plat || '').trim()].filter(String).join(' ');
+}
+function ctBody_(hotel, room, who, tel, note, plat) {
+  return {
+    names: [{ givenName: ctWho_(who, plat) || telShow_(tel) }],
     phoneNumbers: [{ value: telShow_(tel), type: 'mobile' }],
     organizations: [{ name: String(hotel || ''), title: String(room || '') + '호' }],
     biographies: [{ value: String(note || ''), contentType: 'TEXT_PLAIN' }]
-  });
+  };
+}
+function ctAdd_(hotel, room, who, tel, note, plat) {
+  var grp = ctGroup_(hotel);
+  var person = ctApi_('post', 'https://people.googleapis.com/v1/people:createContact', ctBody_(hotel, room, who, tel, note, plat));
   ctApi_('post', 'https://people.googleapis.com/v1/' + grp + '/members:modify', { resourceNamesToAdd: [person.resourceName] });
   return person.resourceName;
 }
-function ctSave_(sh, row, tel) {   // 예약 한 줄 → 주소록 (이미 넣은 줄은 건너뜀, 54열에 기록)
+// 번호가 안심번호(050…)에서 실번호(010…)로 바뀌면 **새로 만들지 않고 그 연락처를 고쳐** 저장합니다.
+// People API는 고칠 때 etag가 꼭 필요하므로 먼저 읽습니다.
+function ctUpdate_(res, hotel, room, who, tel, note, plat) {
+  try {
+    var cur = ctApi_('get', 'https://people.googleapis.com/v1/' + res + '?personFields=' + CT_FIELDS_);
+    if (!cur || !cur.etag) return false;
+    var body = ctBody_(hotel, room, who, tel, note, plat); body.etag = cur.etag;
+    ctApi_('patch', 'https://people.googleapis.com/v1/' + res + ':updateContact?updatePersonFields=' + CT_FIELDS_, body);
+    return true;
+  } catch (e) { return false; }
+}
+// 54열 기록: '등록 2026-11-27 18:10 · 01012345678 · people/c123' — 어느 번호로 넣었는지와 연락처 주소를 함께 남겨
+// 나중에 번호가 바뀌었을 때 그 연락처를 찾아 고칠 수 있게 합니다.
+function ctSave_(sh, row, tel) {
   if (!ctOn_() || sh.getMaxColumns() < 54) return '';
-  if (String(sh.getRange(row, 54).getValue() || '').trim()) return '';
+  var c = sh.getRange(row, 54), cur = String(c.getValue() || '').trim();
+  var was = (cur.match(/(^|[^0-9])(0\d{8,10})([^0-9]|$)/) || ['', '', ''])[2];   // 그때 넣은 번호
+  var res = (cur.match(/people\/[A-Za-z0-9_-]+/) || [''])[0];                    // 그 연락처 주소
+  if (cur && was === tel) return '';                                              // 같은 번호로 이미 넣었음
+  // 옛 기록은 번호·연락처 주소를 안 남겨 두었습니다 → 고칠 수는 없지만, 바뀐 실번호는 새로 넣어 줍니다(아래 ctHas_ 길)
   var v = sh.getRange(row, 1, 1, 11).getValues()[0], hotel = String(v[1] || '').trim();
   if (!hotel) return '';
-  var room = String(v[2] == null ? '' : v[2]).trim(), who = String(v[3] || '').trim();
-  var note = hotel + ' ' + room + '호 · ' + fmt_(v[6], false) + '~' + fmt_(v[7], false) + (v[10] ? ' · ' + v[10] : '');
-  var mark = ctHas_(tel) ? '이미 있음' : (ctAdd_(hotel, room, who, tel, note), '등록');
-  var c = sh.getRange(row, 54); c.setNumberFormat('@');
-  c.setValue(mark + ' ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm'));
+  var room = String(v[2] == null ? '' : v[2]).trim(), who = String(v[3] || '').trim(), plat = String(v[10] || '').trim();
+  var note = hotel + ' ' + room + '호 · ' + fmt_(v[6], false) + '~' + fmt_(v[7], false) + (plat ? ' · ' + plat : '');
+  var mark;
+  if (cur && res && was && was !== tel) mark = ctUpdate_(res, hotel, room, who, tel, note, plat) ? '수정' : (res = ctAdd_(hotel, room, who, tel, note, plat), '등록');
+  else {
+    var f = ctFind_(tel);   // 주소도 함께 받아 두어야 다음에 번호가 바뀌었을 때 고칠 수 있습니다
+    if (f) { res = f; mark = '이미 있음'; }
+    else { res = ctAdd_(hotel, room, who, tel, note, plat); mark = '등록'; }
+  }
+  c.setNumberFormat('@');
+  c.setValue(mark + ' ' + Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm') + ' · ' + tel + (res ? ' · ' + res : ''));
   return mark;
 }
 function ctSetup() {   // Apps Script 편집기에서 한 번 실행: 주소록 권한 허용 + 호텔별 그룹 만들기
@@ -2461,7 +2521,7 @@ function smsText_(v, kind) { var t = smsPick_(kind, v); return t ? smsFill_(t, v
 // ── 문자기록: 예약별·종류별 발송 기록 (같은 종류는 자동으로 한 번만)
 function smsLogSheet_() {
   var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName('문자기록');
-  if (!sh) { sh = ss.insertSheet('문자기록'); sh.getRange(1, 1, 1, 11).setValues([['ID', '시각', '예약ID', '호텔', '호실', '고객명', '종류', '받는 번호', '상태', '결과 시각', '오류']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('H:H').setNumberFormat('@'); }
+  if (!sh) { sh = ss.insertSheet('문자기록'); sh.getRange(1, 1, 1, 12).setValues([['ID', '시각', '예약ID', '호텔', '호실', '고객명', '종류', '받는 번호', '상태', '결과 시각', '오류', '예약번호']]).setFontWeight('bold'); sh.setFrozenRows(1); sh.getRange('H:H').setNumberFormat('@'); sh.getRange('L:L').setNumberFormat('@'); }
   return sh;
 }
 function smsResKey_(v) { return String(v[0] || '') || [v[1], v[2], fmt_(v[6], false)].join('|'); }
@@ -2482,15 +2542,33 @@ function smsAtMs_(s) {
   var m = String(s == null ? '' : s).replace('T', ' ').match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ ](\d{1,2}):(\d{2})/);
   return m ? +new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : 0;
 }
-function smsSentMap_() {   // '예약키|종류' → 상태 (+ 최근 '내용 열쇠'도 같은 묶음에 담음)
+// ── 안심번호(050…)와 실번호(010…) ──────────────────────────────────────────
+// 놀·떠나요 자동등록 예약은 플랫폼이 준 **안심번호**로 들어오고, 뒤에 엑셀로 받아 넣으면 **실번호**로 바뀝니다.
+// 그래서 번호를 중복 검사의 바탕으로 쓰면 ① 번호가 바뀌었다고 또 보내거나 ② 번호가 바뀐 뒤 안 보내는 일이 생깁니다.
+// 바탕은 **예약번호(놀·떠나요)와 예약키**로 두고, 번호는 '실패한 문자를 다시 보낼지'만 가늠하는 데 씁니다.
+function telSafe_(s) { return /^050\d{6,}$/.test(telKey_(s)); }               // 안심번호 — 플랫폼이 중개하는 가짜 번호
+function telReal_(s) { return /^01[016789]\d{7,8}$/.test(telKey_(s)); }       // 손님 실번호
+function smsSentMap_() {   // '예약키|종류' → 상태 (+ 예약번호 열쇠 · 최근 내용 열쇠 · 't:열쇠' = 그때 보낸 번호)
   var sh = SpreadsheetApp.getActive().getSheetByName('문자기록'), m = {}; if (!sh || sh.getLastRow() < 2) return m;
-  var lo = +new Date() - SMS_DUP_H_ * 3600000;
-  sh.getRange(2, 2, sh.getLastRow() - 1, 8).getValues().forEach(function (x) {   // B시각 C예약키 D호텔 E호실 F고객명 G종류 H번호 I상태
-    m[x[1] + '|' + x[5]] = x[7];
-    var ck = smsDupKey_(x[2], x[3], x[4], x[5], x[6]);
-    if (ck && smsAtMs_(x[0]) >= lo) m[ck] = x[7];
+  var lo = +new Date() - SMS_DUP_H_ * 3600000, w = Math.min(sh.getMaxColumns() - 1, 11);
+  sh.getRange(2, 2, sh.getLastRow() - 1, w).getValues().forEach(function (x) {   // x[0]=B시각 x[1]=C예약키 x[2]=D호텔 x[3]=E호실 x[4]=F고객명 x[5]=G종류 x[6]=H번호 x[7]=I상태 x[10]=L예약번호
+    var st = x[7], to = x[6], put = function (k) { if (k) { m[k] = st; m['t:' + k] = to; } };
+    put(x[1] + '|' + x[5]);
+    var no = String(x[10] == null ? '' : x[10]).trim();   // L열 — 2열부터 읽으므로 x[10]입니다
+    if (no) put('no:' + no + '|' + x[5]);                                     // 예약번호 열쇠 — 행이 바뀌거나 번호가 바뀌어도 한 번만
+    var ck = smsDupKey_(x[2], x[3], x[4], x[5], to);
+    if (ck && smsAtMs_(x[0]) >= lo) put(ck);
   });
   return m;
+}
+// 이 열쇠로 이미 보냈으니 또 보내지 말아야 하나?
+// '보냄'·'대기'는 막습니다. '실패'는 — **안심번호로 실패했고 지금은 실번호가 있을 때만** 다시 보냅니다
+// (안심번호가 닫혀 실패한 문자가 영영 안 나가던 것을 메우면서, 같은 번호로 끝없이 되보내지는 않게).
+function smsBlocked_(S, k, v) {
+  if (!k) return false;
+  var st = S[k]; if (!st) return false;
+  if (st !== '실패') return true;
+  return !(telReal_(v[4]) && !telReal_(S['t:' + k]));
 }
 function smsLogList(pin, n) {   // 관리자: 최근 보낸 문자 (예약 문자 + 바로 보내기·연결 문자)
   checkPin_(pin); adminOnly_();
@@ -2532,15 +2610,17 @@ function smsLogSetMany_(list) {   // 여러 건을 한꺼번에 — ID 칸을 �
 }
 // 한 예약에 그 종류 문자 보내기 (force = 이미 보냈어도 다시)
 function smsDo_(sh, r, kind, force, sent) {
-  var v = sh.getRange(r, 1, 1, 46).getValues()[0], key = smsResKey_(v);
+  var v = sh.getRange(r, 1, 1, Math.min(sh.getMaxColumns(), 51)).getValues()[0], key = smsResKey_(v);
   if (v[23]) return '';   // 취소된 예약
-  var S = sent || smsSentMap_(), dk = smsDupKey_(v[1], v[2], v[3], kind, v[4]);
-  if (!force && S[key + '|' + kind]) return '';
-  if (!force && dk && S[dk]) return '';   // 같은 예약이 두 줄로 들어온 경우 — 같은 내용을 두 번 보내지 않음
+  var S = sent || smsSentMap_(), no = String(v[50] == null ? '' : v[50]).trim();
+  var kk = key + '|' + kind, nk = no ? 'no:' + no + '|' + kind : '', dk = smsDupKey_(v[1], v[2], v[3], kind, v[4]);
+  // 세 열쇠로 봅니다 — 예약키(그 줄) · 예약번호(줄이 바뀌거나 번호가 050→010으로 바뀌어도) · 내용(예약번호가 없는 플랫폼)
+  if (!force && (smsBlocked_(S, kk, v) || smsBlocked_(S, nk, v) || smsBlocked_(S, dk, v))) return '';
   var t = smsPick_(kind, v); if (!t) throw new Error('「문자」 시트에 이 예약(' + v[1] + ' · ' + v[10] + ')에 맞는 「' + kind + '」 문구가 없습니다 (사용 Y).');
   var text = smsFill_(t, v), lid = Utilities.getUuid().slice(0, 8), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
-  var lg = smsLogSheet_(); lg.appendRow([lid, stamp, key, v[1], String(v[2]), String(v[3] || ''), kind, String(v[4] || '').replace(/\D/g, ''), '대기', '', '']);
-  S[key + '|' + kind] = '대기'; if (dk) S[dk] = '대기';
+  var to = String(v[4] || '').replace(/\D/g, '');
+  var lg = smsLogSheet_(); lg.appendRow([lid, stamp, key, v[1], String(v[2]), String(v[3] || ''), kind, to, '대기', '', '', no]);
+  [kk, nk, dk].forEach(function (k) { if (k) { S[k] = '대기'; S['t:' + k] = to; } });
   try { var sr = smsSendRaw_(v[4], text, { col: 'log:' + lid }); if (!(sr && sr.queued)) smsLogSet_(lid, '발송', ''); return stamp + (sr && sr.queued ? ' 대기 (폰 앱)' : ' 발송'); }
   catch (e) { smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100)); throw e; }
 }
@@ -2557,18 +2637,20 @@ function ownerSms_(rows) {
   var DW = ['일', '월', '화', '수', '목', '금', '토'], dw = function (y) { var p = String(y).split('-'); return DW[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; };
   rows.forEach(function (r) {
     try {
-      var v = sh.getRange(r, 1, 1, 46).getValues()[0], hotel = String(v[1] || ''), room = String(v[2] == null ? '' : v[2]).trim();
+      var v = sh.getRange(r, 1, 1, Math.min(sh.getMaxColumns(), 51)).getValues()[0], hotel = String(v[1] || ''), room = String(v[2] == null ? '' : v[2]).trim();
       if (!OWNER_SMS_.some(function (x) { return x[0] === hotel && x[1] === room; })) return;
       var ci = fmt_(v[6], false), co = fmt_(v[7], false);
       if (v[23] || !ci || ci < today) return;
-      var key = smsResKey_(v); if (sent[key + '|소유주알림']) return;
+      var key = smsResKey_(v), no = String(v[50] == null ? '' : v[50]).trim();
       var to = ownerTel_(hotel, room); if (!to) return;
-      var dk = smsDupKey_(hotel, room, v[3], '소유주알림', to); if (dk && sent[dk]) return;   // 같은 예약이 두 줄로 들어온 경우
+      var kk = key + '|소유주알림', nk = no ? 'no:' + no + '|소유주알림' : '';
+      var dk = smsDupKey_(hotel, room, v[3], '소유주알림', to), ov = [null, null, null, null, to];   // 소유주 번호 기준으로 가늠
+      if (smsBlocked_(sent, kk, ov) || smsBlocked_(sent, nk, ov) || smsBlocked_(sent, dk, ov)) return;
       var txt = '[' + hotel + ' ' + room + '호] 새 예약\n' + ci + '(' + dw(ci) + ') ~ ' + co + '(' + dw(co) + ') · ' + (Number(v[8]) || '') + '박 · ' + (Number(v[9]) || '') + '명 · ' + String(v[10] || '')
         + (String(v[3] || '').trim() ? '\n' + String(v[3]).trim() : '');
       var lid = Utilities.getUuid().slice(0, 8), stamp = Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm');
-      smsLogSheet_().appendRow([lid, stamp, key, hotel, room, String(v[3] || ''), '소유주알림', to, '대기', '', '']);
-      sent[key + '|소유주알림'] = '대기'; if (dk) sent[dk] = '대기';
+      smsLogSheet_().appendRow([lid, stamp, key, hotel, room, String(v[3] || ''), '소유주알림', to, '대기', '', '', no]);
+      [kk, nk, dk].forEach(function (k) { if (k) { sent[k] = '대기'; sent['t:' + k] = to; } });
       try { var sr = smsSendRaw_(to, txt, { col: 'log:' + lid }); if (!(sr && sr.queued)) smsLogSet_(lid, '발송', ''); }
       catch (e) { smsLogSet_(lid, '실패', String(e && e.message || e).slice(0, 100)); }
     } catch (e) { }
@@ -3283,11 +3365,15 @@ function smsTest(pin, to) { checkPin_(pin); adminOnly_(); var r = smsSendRaw_(to
 function smsSend(pin, r, kind, preview) {   // 예약 화면 [문자]: 종류 목록·기록 / 문구 미리보기 / 즉시 발송 (관리자·매니저)
   checkPin_(pin);
   if (['admin', 'manager'].indexOf(CTX_.role) < 0) throw new Error('권한이 없습니다');
-  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), v = sh.getRange(r, 1, 1, 46).getValues()[0];
+  var sh = SpreadsheetApp.getActive().getSheetByName('예약'), v = sh.getRange(r, 1, 1, Math.min(sh.getMaxColumns(), 51)).getValues()[0];
   if (CTX_.role === 'manager') hotelOk_(v[1]);
-  if (!kind) {   // 이 예약에 쓸 수 있는 종류 + 보낸 기록
-    var key = smsResKey_(v), lg = SpreadsheetApp.getActive().getSheetByName('문자기록'), hist = [];
-    if (lg && lg.getLastRow() > 1) lg.getRange(2, 1, lg.getLastRow() - 1, 11).getValues().forEach(function (x) { if (x[2] === key) hist.push({ at: x[1] instanceof Date ? Utilities.formatDate(x[1], tz_(), 'yyyy-MM-dd HH:mm') : String(x[1]).slice(0, 16), kind: x[6], st: x[8], err: x[10] }); });
+  if (!kind) {   // 이 예약에 쓸 수 있는 종류 + 보낸 기록 (예약ID가 바뀌었어도 예약번호로 찾아 줍니다)
+    var key = smsResKey_(v), no = String(v[50] == null ? '' : v[50]).trim();
+    var lg = SpreadsheetApp.getActive().getSheetByName('문자기록'), hist = [];
+    if (lg && lg.getLastRow() > 1) lg.getRange(2, 1, lg.getLastRow() - 1, Math.min(lg.getMaxColumns(), 12)).getValues().forEach(function (x) {
+      if (x[2] !== key && !(no && String(x[11] == null ? '' : x[11]).trim() === no)) return;
+      hist.push({ at: x[1] instanceof Date ? Utilities.formatDate(x[1], tz_(), 'yyyy-MM-dd HH:mm') : String(x[1]).slice(0, 16), kind: x[6], st: x[8], err: x[10], to: String(x[7] || '') });
+    });
     var lrC = sh.getLastRow(), allC = lrC > 1 ? sh.getRange(2, 1, lrC - 1, 46).getValues() : [];
     var cont = { prev: contPrev_(v, allC), next: String(v[43] || '').trim().toUpperCase() === 'Y' };   // 연속예약이면 화면에 알려 줌
     return { kinds: smsKinds_(v), hist: hist, to: v[4], cont: cont };
@@ -3591,6 +3677,12 @@ function saveRowsRun_(name, items) {
       }
       savedRows.push(r);
       var oldTel = (name === '예약' && allVals[r - 1]) ? telKey_(allVals[r - 1][4]) : '';   // 고치기 전 연락처 (주소록 넣기 판단용)
+      // 손님 실번호(010…)가 안심번호(050…)로 되돌아가지 않게 — 자동등록·메일·알림이 나중에 와도 실번호를 지킵니다.
+      // (비우는 것은 그대로 둡니다 — 일부러 050으로 바꾸려면 먼저 비우고 저장한 뒤 넣으세요)
+      if (name === '예약' && it.v[5] !== undefined && telReal_(oldTel) && telSafe_(it.v[5])) {
+        delete it.v[5];
+        try { codeLog_('번호 지킴', '', '', allVals[r - 1][1] + ' ' + allVals[r - 1][2] + '호 ' + String(allVals[r - 1][3] || '') + ' — 안심번호로 바꾸려는 것을 막음 (' + r + '행)'); } catch (e) { }
+      }
       Object.keys(it.v).forEach(function (k) {
         var col = +k;
         if (def.edit.indexOf(col) < 0) return;           // 자동 계산 열은 쓰지 않음
@@ -5140,7 +5232,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-27.452c63d0';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-27.76b00eea';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
@@ -5459,24 +5551,31 @@ function occScan_(hotel, from, to) {
   ov.forEach(function (x) { if (x[1] === hotel && String(x[29] || '').trim().toUpperCase() === 'Y') selfUse[String(x[2]).trim()] = 1; });
   // 날짜 글자 바꾸기(Utilities.formatDate)는 느려서, 날마다 다시 하지 않고 미리 한 번만 해 둡니다
   var rooms = ov.filter(function (x) { return x[1] === hotel && String(x[2]).trim() !== '' && !/^\s*대체객실/.test(String(x[2])) && String(x[13] || '').trim().toUpperCase() !== 'N' && !selfUse[String(x[2]).trim()]; })
-    .map(function (x) { return { s: mailYmd_(x[14]), e: mailYmd_(x[15]) }; });
+    .map(function (x) { return { rm: String(x[2]).trim(), s: mailYmd_(x[14]), e: mailYmd_(x[15]) }; });
   var res = svals_('예약', 24).filter(function (v) {
     return v[1] === hotel && v[6] && v[7] && !v[23] && !/^\s*대체객실/.test(String(v[2])) && !selfUse[String(v[2]).trim()]; })
-    .map(function (v) { return { ci: mailYmd_(v[6]), co: mailYmd_(v[7]), rm: String(v[2]) }; })
+    .map(function (v) { return { ci: mailYmd_(v[6]), co: mailYmd_(v[7]), rm: String(v[2]).trim() }; })
     .filter(function (q) { return q.co > from && q.ci <= to; });   // 기간에 걸치는 예약만
   var out = [], d = from, guard = 0;
   while (d <= to && guard++ < 800) {
-    var n = 0, i;
-    for (i = 0; i < rooms.length; i++) { var rr = rooms[i]; if ((!rr.s || rr.s <= d) && (!rr.e || rr.e >= d)) n++; }
-    var b = 0, seen = {};
+    var b = 0, seen = {}, i;
     for (i = 0; i < res.length; i++) { var q2 = res[i]; if (q2.ci <= d && d < q2.co && !seen[q2.rm]) { seen[q2.rm] = 1; b++; } }
+    // 그날 쓰는 객실을 세면서 **예약이 없는 호실(공실)을 함께 모읍니다** — 몇 실 남았는지보다 '어느 방'이 남았는지가 바로 쓸 정보입니다
+    var n = 0, free = [];
+    for (i = 0; i < rooms.length; i++) { var rr = rooms[i]; if ((!rr.s || rr.s <= d) && (!rr.e || rr.e >= d)) { n++; if (!seen[rr.rm]) free.push(rr.rm); } }
+    free.sort(function (a, b2) { return (+a || 0) - (+b2 || 0) || String(a).localeCompare(String(b2)); });
     var pct = n ? Math.round(b * 1000 / n) / 10 : 0;
     var left = Math.max(0, n - b);
-    out.push({ d: d, rooms: n, booked: b, left: left, pct: pct,
+    out.push({ d: d, rooms: n, booked: b, left: left, pct: pct, free: free,
       level: n && !left ? '만실' : pct >= 90 ? '만실 임박' : pct >= 80 ? '만실 주의' : '' });   // 남은 방이 없으면 '임박'이 아니라 '만실'
     d = notiAdd_(d, 1);
   }
   return out;
+}
+function occFree_(x, max) {   // '공실 1913 · 2001호' (너무 많으면 앞의 몇 개만)
+  var f = (x && x.free) || []; if (!f.length) return '';
+  max = max || 8;
+  return '공실 ' + f.slice(0, max).join(' · ') + '호' + (f.length > max ? ' 외 ' + (f.length - max) + '실' : '');
 }
 function occCheck(pin, hotel, days) {   // 화면: 앞으로 N일 중 80% 넘는 날만
   checkPin_(pin); hotelOk_(hotel);
@@ -5548,7 +5647,9 @@ function occTick() {   // 매일 아침: 새로 80%·90%를 넘은 날만 문자
         if (!x.level) return;
         var k = h + '|' + x.d + '|' + x.level; keep[k] = 1;
         if (done[k]) return;
-        add.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' · ' + x.level + ' (' + x.booked + '/' + x.rooms + '실 ' + x.pct + '% · 남은 방 ' + x.left + ')');
+        var fr = occFree_(x);
+        add.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' · ' + x.level + ' (' + x.booked + '/' + x.rooms + '실 ' + x.pct + '% · 남은 방 ' + x.left + ')'
+          + (fr ? '\n    → ' + fr : ''));
       });
     });
     p.setProperty('OCC_SENT', JSON.stringify(keep));   // 지난 날짜는 저절로 빠짐
@@ -5861,7 +5962,9 @@ function briefData_() {
     var hs = hl > 1 ? ht.getRange(2, 2, hl - 1, 1).getValues().map(function (x) { return String(x[0] || '').trim(); }).filter(String) : [];
     hs.forEach(function (h) {
       occScan_(h, today, notiAdd_(today, 14)).forEach(function (x) {
-        if (x.level) d.full.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' ' + x.level + ' (' + x.pct + '% · 남은 방 ' + x.left + ')');
+        if (!x.level) return;
+        var fr = occFree_(x);
+        d.full.push(h + ' ' + x.d.slice(5).replace('-', '/') + ' ' + x.level + ' (' + x.pct + '% · 남은 방 ' + x.left + ')' + (fr ? ' · ' + fr : ''));
       });
     });
   } catch (e) { d.err.push('만실: ' + (e && e.message || e)); }
