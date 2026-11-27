@@ -4913,6 +4913,20 @@ function notiReg_(ctx, it, at) {
     return { result: '정보 채움', hotel: v[1], room: v[2], changed: true };
   }
   var cx = no ? mailFind_(ctx, function (v) { return v[23] && hasNo(v); }) : null;
+  // 예약번호가 없는 짧은 요약 알림이라도, 같은 호텔·호실·날짜·이름의 '최근 취소된' 예약이 있으면
+  // 새 줄을 만들지 않고 그 줄을 되살립니다. (2026-11-27 이은빈: 취소했다 다시 잡은 2001·2003이
+  //  요약 알림으로 다시 들어와 '취소 한 줄 + 예약 한 줄'이 호실마다 두 벌씩 생겼습니다)
+  if (!cx) {
+    var lo7 = Utilities.formatDate(new Date(+new Date(at) - 7 * 864e5), tz_(), 'yyyy-MM-dd');
+    cx = mailFind_(ctx, function (v) {
+      var cd0 = mailYmd_(v[23]); if (!cd0 || cd0 < lo7) return false;        // 오래전에 취소된 예약은 건드리지 않음
+      if (String(v[1]) !== pp.hotel || String(v[2]) !== it.room) return false;
+      if (mailYmd_(v[6]) !== it.ci || (it.co && mailYmd_(v[7]) && mailYmd_(v[7]) !== it.co)) return false;
+      if (String(v[10] || '') !== (pp.plat || '')) return false;
+      var a0 = String(v[3] || '').trim(), b0 = String(it.name || '').trim();
+      return !a0 || !b0 || nameEq(a0, b0);
+    });
+  }
   if (!cx) {
     var ov = mailOverlap_(ctx, pp.hotel, it.room, it.ci, it.co);
     if (ov) return { result: '자동등록 실패 · 중복예약(객실 겹침)', hotel: pp.hotel, room: it.room, warn: true,
@@ -4936,7 +4950,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-26.808ba4b6';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-27.18259158';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 
