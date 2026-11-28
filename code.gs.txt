@@ -3908,10 +3908,14 @@ function syncAirbnb_() {
   var nl = Math.max(cal.getLastRow() - 1, 0), links = nl ? cal.getRange(2, 1, nl, 8).getValues() : [];
   var byRoom = {}, okRoom = {}, errors = 0, ownRm = ownRooms_();
   // 달력 주소는 잠그기 전에 한꺼번에(동시에) 받아 옴 — 받는 동안 다른 저장이 막히지 않게
-  var jobs = [];
+  var jobs = [], urlAt = {}, dupUrl = [];
   links.forEach(function (l, i) {
     var hotel = String(l[0]).trim(), room = String(l[1]).trim(), url = String(l[3]).trim();
     if (!hotel || !room || !url || l[4] === 'N') return;
+    // 같은 iCal 주소가 **다른 호실**에 들어가 있으면 한쪽은 틀린 주소입니다 — 그 호실 예약이 줄줄이 '사라짐'으로 찍힙니다
+    var uk = url.replace(/[?&]t=[^&]*/, ''), key0 = hotel + '|' + room;
+    if (urlAt[uk] && urlAt[uk] !== key0) { var d0 = urlAt[uk] + ' ↔ ' + key0; if (dupUrl.indexOf(d0) < 0) dupUrl.push(d0); }
+    else if (!urlAt[uk]) urlAt[uk] = key0;
     jobs.push({ i: i, hotel: hotel, room: room, l: l, req: { url: url, muteHttpExceptions: true, followRedirects: true } });
   });
   var resps = [];
@@ -3928,7 +3932,10 @@ function syncAirbnb_() {
       if (res.getResponseCode() !== 200) throw new Error('응답 ' + res.getResponseCode());
       var own = String(j.l[7]).trim().toUpperCase() === 'Y' || !!ownRm[key];
       var evs = parseIcs_(res.getContentText()).filter(function (e) { return (e.code || /reserved/i.test(e.summary)) && e.ci && e.co && e.ci >= from; });
-      evs.forEach(function (e) { e.own = own; });
+      // 달력연결 「리스팅 이름(메모)」가 '… · 09'처럼 끝나면 그 글을 새 예약 비고에 붙입니다 —
+      // 그래야 호실 옆 (09) 숙소 번호가 **자동으로 들어온 예약에도** 보입니다 (전에는 손으로 적은 예약만 보였습니다)
+      var lnoL = String(j.l[2] || '').trim(), lnoOk = /·\s*[0-9A-Za-z]{1,3}\s*$/.test(lnoL) ? lnoL : '';
+      evs.forEach(function (e) { e.own = own; if (lnoOk) e.lno = lnoOk; });
       (byRoom[key] = byRoom[key] || []).push.apply(byRoom[key], evs);
       if (okRoom[key] !== false) okRoom[key] = true;
       msg = '예약 ' + evs.length + '건';
@@ -3989,7 +3996,8 @@ function syncAirbnb_() {
         return ['AB-' + (n.e.code || Utilities.getUuid().slice(0, 8)), n.h, n.r, '', n.e.phone4 ? '뒤4자리 ' + n.e.phone4 : '', '', parseDate_(n.e.ci), parseDate_(n.e.co)];
       }));
       rv.getRange(r0, 10, fresh.length, 2).setValues(fresh.map(function () { return [2, 'ABNB']; }));
-      rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function () { return ['에어비앤비 달력 자동등록 · 이름·인원 확인']; }));   // '자동등록'이 들어가야 화면의 자동등록 칩·목록에 잡힘
+      rv.getRange(r0, 22, fresh.length, 1).setValues(fresh.map(function (n) {   // '자동등록'이 들어가야 화면의 자동등록 칩·목록에 잡힘
+        return ['에어비앤비 달력 자동등록 · 이름·인원 확인' + (n.e.lno ? ' / ' + n.e.lno : '')]; }));
       rv.getRange(r0, 28, fresh.length, 2).setValues(fresh.map(function (n) { return [n.e.code, '달력에서 추가 ' + stamp]; }));
       rv.getRange(r0, 37, fresh.length, 1).setValues(fresh.map(function (n) { return [n.e.own ? 'Y' : '']; }));
       // 등록시각·방막기 확인은 따로따로 — 한쪽이 막혀도 다른 쪽은 들어가게 하고, 왜 막혔는지 남깁니다.
@@ -4010,12 +4018,20 @@ function syncAirbnb_() {
       applyOwnRooms_(rv);   // 본인계정 전용 객실: 판매·입금 0
       try { syncInbox_(fresh); } catch (e) { }   // 문자함에 '달력 자동등록' 알림 (실패해도 저장은 그대로)
     }
+    // ── '달력에서 사라짐' 판정 ────────────────────────────────────────────
+    // 달력이 **예약 0건**을 돌려주면 "전부 사라졌다"보다 **주소가 잘못됐을 가능성**이 훨씬 큽니다.
+    // 2026-11-28 마리나베이 544호: 달력연결에 551호와 **같은 iCal 주소**가 들어가 있었고 그 달력은 0건이라,
+    // 멀쩡한 11/28·12/31 예약 두 건이 「사라짐」으로 찍혔습니다. 그래서 0건인 호실은 판정을 보류하고 알립니다.
+    var zero = [];
     for (var q = 1; q < vals.length; q++) {
       var w = vals[q]; if (!w[27] || w[23]) continue;
-      if (okRoom[w[1] + '|' + String(w[2])] !== true || fmt_(w[6]) < today || seen[String(w[27])]) continue;
+      var wk = w[1] + '|' + String(w[2]).trim();
+      if (okRoom[wk] !== true || fmt_(w[6]) < today || seen[String(w[27])]) continue;
+      if (!(byRoom[wk] || []).length) { if (zero.indexOf(wk) < 0) zero.push(wk); continue; }   // 0건 달력 → 보류
       if (String(w[28]).indexOf('취소 확인') < 0) rv.getRange(q + 1, 29).setValue('달력에서 사라짐 · 취소 확인 필요 ' + stamp);
       flagged++;
     }
+    try { if (zero.length || dupUrl.length) syncWarn_(zero, dupUrl, stamp); } catch (e) { }
     SpreadsheetApp.flush();
     var fixed = 0; try { fixed = syncFix_(); } catch (e) { }   // 등록시각·방막기가 빠진 달력 예약을 스스로 고침
     return { added: added, updated: updated, linked: linked, flagged: flagged, rooms: Object.keys(byRoom).length, errors: errors, stamp: stamp, fixed: fixed, warn: warn };
@@ -4048,6 +4064,25 @@ function syncFix_() {
 // 반드시 손이 가야 하는데, 전에는 아무 알림도 없어서 들어온 줄 모르고 넘어갈 수 있었습니다.
 // (번호 자리에 '달력'을 넣어 한 묶음으로 모임 — 알림·메일 '자동등록 경고'와는 따로)
 var SYNC_INBOX_NUM_ = '달력';
+// 달력 주소가 잘못돼 보일 때 문자함에 알립니다 — 같은 날 한 번만(SYNC_WARN_ 날짜로 가늠)
+function syncWarn_(zero, dupUrl, stamp) {
+  var p = PropertiesService.getScriptProperties(), day = String(stamp || '').slice(0, 10);
+  var sig = day + '|' + zero.join(',') + '|' + dupUrl.join(',');
+  if (p.getProperty('SYNC_WARN_') === sig) return;   // 한 시간마다 돌므로 같은 내용은 하루 한 번만
+  p.setProperty('SYNC_WARN_', sig);
+  var lines = ['[달력 주소 확인] 달력에서 예약을 못 찾았습니다 — 예약을 지우지 말고 주소를 먼저 봐 주세요'];
+  if (dupUrl.length) {
+    lines.push('■ 같은 iCal 주소가 두 호실에 들어가 있습니다 (한쪽이 틀린 주소입니다)');
+    dupUrl.slice(0, 8).forEach(function (x) { lines.push('  · ' + x.replace(/\|/g, ' ')); });
+  }
+  if (zero.length) {
+    lines.push('■ 달력이 예약 0건인데 장부에는 달력 예약이 살아 있는 호실');
+    zero.slice(0, 12).forEach(function (x) { lines.push('  · ' + x.replace('|', ' ') + '호'); });
+    lines.push('→ 「달력에서 사라짐」을 찍지 않고 보류했습니다. 관리 → 달력연결에서 그 호실의 iCal 주소를 다시 복사해 주세요.');
+  }
+  inboxSheet_().appendRow([Utilities.getUuid().slice(0, 8), Utilities.formatDate(new Date(), tz_(), 'yyyy-MM-dd HH:mm:ss'),
+    '알림', SYNC_INBOX_NUM_, lines.join('\n'), '', '', '', '', '달력 주소 확인']);
+}
 function syncInbox_(fresh) {
   if (!fresh || !fresh.length) return;
   var d = function (s) { s = String(s || ''); return s.length >= 10 ? (+s.slice(5, 7)) + '/' + (+s.slice(8, 10)) : s; };
@@ -5232,7 +5267,7 @@ function notiReg_(ctx, it, at) {
 // 한 번만 해 둘 일: ① script.google.com/home/usersettings → 「Google Apps Script API」 사용 켜기
 //                  ② 프로젝트 설정 → appsscript.json 표시 → oauthScopes 넣기   ③ codeSetup() 한 번 실행
 // 끈 상태로 두려면 스크립트 속성 CODE_AUTO = N. 되돌리려면 codeRollback() (최근 백업으로).
-var CODE_VER = '2026-11-27.76b00eea';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
+var CODE_VER = '2026-11-28.e9929f94';   // 서버 코드 버전 — 올릴 때마다 바뀜 (이 값이 다르면 업데이트)
 var CODE_URL_ = 'https://beautifulsokcho.github.io/pms/code.gs.txt';
 var CODE_RE_ = /var CODE_VER = '(\d{4}-\d\d-\d\d[^']*)';/;   // 코드 안의 버전 표시 찾기
 

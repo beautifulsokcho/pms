@@ -205,6 +205,12 @@ tr.dirty td{background:var(--hold-soft)}
 .restable tr.cx td{color:var(--muted);text-decoration:line-through}
 .restable .memo{color:var(--hold);white-space:normal;min-width:140px}
 .conf-list{display:grid;gap:6px;margin:10px 0}
+.dtbl{border-collapse:collapse;margin:4px 0 0;font-size:12px;width:100%}
+.dtbl td{padding:1px 5px;vertical-align:top;border-top:1px solid #e6eaec}
+.dtbl td:first-child{color:#555;white-space:nowrap}
+.dtbl td.o{color:#999;text-decoration:line-through}
+.dtbl td.a{color:#888;text-align:center;width:1em}
+.dtbl td.n{font-weight:700}
 .conf-list div{background:var(--warn-soft);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13.5px}
 .chkrow{display:flex;flex-wrap:wrap;gap:2px 18px}
 .chkrow .chk{padding-bottom:2px}
@@ -555,7 +561,7 @@ body.wide{--pw:min(2600px,100%)}
 <div id="toast" class="toast" hidden></div>
 
 <script>var DEMO=null;/*DEMO_DATA*/</script>
-<script>var APP_VER='2026-11-27e';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
+<script>var APP_VER='2026-11-28a';   // 화면 버전 (업데이트할 때마다 바뀜) — 아래 감시: 10초 안에 앱이 시작되지 않으면 원인 안내
 setTimeout(function(){if(window.__booted)return;var st=document.getElementById('status');if(st)st.textContent='화면 오류';
   var d=document.createElement('div');d.style.cssText='margin:16px;padding:16px;border:2px solid #d33;border-radius:10px;background:#fff;color:#111;font-size:15px;line-height:1.6';
   d.innerHTML='<b>앱 화면을 시작하지 못했습니다.</b><br>관리자: Apps Script의 <b>Index.html</b>에 최신 파일 <b>전체</b>를 붙여넣었는지 확인하고, 배포 관리 → 연필 → 「새 버전」으로 다시 배포해 주세요.<br><small>화면 버전 '+APP_VER+'</small>';
@@ -2223,11 +2229,12 @@ function cancelItems(list){var t=ymd(new Date());
   return list.map(function(r){return {r:r.r,v:{24:t,22:(r.v[R.note]?r.v[R.note]+' / ':'')+'새 예약과 겹쳐 취소 '+t}}})}
 // 비고의 놀·놀호텔·떠나요 예약번호
 function lnoOf(note){var m=String(note||'').match(/·\s*([0-9A-Za-z]{1,3})\s*(?:\/|$)/);return m?m[1].toUpperCase():''}   // 비고의 '… · 07' → 리스팅 번호 (호실 옆 (07)로 표시)
-var LNO={src:null,map:{}};
-function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d||LNO.rsrc!==S['객실']){LNO.src=d;LNO.rsrc=S['객실'];LNO.room=null;LNO.map={};var best={};   // 호실마다 비고에 '· 07'이 있는 가장 최근 예약의 번호 → 그 호실의 모든 예약에 표시
+var LNO={src:null,map:{}};   // 호실 옆 (09) 숙소 번호 — 예약 비고 / 객실 비고 / 달력연결 리스팅 이름에서 읽음
+function roomLno(h,rm){var d=S['예약'];if(LNO.src!==d||LNO.rsrc!==S['객실']){LNO.src=d;LNO.rsrc=S['객실'];LNO.room=null;LNO.cal=null;LNO.map={};var best={};   // 호실마다 비고에 '· 07'이 있는 가장 최근 예약의 번호 → 그 호실의 모든 예약에 표시
     rows('예약').forEach(function(r){var n=lnoOf(r.v[R.note]);if(!n)return;var k=r.v[R.hotel]+'|'+r.v[R.room],ci=String(r.v[R.ci]||'');if(!best[k]||ci>best[k]){best[k]=ci;LNO.map[k]=n}})}
   if(!LNO.room){LNO.room={};rows('객실').forEach(function(r){var n=lnoOf(r.v[16]);if(n)LNO.room[r.v[1]+'|'+r.v[2]]=n})}   // 관리 → 객실 비고 끝에 '· 07'을 적어도 됨
-  return LNO.map[h+'|'+rm]||LNO.room[h+'|'+rm]||''}
+  if(!LNO.cal){LNO.cal={};rows('달력연결').forEach(function(r){var n=lnoOf(r.v[2]);if(n&&!LNO.cal[r.v[0]+'|'+r.v[1]])LNO.cal[r.v[0]+'|'+r.v[1]]=n})}   // 달력연결 「리스팅 이름」 끝에 '· 09'를 적으면 그 호실에 쓰임
+  return LNO.map[h+'|'+rm]||LNO.room[h+'|'+rm]||LNO.cal[h+'|'+rm]||''}
 function lnoOn(h){var x=rows('호텔').find(function(r){return r.v[1]===h});return !!(x&&String(x.v[23]||'').trim().toUpperCase()==='Y')}   // 호텔 24열: 호실 옆에 리스팅 번호를 붙일 호텔 (마리나베이)
 // 비고 끝의 '· 07' 같은 글이 리스팅 번호가 아닌 경우도 있어(써밋베이 623(15)·705(23)·1003(18)),
 // 리스팅 번호로 호실을 가려 쓰는 호텔에서만 붙입니다.
@@ -2297,6 +2304,46 @@ function updItem(y){var d0=dupOf(y),vals={};
     var yno=resNo(y.note);if(yno&&!resNoV(d0.v))vals[51]=yno;   // 예약번호가 비어 있으면 채움 (51열)
     var yn=toResRow(y)[R.note];if(yn&&(String(d0.v[R.note]||'').indexOf(yn)<0||(y.lno&&lnoOf(d0.v[R.note])!==String(y.lno).toUpperCase())))vals[22]=(d0.v[R.note]?d0.v[R.note]+' / ':'')+(y.lno&&String(d0.v[R.note]||'').indexOf(yn)>=0?'· '+y.lno:yn);   // 숙소 번호(· 07)가 없으면 꼭 붙임
   return {r:d0.r,v:vals}}
+// ── 기존 예약에 반영하기 전에 **무엇이 바뀌는지** 보여 줍니다 (사용자 요청) ──
+var UPDLAB={2:'호텔',3:'호실',4:'고객명',5:'연락처',6:'예약일',7:'입실일',8:'퇴실일',10:'인원',11:'플랫폼',
+  12:'판매금액',15:'입금금액(수동)',22:'비고',24:'취소일',28:'예약코드',31:'반려견',37:'본인계정',
+  42:'본인계정 입금액',43:'→ 정산 호실',44:'청소안함',51:'예약번호',52:'방막기 확인'};
+var UPD_DATE=[6,7,8,24],UPD_MONEY=[12,15,42];
+function updNorm(c,x){   // 견줄 수 있게 고르기 — 날짜는 yyyy-MM-dd, 금액은 숫자만
+  if(x===''||x===null||x===undefined)return '';
+  if(UPD_DATE.indexOf(c)>=0)return ymd2(x);
+  if(UPD_MONEY.indexOf(c)>=0){var n=Number(String(x).replace(/[^0-9.-]/g,''));return isNaN(n)?String(x):String(n)}
+  return String(x).trim()}
+function updShow(c,x){   // 사람이 보는 모양
+  if(x===''||x===null||x===undefined)return '(빈칸)';
+  if(UPD_DATE.indexOf(c)>=0)return ymd2(x)+(md(x)?' '+md(x).replace(/^\d+\/\d+/,''):'');
+  if(UPD_MONEY.indexOf(c)>=0){var n=Number(String(x).replace(/[^0-9.-]/g,''));return isNaN(n)?String(x):(won(n)||'0')+'원'}
+  var s=String(x).trim();return s.length>70?s.slice(0,70)+'…':s}
+function updDiff(it){   // {r,v} → 실제로 달라지는 칸만 [{c,lab,from,to}]
+  var d=rows('예약').find(function(x){return x.r===it.r});if(!d)return [];
+  var out=[];
+  Object.keys(it.v).forEach(function(k){var c=+k,a=d.v[c-1],b=it.v[k];
+    if(updNorm(c,a)===updNorm(c,b))return;
+    out.push({c:c,lab:UPDLAB[c]||('열 '+c),from:updShow(c,a),to:updShow(c,b)})});
+  out.sort(function(a,b){return a.c-b.c});
+  return out}
+function updAsk(list){   // list=[{d,diff}] — [돌아가기]/[반영]
+  var n=list.length,any=list.some(function(o){return o.diff.length});
+  return new Promise(function(res){var root=$('#confirmRoot');
+    root.innerHTML='<div class="modal-bg" style="z-index:40"><div class="modal" role="alertdialog" aria-modal="true"><h3>기존 예약에 반영할 내용'+(n>1?' ('+n+'건)':'')+'</h3>'+
+      '<div class="conf-list">'+list.map(function(o){var v=o.d.v;
+        return '<div><b>'+esc(v[R.hotel])+' '+esc(roomLab(v))+'호 '+md(v[R.ci])+' → '+md(v[R.co])+'</b> · '+esc(v[R.plat]||'ABNB')+' · '+esc(v[R.name]||'(이름 없음)')+
+          (o.diff.length?'<table class="dtbl">'+o.diff.map(function(x){
+            return '<tr><td>'+esc(x.lab)+'</td><td class="o">'+esc(x.from)+'</td><td class="a">→</td><td class="n">'+esc(x.to)+'</td></tr>'}).join('')+'</table>'
+            :'<div class="note" style="margin:2px 0 0">바뀌는 것이 없습니다 — 눌러도 그대로입니다.</div>')+'</div>'}).join('')+'</div>'+
+      '<p class="note">적힌 칸만 바뀝니다. <b>비고는 지우지 않고 뒤에 덧붙입니다.</b> 적히지 않은 칸(메모·수건·물·정산 조정 등)은 그대로 둡니다.</p>'+
+      '<div class="actions"><button class="btn" type="button" id="udNo">돌아가기</button><button class="btn '+(any?'pri':'')+'" type="button" id="udYes">'+(n>1?n+'건 ':'')+'반영</button></div></div></div>';
+    var done=function(v){root.innerHTML='';res(v)};
+    $('#udNo').onclick=function(){done(false)};$('#udYes').onclick=function(){done(true)}})}
+function updAskFor(items){   // updItem 결과 목록 → 요약 창 (바꿀 것이 하나도 없어도 보여 줍니다)
+  var list=items.map(function(it){var d=rows('예약').find(function(x){return x.r===it.r});return d?{d:d,diff:updDiff(it)}:null}).filter(Boolean);
+  if(!list.length)return Promise.resolve(true);
+  return updAsk(list)}
 function cxIdx(){var a=[];PASTE.forEach(function(x,i){if(x.cancel&&dupOf(x))a.push(i)});return a}   // 취소 문구인데 살아 있는 예약이 있는 카드
 function cxAllAsk(list){   // 엑셀처럼 여러 건이 한꺼번에 올 때: 한 번에 취소
   return new Promise(function(res){var root=$('#confirmRoot');
@@ -2512,9 +2559,10 @@ $('#pasteOut').addEventListener('click',function(e){
   var u=e.target.closest('[data-p=upd]');if(u){var k=+u.closest('.pitem').dataset.i,y=PASTE[k],it=updItem(y),mv=it.v[3]!==undefined;
     var ov=mv?overlaps({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co},it.r):[];
     u.disabled=true;
-    (ov.length?conflictAsk({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co,name:y.name},ov):Promise.resolve(true)).then(function(ok){if(!ok){u.disabled=false;return}
+    updAskFor([it]).then(function(okd){if(!okd){u.disabled=false;return}
+    return (ov.length?conflictAsk({hotel:y.hotel,room:y.room,ci:y.ci,co:y.co,name:y.name},ov):Promise.resolve(true)).then(function(ok){if(!ok){u.disabled=false;return}
     call('saveRows','예약',[it].concat(cancelItems(ov))).then(function(d){S['예약']=d;PASTE.splice(k,1);if(!PASTE.length)$('#pasteIn').value='';renderPaste();renderRecent();renderRes();
-      toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다'+(mv?' (호실 옮김)':''))}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))})});return}
+      toast(y.hotel+' '+y.room+'호 '+md(y.ci)+' 예약에 '+y.plat+' 정보를 반영했습니다'+(mv?' (호실 옮김)':''))}).catch(function(err){u.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))})})});return}
   if(e.target.id==='pCxAll'){var cb=e.target,cl=cxIdx().map(function(i){return PASTE[i]});if(!cl.length)return;
     cxAllAsk(cl).then(function(ok){if(!ok)return;cb.disabled=true;var t=ymd(new Date());
       var its=cl.map(function(x){var r=dupOf(x),dt=x.cxDate||t;
@@ -2529,7 +2577,14 @@ $('#pasteOut').addEventListener('click',function(e){
     var upd=(mode!=='pSaveAll')?updIdx().map(function(i){return PASTE[i]}):[];
     var go=(mode!=='pUpdAll')?PASTE.filter(function(x){return !pasteIssues(x).length}):[];
     if(!upd.length&&!go.length)return;btn.disabled=true;
-    var items=upd.map(updItem),pvx=[];
+    var items=upd.map(updItem);
+    // 기존 예약에 반영할 것이 있으면 **무엇이 바뀌는지 먼저 보여 줍니다**
+    if(items.length){updAskFor(items).then(function(okd){if(!okd){btn.disabled=false;return}pUpdGo(mode,btn,upd,go,items)})}
+    else pUpdGo(mode,btn,upd,go,items);
+    return}
+});
+function pUpdGo(mode,btn,upd,go,items){
+    var pvx=[];
     items=items.concat(go.map(function(x){var v=toResRow(x),vals={},cx=cxOf(x);v[R.id]=cx?cx.v[R.id]:newId();contPrevRows(v).forEach(function(r){if(pvx.indexOf(r)<0)pvx.push(r)});
       [1,2,3,4,5,6,7,8,10,11,12,15,18,22,23,24,30,31,32,28,33,37,38,39,41,42,43,44,48,51].forEach(function(c){vals[c]=v[c-1]});
       if(x.xls&&blkNeed(x.hotel,x.ci))vals[52]='확인필요';   // 엑셀로 새로 들어온 예약도 다른 플랫폼 방막기 확인 (지난 예약·안 쓰는 호텔은 빼고)
@@ -2542,8 +2597,7 @@ $('#pasteOut').addEventListener('click',function(e){
       var msg=[go.length?'새 예약 '+go.length+'건 저장':'',upd.length?'기존 예약 '+upd.length+'건 반영':''].filter(Boolean).join(' · ');
       if(go.length)savedToast(msg,d,go[0]);else toast(msg)})
       .catch(function(err){btn.disabled=false;toast('저장하지 못했습니다: '+(err&&err.message||err))});
-    return}
-});
+}
 
 // ───────── 청소배정 ─────────
 var CS={},CMEMO={},CNOTE={};   // 저장 버튼을 누르기 전까지 화면에서 고친 값 (담당자·이불 / 예약 메모 / 공지)
